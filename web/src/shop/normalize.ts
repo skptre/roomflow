@@ -67,8 +67,11 @@ function cleanTags(tags: readonly string[]): string[] {
   return [...out]
 }
 
+/** Photos render in the page: only https ones are kept (a bad one is dropped, not fatal). */
+const https = (src: string | undefined) => (src?.startsWith('https://') ? src : undefined)
+
 function variantImage(product: ShopifyProduct, variant: ShopifyVariant): string | undefined {
-  return variant.featured_image?.src ?? product.images.find((image) => image.variant_ids?.includes(variant.id))?.src ?? product.images[0]?.src
+  return https(variant.featured_image?.src) ?? https(product.images.find((image) => image.variant_ids?.includes(variant.id))?.src) ?? https(product.images[0]?.src)
 }
 
 export function normalizeProduct(raw: ShopifyProduct, store: StoreInfo): NormalizeResult {
@@ -81,7 +84,7 @@ export function normalizeProduct(raw: ShopifyProduct, store: StoreInfo): Normali
   const isDefault = raw.variants.length === 1 && raw.variants[0]!.title === DEFAULT_TITLE
   const options = isDefault ? [] : [...raw.options].sort((a, b) => a.position - b.position)
   const productUrl = `https://${store.domain}/products/${raw.handle}`
-  const productImage = raw.images[0]?.src
+  const productImage = https(raw.images[0]?.src)
   const kind = sizeKind(category)
   const described = plausible(parseOverallDimensions(stripHtml(raw.body_html ?? ''))) ?? {}
   // Furniture names often state the width ("Sofa 86\"", "Aspen 39\" Modular Corner").
