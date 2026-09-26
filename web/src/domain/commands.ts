@@ -3,25 +3,35 @@
  * manipulation, the catalog, themes, or (later) AI proposals — is a list of
  * commands applied atomically: all succeed or the room is left unchanged.
  */
+import { z } from 'zod'
 import { blocksFloor, clampIntoRoom, footprintsOverlap, insideRoom } from './geometry'
-import { Finishes, RoomObject, type Room, type Vec2 } from './schema'
+import { Finishes, RoomObject, Vec2, type Room } from './schema'
 import { normalizeYaw } from './units'
 
 /** Who asked for the change. Automated changes must respect keep and lock. */
 export type Actor = 'user' | 'auto'
 
 /** Everything about an object that a replacement supplies; id and pose stay with the placement. */
-export type Replacement = Omit<RoomObject, 'id' | 'pose'>
+export const Replacement = RoomObject.omit({ id: true, pose: true })
+export type Replacement = z.infer<typeof Replacement>
 
-export type Command =
-  | { type: 'add'; object: RoomObject }
-  | { type: 'move'; id: string; position: Vec2 }
-  | { type: 'rotate'; id: string; yaw: number }
-  | { type: 'remove'; id: string }
-  | { type: 'replace'; id: string; with: Replacement }
-  | { type: 'setKeep'; id: string; keep: boolean }
-  | { type: 'setLock'; id: string; lock: boolean }
-  | { type: 'restyle'; finishes: Finishes }
+const Id = z.string().min(1)
+
+/**
+ * Runtime shape of a command. Commands can come from generated or stored data,
+ * so every one is validated here before it touches a room.
+ */
+export const Command = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('add'), object: RoomObject }),
+  z.object({ type: z.literal('move'), id: Id, position: Vec2 }),
+  z.object({ type: z.literal('rotate'), id: Id, yaw: z.number() }),
+  z.object({ type: z.literal('remove'), id: Id }),
+  z.object({ type: z.literal('replace'), id: Id, with: Replacement }),
+  z.object({ type: z.literal('setKeep'), id: Id, keep: z.boolean() }),
+  z.object({ type: z.literal('setLock'), id: Id, lock: z.boolean() }),
+  z.object({ type: z.literal('restyle'), finishes: Finishes }),
+])
+export type Command = z.infer<typeof Command>
 
 export type CommandResult = { ok: true; room: Room; warnings: string[] } | { ok: false; error: string }
 
@@ -132,13 +142,14 @@ function applyOne(room: Room, command: Command, actor: Actor, warnings: string[]
     }
 
     case 'setKeep': {
-      if (typeof command.keep !== 'boolean') throw new CommandError('Invalid keep value.')
+      // Keep and lock are the user's instructions; automated changes may never lift them.
+      if (actor === 'auto') throw new CommandError('Only you can change what is kept.')
       const index = objectIndex(room, command.id)
       return withObject(room, index, { ...room.objects[index]!, keep: command.keep })
     }
 
     case 'setLock': {
-      if (typeof command.lock !== 'boolean') throw new CommandError('Invalid lock value.')
+      if (actor === 'auto') throw new CommandError('Only you can lock or unlock an item.')
       const index = objectIndex(room, command.id)
       return withObject(room, index, { ...room.objects[index]!, lockPlacement: command.lock })
     }
@@ -170,9 +181,19 @@ export function checkPlacement(room: Room, id: string, position: Vec2, yaw: numb
 /** Apply commands in order. Returns a new room; the input room is never mutated. */
 export function applyCommands(room: Room, commands: readonly Command[], actor: Actor): CommandResult {
   const warnings: string[] = []
+  const parsed: Command[] = []
+  for (const [index, command] of commands.entries()) {
+    const check = Command.safeParse(command)
+    if (!check.success) {
+      const issue = check.error.issues[0]!
+      const where = issue.path.length > 0 ? ` at ${issue.path.join('.')}` : ''
+      return { ok: false, error: `Change ${index + 1} isn't valid${where}: ${issue.message}` }
+    }
+    parsed.push(check.data)
+  }
   try {
     let next = room
-    for (const command of commands) next = applyOne(next, command, actor, warnings)
+    for (const command of parsed) next = applyOne(next, command, actor, warnings)
     return { ok: true, room: next, warnings }
   } catch (error) {
     if (error instanceof CommandError) return { ok: false, error: error.message }

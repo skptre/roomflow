@@ -126,6 +126,13 @@ describe('apply / undo / redo', () => {
     expect(store.getState().apply(add, { actor: 'auto', baseRevision: revision }).ok).toBe(true)
   })
 
+  it('returns a readable failure for a malformed command instead of throwing', () => {
+    const before = store.getState().committed
+    const result = store.getState().apply([{ type: 'bogus' } as never], { actor: 'user' })
+    expect(result.ok).toBe(false)
+    expect(store.getState().committed).toBe(before)
+  })
+
   it('a failed command changes nothing', () => {
     const state = store.getState()
     const result = state.apply([{ type: 'remove', id: 'nope' }], { actor: 'user' })

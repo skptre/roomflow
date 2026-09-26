@@ -73,6 +73,11 @@ const TEMPLATE_FOR_CATEGORY: Record<string, string> = {
   storage: 'dresser',
 }
 
+/** Lookup that ignores inherited keys: scan text like "constructor" must never match Object.prototype. */
+function own(table: Readonly<Record<string, string>>, key: string): string | undefined {
+  return Object.hasOwn(table, key) ? table[key] : undefined
+}
+
 const Finite = z.number() // Zod 4 rejects NaN and ±Infinity.
 const Transform = z.union([z.array(Finite).length(16), z.array(z.array(Finite).length(4)).length(4)])
 const Category = z.union([z.string(), z.record(z.string(), z.unknown())])
@@ -394,12 +399,12 @@ export function parseRoomPlanJson(text: string, options: ImportOptions = {}): Im
       continue
     }
     const raw = categoryName(surface.category)
-    const category = raw ? OBJECT_CATEGORIES[raw] : undefined
+    const category = raw ? own(OBJECT_CATEGORIES, raw) : undefined
     if (!category) unrecognized.add(raw ?? 'missing')
     if (isLowConfidence(surface.confidence)) lowConfidence += 1
 
     const pose = poseFromColumnMajor(flatten(surface.transform), height)
-    const templateId = category ? TEMPLATE_FOR_CATEGORY[category] : undefined
+    const templateId = category ? own(TEMPLATE_FOR_CATEGORY, category) : undefined
     const asset: AssetRef = templateId ? { kind: 'parametric', assemblyId: templateId } : { kind: 'placeholder' }
     const appCategory = category ?? 'unknown'
     objects.push({
