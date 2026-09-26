@@ -33,6 +33,10 @@ describe('Offer', () => {
     expect(parsed.data?.price).toBeNull()
   })
 
+  it('rejects a minor-unit price beyond the safe integer range', () => {
+    expect(Offer.safeParse({ ...offer, price: { amountMinor: 2 ** 53, currency: 'USD' } }).success).toBe(false)
+  })
+
   it('rejects a fractional minor-unit price', () => {
     expect(Offer.safeParse({ ...offer, price: { amountMinor: 10.5, currency: 'USD' } }).success).toBe(false)
   })

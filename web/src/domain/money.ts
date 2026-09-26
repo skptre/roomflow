@@ -71,18 +71,16 @@ export function subtotal(lines: readonly PurchaseLine[]): Subtotal {
 }
 
 /**
- * Whether the subtotal fits the budget. Only claims "under" when every counted
- * price is known and in the budget's currency; unknown prices can still prove
- * "over" because prices are never negative.
+ * Whether the subtotal fits the budget. Any unknown price, mixed currencies, or a
+ * budget in another currency makes the answer "unknown" — the app never states
+ * a budget conclusion while required costs are unresolved.
  */
 export function budgetStatus(sub: Subtotal, budget: Money | null): BudgetStatus {
   if (!budget) return 'no-budget'
   assertMoney(budget)
-  if (sub.status === 'mixed-currency') return 'unknown'
+  if (sub.status !== 'complete') return 'unknown'
   if (sub.total && sub.total.currency !== budget.currency) return 'unknown'
-  const known = sub.total?.amountMinor ?? 0
-  if (known > budget.amountMinor) return 'over'
-  return sub.status === 'complete' ? 'under' : 'unknown'
+  return (sub.total?.amountMinor ?? 0) > budget.amountMinor ? 'over' : 'under'
 }
 
 const formatters = new Map<string, Intl.NumberFormat>()

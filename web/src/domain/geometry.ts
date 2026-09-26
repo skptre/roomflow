@@ -154,26 +154,6 @@ function withPosition(pose: Pose, x: number, z: number): Pose {
   return { position: { x, y: pose.position.y, z }, yaw: pose.yaw }
 }
 
-/** Area centroid of a simple polygon (falls back to the vertex average for degenerate input). */
-function polygonCentroid(polygon: readonly Vec2[]): Vec2 {
-  let area = 0
-  let cx = 0
-  let cz = 0
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const a = polygon[j]!
-    const b = polygon[i]!
-    const cross = a.x * b.z - b.x * a.z
-    area += cross
-    cx += (a.x + b.x) * cross
-    cz += (a.z + b.z) * cross
-  }
-  if (Math.abs(area) < EPS) {
-    const n = polygon.length
-    return { x: polygon.reduce((sum, p) => sum + p.x, 0) / n, z: polygon.reduce((sum, p) => sum + p.z, 0) / n }
-  }
-  return { x: cx / (3 * area), z: cz / (3 * area) }
-}
-
 /**
  * Translate an object the shortest practical distance so its footprint is inside
  * the room. Yaw and size never change. Returns null when it cannot fit at this yaw.
@@ -194,21 +174,19 @@ export function clampIntoRoom(object: Placed, floorPolygon: readonly Vec2[]): Po
   const pushed = withPosition(object.pose, object.pose.position.x + dx, object.pose.position.z + dz)
   if (fit(pushed)) return pushed
 
-  // 2. Irregular rooms: slide toward the room's centroid and keep the first fitting spot.
-  const target = polygonCentroid(floorPolygon)
-  const at = (t: number) =>
-    withPosition(
-      object.pose,
-      object.pose.position.x + (target.x - object.pose.position.x) * t,
-      object.pose.position.z + (target.z - object.pose.position.z) * t,
-    )
-  if (!fit(at(1))) return null
-  let lo = 0
-  let hi = 1
-  for (let i = 0; i < 32; i++) {
-    const mid = (lo + hi) / 2
-    if (fit(at(mid))) hi = mid
-    else lo = mid
+  // 2. Irregular rooms: test a grid of positions over the room and keep the nearest fit.
+  const span = Math.max(room.maxX - room.minX, room.maxZ - room.minZ)
+  const step = Math.max(0.02, span / 200)
+  const candidates: Array<{ x: number; z: number; d: number }> = []
+  for (let x = room.minX; x <= room.maxX + EPS; x += step) {
+    for (let z = room.minZ; z <= room.maxZ + EPS; z += step) {
+      candidates.push({ x, z, d: Math.hypot(x - object.pose.position.x, z - object.pose.position.z) })
+    }
   }
-  return at(hi)
+  candidates.sort((a, b) => a.d - b.d)
+  for (const candidate of candidates) {
+    const pose = withPosition(object.pose, candidate.x, candidate.z)
+    if (fit(pose)) return pose
+  }
+  return null
 }
