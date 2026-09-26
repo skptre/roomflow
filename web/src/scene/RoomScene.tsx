@@ -6,7 +6,7 @@ import { useStore } from 'zustand'
 import { designStore, type PurchaseSources } from '../domain/designStore'
 import type { Room, Vec2 } from '../domain/schema'
 import { Architecture } from './Architecture'
-import { CameraRig } from './CameraRig'
+import { CameraRig, type ViewRequest } from './CameraRig'
 import { wallsToCut } from './cutaway'
 import { Effects } from './Effects'
 import { Lighting } from './Lighting'
@@ -21,11 +21,30 @@ function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>) {
 }
 
 /** The room canvas: dollhouse overview with cutaway walls. Renders on demand. */
-export function RoomScene({ room, sources }: { room: Room; sources: PurchaseSources }) {
+export function RoomScene({
+  room,
+  sources,
+  decorative = false,
+  viewRequest,
+  onInspect,
+}: {
+  room: Room
+  sources: PurchaseSources
+  decorative?: boolean
+  viewRequest?: ViewRequest
+  onInspect?: () => void
+}) {
+  const previewActive = useStore(designStore, (state) => state.preview !== null)
   const selectedId = useStore(designStore, (state) => state.selectedId)
   const hoveredId = useStore(designStore, (state) => state.hoveredId)
   const onHover = useCallback((id: string | null) => designStore.getState().hover(id), [])
-  const onSelect = useCallback((id: string) => designStore.getState().select(id), [])
+  const onSelect = useCallback(
+    (id: string) => {
+      designStore.getState().select(id)
+      onInspect?.()
+    },
+    [onInspect],
+  )
   const reducedMotion = useReducedMotion() ?? false
   const [cut, setCut] = useState<ReadonlySet<string>>(() => new Set())
   const { radius } = roomSphere(room)
@@ -57,9 +76,12 @@ export function RoomScene({ room, sources }: { room: Room; sources: PurchaseSour
       gl={{ antialias: false }}
       camera={{ fov: 35, position: [6, 6, 6] }}
       scene={{ environmentIntensity: 0.35 }}
-      onPointerMissed={() => designStore.getState().select(null)}
+      onPointerMissed={() => {
+        if (!decorative) designStore.getState().select(null)
+      }}
+      aria-label={decorative ? undefined : '3D room preview. Use the furniture list for keyboard editing.'}
+      aria-hidden={decorative || undefined}
     >
-      <color attach="background" args={[palette.background]} />
       <Selection>
         <Lighting room={room} />
         <Architecture room={room} cut={cut} reducedMotion={reducedMotion} />
@@ -67,8 +89,9 @@ export function RoomScene({ room, sources }: { room: Room; sources: PurchaseSour
           <FurnitureObject
             key={object.id}
             object={object}
-            selected={object.id === selectedId}
-            hovered={object.id === hoveredId}
+            editable={!decorative && !previewActive}
+            selected={!decorative && object.id === selectedId}
+            hovered={!decorative && object.id === hoveredId}
             sources={sources}
             reducedMotion={reducedMotion}
             onHover={onHover}
@@ -80,7 +103,7 @@ export function RoomScene({ room, sources }: { room: Room; sources: PurchaseSour
           <circleGeometry args={[radius * 4, 64]} />
           <shadowMaterial color={palette.shadow} opacity={0.22} />
         </mesh>
-        <CameraRig room={room} onViewChange={onViewChange} />
+        <CameraRig room={room} onViewChange={onViewChange} viewRequest={viewRequest} />
         <Effects />
       </Selection>
     </Canvas>

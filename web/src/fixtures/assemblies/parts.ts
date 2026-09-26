@@ -44,7 +44,7 @@ export const c = {
   cream: '#e3d8c6',
   sand: '#d2c1a6',
   charcoal: '#595b61',
-  sage: '#9fae96',
+  sage: '#c6b49e',
   clay: '#c27b58',
   rust: '#a85f42',
   ink: '#34373d',
