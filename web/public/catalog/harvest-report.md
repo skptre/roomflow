@@ -1,7 +1,7 @@
 # Catalog harvest report
 
-Retrieved 2026-09-26T19:28:27.651Z (earliest store) from 17 stores' public product feeds. 2253 products, 24440 variants,
-chosen from 11253 room-ready listings: at most 30 per store and category, one of each design before a second.
+Retrieved 2026-09-26T19:28:27.651Z (earliest store) from 17 stores' public product feeds. 2251 products, 24434 variants,
+chosen from 11251 room-ready listings: at most 30 per store and category, one of each design before a second.
 Prices are what each store listed at that time (USD). Unknown prices are shown as unknown, never zero.
 Loloi's feed lists placeholder prices (99999.00), so its offers are unknown-price.
 
@@ -25,7 +25,7 @@ Loloi's feed lists placeholder prices (99999.00), so its offers are unknown-pric
 | [Brooklinen](https://brooklinen.com) | 40 | — |
 | [Parachute](https://parachutehome.com) | 55 | — |
 | [Boll & Branch](https://bollandbranch.com) | 96 | — |
-| [Tuft & Needle](https://tuftandneedle.com) | 3 | — |
+| [Tuft & Needle](https://tuftandneedle.com) | 1 | — |
 
 ## Categories
 
@@ -35,7 +35,7 @@ Loloi's feed lists placeholder prices (99999.00), so its offers are unknown-pric
 | Sofa | 174 | 3762 | 7% | 99% | 96% |
 | Lounge chair | 170 | 2915 | 3% | 98% | 96% |
 | Ottoman | 154 | 3284 | 6% | 100% | 98% |
-| Pillow | 153 | 410 | 0% | 80% | 79% |
+| Pillow | 151 | 404 | 0% | 80% | 78% |
 | Bed | 151 | 3363 | 1% | 100% | 98% |
 | Rug | 132 | 674 | 0% | 76% | 82% |
 | Dining chair | 105 | 1118 | 2% | 100% | 99% |
@@ -66,7 +66,7 @@ Variants beyond 100 per product were left out of the kept products: 914.
 
 - bedding: 2663
 - swatch-or-sample: 1269
-- unmapped: 1091
+- unmapped: 1090
 - fabric-yardage: 1056
 - multi-item-set: 1031
 - bath-or-apparel: 706
@@ -76,7 +76,7 @@ Variants beyond 100 per product were left out of the kept products: 914.
 - unsupported-form: 182
 - not-a-product: 176
 - window-shade: 159
-- sleep-product: 117
+- sleep-product: 120
 - hardware: 83
 - bed-add-on: 45
 - rug-pad: 6
@@ -144,7 +144,7 @@ Most common unmapped product types:
 ## Option names
 
 - Color: 1065
-- Size: 528
+- Size: 526
 - Material/Color Name: 215
 - Fabric: 189
 - Wood Finish: 177

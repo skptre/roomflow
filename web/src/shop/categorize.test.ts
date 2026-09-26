@@ -97,6 +97,8 @@ const EXCLUDED: [string, string][] = [
   ['Adjustable Base', 'The Adjustable Base'],
   ['Pillow', 'Down Alternative Pillow Set'],
   ['Pillows', 'Down Alternative Euro Pillow Insert'],
+  ['Pillow', 'Zip Comfort Pillow'],
+  ['Pillow', 'Original Foam Pillow'],
   ['Bed Add-Ons', 'The Upholstered Bed Frame — Add On'],
   ['Headboards', 'Essential Headboard - CL'],
   ['Roman Shade', 'Dark Merlot Heritage Plush Velvet Roman Shade'],
