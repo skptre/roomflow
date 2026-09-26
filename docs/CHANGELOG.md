@@ -5,6 +5,10 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### Docs: live-object spike results
+- `docs/ios-room-evidence-verification.md`: on-device results of the `LiveRoomObserver` spike (delegate slot was
+  empty, preview unchanged, live IDs survive into the final room, detection latency).
+
 ### iOS: spike: log live detected objects during scanning
 - New `ios/RoomFlow/Services/LiveRoomObserver.swift` (`LiveRoomObserver`, `install(on:)`, `logFinalOverlap(with:)`),
   wired in `RoomScanService.start()` / `captureView(didPresent:)` under `#if DEBUG`.
