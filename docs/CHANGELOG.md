@@ -5,6 +5,36 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### iOS: furniture-aware photos — recorder focused shots and coverage-aware selection
+- `ios/RoomFlow/Models/RoomPhotoEvidence.swift`: new `focusObjectId: UUID?` field (default nil, local archive
+  only, not part of the package manifest) recording which live object a photo was deliberately taken of;
+  `CodingKeys` updated so old archives without the key decode it as nil.
+- `ios/RoomFlow/Services/RoomEvidenceRecorder.swift`:
+  - `PhotoCandidatePolicy.thin(_:) -> (kept:dropped:)` replaces the old even-halving of `candidates` in
+    `encodingFinished`: thins ambient (non-focused) photos first, then the newest photo of whichever object
+    has the most, only touching the single remaining ambient photo or a focused photo last.
+  - `PhotoCandidatePolicy.selectFinal(_:)` reworked: round-robins one photo per object (first-seen order,
+    then a second each, …) up to `maxPhotos`, fills the remainder with ambient photos spread evenly over
+    time, then trims to `maxTotalBytes` by dropping the largest ambient photo first and only then the
+    largest photo of the busiest object. Output sorted by timestamp.
+  - `RoomEvidenceRecorder.consider(snapshot:sessionID:makeImage:)` refactored: the encode-starting body moved
+    into private `startEncode(_:snapshot:sessionID:focusObjectId:)`, shared with the new focused path.
+  - New `RoomEvidenceRecorder.captureFocused(snapshot:objectId:sessionID:makeImage:) -> Bool` and
+    `captureFocused(frame:objectId:sessionID:) -> Bool`: take a deliberate photo of `objectId` now, bypassing
+    `minimumInterval`/`isNewView` (the focus tracker already decided), refused only when the session is
+    stale, tracking isn't normal, an encode is already in flight, or `makeImage` returns nil.
+  - New internal `RoomEvidenceRecorder.snapshot(of: ARFrame) -> PhotoFrameSnapshot` extracted out of
+    `consider(frame:sessionID:)` for reuse by the focused-frame path and by task 3's caller.
+- Test: `ios/RoomFlowTests/RoomEvidenceRecorderTests.swift` — 7 new cases covering focused-shot capture
+  (bypasses the motion gate, still refused while an encode is busy, refused for a stale session/lost
+  tracking/failed image), `thin` (drops ambient before focused, trims the busiest object when only focused
+  photos remain), `selectFinal` (covers every object before filling ambient, trims ambient before losing an
+  object to the byte budget), and that photos without a `focusObjectId` key still decode.
+- Why: task 2 of the furniture-aware photos plan. Task 1's `ObjectFocusTracker` decides when to take a
+  focused shot; the recorder now has a path to actually take one and to keep it through thinning and final
+  selection instead of losing it to the old even-spread-over-time logic, which could drop the only photo of
+  a small or briefly-seen item.
+
 ### iOS: furniture-aware photos — focus tracker
 - New `ios/RoomFlow/Services/ObjectFocusTracker.swift`: `LiveObject`, `FocusShotPolicy`, `FocusHint`,
   `FocusDecision`, and pure `ObjectFocusTracker` (`update(objects:camera:depthAt:)`,
