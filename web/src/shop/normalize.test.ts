@@ -122,6 +122,15 @@ describe('normalizeProduct', () => {
     expect(normalized(rug, 'juniperprintshop.com').variants[0]!.dimensions.width).toBeCloseTo(8 * IN, 6)
   })
 
+  it('drops a photo that is not https instead of failing the snapshot', () => {
+    const src = structuredClone(fixtures.burrowSofa)
+    src.images[0]!.src = 'http://cdn.shopify.com/s/files/1/plain.jpg'
+    src.variants[0]!.featured_image = { src: 'http://cdn.shopify.com/s/files/1/variant.jpg' }
+    const product = normalized(src, 'www.burrow.com')
+    expect(product.imageUrl).toBeUndefined()
+    expect(product.variants[0]!.imageUrl).toBeUndefined()
+  })
+
   it('drops an implausible listed size instead of trusting it', () => {
     const src = structuredClone(fixtures.polyAndBarkSectional)
     src.title = 'Harper Leather Sleeper Sectional'
