@@ -43,8 +43,16 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
     /// Camera-sampled colors for `capturedRoom`; empty if sampling found nothing reliable.
     private(set) var colorEstimates = RoomColorEstimates.none
 
+    /// Reference photos chosen for `capturedRoom`; empty unless photo capture was on.
+    private(set) var photos: [RoomPhotoEvidence] = []
+    /// Whether to keep calibrated reference photos during the scan (opt-in).
+    @ObservationIgnored var capturePhotos = false
+
     @ObservationIgnored private let colorSampler = RoomColorSampler()
     @ObservationIgnored private var colorSampling: Task<Void, Never>?
+    @ObservationIgnored private let evidenceRecorder = RoomEvidenceRecorder()
+    /// Identifies this scan's photos so late work from an older session is never attached.
+    @ObservationIgnored private var sessionID = UUID()
 
     // Built lazily so unsupported devices never create an AR view.
     // RoomCaptureView bundles the camera feed, coaching UI, and its own RoomCaptureSession.
@@ -80,7 +88,10 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         }
         capturedRoom = nil
         colorEstimates = .none
+        photos = []
         colorSampler.reset()
+        sessionID = UUID()
+        if capturePhotos { evidenceRecorder.start(sessionID: sessionID) }
         state = .scanning
         captureView.captureSession.run(configuration: RoomCaptureSession.Configuration())
         startColorSampling()
@@ -98,6 +109,7 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
     func cancel() {
         stopColorSampling()
         colorSampler.reset()
+        evidenceRecorder.cancel(sessionID: sessionID)
         if state == .scanning {
             captureView.captureSession.stop()
         }
@@ -112,6 +124,7 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
     // Returning true tells RoomCaptureView to process it and show its built-in result preview.
     func captureView(shouldPresent roomDataForProcessing: CapturedRoomData, error: (any Error)?) -> Bool {
         if let error {
+            stopEvidence()
             state = .failed(.scanFailed(error.localizedDescription))
             return false
         }
@@ -122,13 +135,22 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
     func captureView(didPresent processedResult: CapturedRoom, error: (any Error)?) {
         guard state == .processing || state == .scanning else { return }
         if let error {
+            stopEvidence()
             state = .failed(.scanFailed(error.localizedDescription))
             return
         }
+        stopColorSampling()
         colorEstimates = colorSampler.estimate(for: processedResult)
         colorSampler.reset()
         capturedRoom = processedResult
-        state = .finished
+        // Photos are optional: any problem finishing them leaves an empty list, never a failed scan.
+        let session = sessionID
+        Task {
+            let chosen = capturePhotos ? ((try? await evidenceRecorder.finish(sessionID: session)) ?? []) : []
+            guard session == sessionID, state == .processing || state == .scanning else { return }
+            photos = chosen
+            state = .finished
+        }
         print("[RoomFlow] Scan finished: \(processedResult.walls.count) walls, \(processedResult.doors.count) doors, \(processedResult.windows.count) windows, \(processedResult.objects.count) objects")
     }
 
@@ -142,6 +164,9 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
                 guard let self else { return }
                 if let frame = self.captureView.captureSession.arSession.currentFrame {
                     self.colorSampler.capture(frame)
+                    if self.capturePhotos {
+                        self.evidenceRecorder.consider(frame: frame, sessionID: self.sessionID)
+                    }
                 }
                 try? await Task.sleep(for: .milliseconds(750))
             }
@@ -151,6 +176,13 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
     private func stopColorSampling() {
         colorSampling?.cancel()
         colorSampling = nil
+    }
+
+    /// Failure path: stop sampling and drop this session's unfinished photos.
+    private func stopEvidence() {
+        stopColorSampling()
+        colorSampler.reset()
+        evidenceRecorder.cancel(sessionID: sessionID)
     }
 
     // MARK: - Permissions

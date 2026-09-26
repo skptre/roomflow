@@ -4,7 +4,9 @@ import UIKit
 
 /// Full-screen RoomPlan scanning experience with RoomFlow's controls layered on top.
 struct RoomScanView: View {
-    let onComplete: (CapturedRoom, RoomColorEstimates) -> Void
+    /// Keep calibrated reference photos during the scan (opt-in).
+    var capturePhotos = false
+    let onComplete: (ScanCaptureResult) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
@@ -35,7 +37,10 @@ struct RoomScanView: View {
             }
             .padding(20)
         }
-        .task { await scanner.start() }
+        .task {
+            scanner.capturePhotos = capturePhotos
+            await scanner.start()
+        }
         .onDisappear { scanner.cancel() }
     }
 
@@ -60,7 +65,7 @@ struct RoomScanView: View {
         case .finished:
             Button("View Room") {
                 if let room = scanner.capturedRoom {
-                    onComplete(room, scanner.colorEstimates)
+                    onComplete(ScanCaptureResult(room: room, colors: scanner.colorEstimates, photos: scanner.photos))
                 }
             }
             .buttonStyle(RFButtonStyle())

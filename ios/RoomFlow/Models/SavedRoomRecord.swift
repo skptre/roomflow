@@ -32,4 +32,6 @@ nonisolated struct RoomArchive: Sendable {
     var rawData: Data
     /// The current RoomModel JSON (RoomFlow's own frame and schema).
     var editableData: Data
+    /// Reference photos saved with the scan, with `fileURL` pointing into the saved room.
+    var photos: [RoomPhotoEvidence] = []
 }

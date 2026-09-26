@@ -4,7 +4,10 @@ import SwiftUI
 struct HomeView: View {
     @State private var isScanning = false
     @State private var showUnsupported = false
-    @State private var pendingScan: (room: CapturedRoom, colors: RoomColorEstimates)?
+    @State private var pendingScan: ScanCaptureResult?
+    /// Opt-in: keep calibrated reference photos during the scan.
+    @AppStorage("includeReferencePhotos") private var includeReferencePhotos = false
+    @State private var latestPhotos: [RoomPhotoEvidence] = []
     /// The untouched RoomPlan result as frozen JSON bytes: what gets saved and shared.
     @State private var latestRawCapture: RawCapture?
     /// Camera colors for `latestRawCapture`; exported separately, never inside the raw file.
@@ -43,6 +46,18 @@ struct HomeView: View {
                     }
                     .buttonStyle(RFButtonStyle())
 
+                    Toggle(isOn: $includeReferencePhotos) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Include reference photos")
+                                .font(.subheadline)
+                            Text("A few photos help recreate how your furniture looks. They stay on this phone unless you share them.")
+                                .font(.caption)
+                                .foregroundStyle(Color.rfSecondaryText)
+                        }
+                    }
+                    .tint(.accentColor)
+                    .padding(.vertical, 4)
+
                     NavigationLink {
                         SavedRoomsView()
                     } label: {
@@ -65,8 +80,8 @@ struct HomeView: View {
             }
         }
         .fullScreenCover(isPresented: $isScanning, onDismiss: openPendingScan) {
-            RoomScanView { room, colors in
-                pendingScan = (room, colors)
+            RoomScanView(capturePhotos: includeReferencePhotos) { result in
+                pendingScan = result
                 isScanning = false
             }
         }
@@ -90,6 +105,7 @@ struct HomeView: View {
         self.pendingScan = nil
         latestRawCapture = try? RoomPlanFileExport.encode(pendingScan.room)
         latestColorEstimates = pendingScan.colors
+        latestPhotos = pendingScan.photos
         latestRoom = RoomPlanConverter.convert(pendingScan.room, colors: pendingScan.colors)
         latestRoomIsSample = false
         Task { await saveAndOpenLatest() }
@@ -101,7 +117,10 @@ struct HomeView: View {
             guard let raw = latestRawCapture, let room = latestRoom else {
                 throw CocoaError(.fileWriteUnknown, userInfo: [NSLocalizedDescriptionKey: "The scan couldn't be encoded."])
             }
-            try await RoomArchiveStore.shared.saveCapture(id: raw.id, rawData: raw.data, editableData: room.jsonData())
+            try await RoomArchiveStore.shared.saveCapture(id: raw.id, rawData: raw.data,
+                                                          editableData: room.jsonData(), photos: latestPhotos)
+            // The saved room now has its own copies; drop the scan's temporary photos.
+            Set(latestPhotos.map(\.sessionID)).forEach { RoomEvidenceRecorder.removeTemporaryFiles(sessionID: $0) }
             showEditor = true
         } catch {
             saveError = error.localizedDescription
@@ -132,6 +151,7 @@ struct HomeView: View {
         // Debug rooms have no RoomPlan capture; clear it so an older scan is never exported with them.
         latestRawCapture = nil
         latestColorEstimates = nil
+        latestPhotos = []
         latestRoom = room
         latestRoomIsSample = isSample
         showEditor = true

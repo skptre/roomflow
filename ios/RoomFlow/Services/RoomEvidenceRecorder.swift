@@ -1,0 +1,261 @@
+import ARKit
+import CoreImage
+import Foundation
+import ImageIO
+import UniformTypeIdentifiers
+import simd
+
+/// Camera pose and calibration of one AR frame, copied out so the ARFrame itself is not kept.
+nonisolated struct PhotoFrameSnapshot: Sendable {
+    var timestamp: TimeInterval
+    var cameraToWorld: simd_float4x4
+    /// Intrinsics for the full-resolution sensor image.
+    var intrinsics: simd_float3x3
+    var imageWidth: Int
+    var imageHeight: Int
+    var trackingNormal: Bool
+}
+
+/// Which frames become reference photos. These are v1 tuning defaults, not a coverage guarantee.
+nonisolated struct PhotoCandidatePolicy: Sendable {
+    var minimumInterval: TimeInterval = 0.75
+    var minimumTranslation: Float = 0.25
+    var minimumRotationDegrees: Float = 15
+    var maxCandidates = 24
+    var maxPhotos = 12
+    var maxLongEdge = 1280
+    var jpegQuality = 0.8
+    var maxTotalBytes = 20 * 1024 * 1024
+
+    /// True once the camera has moved or turned enough since the last kept photo.
+    func isNewView(_ pose: simd_float4x4, since last: simd_float4x4?) -> Bool {
+        guard let last else { return true }
+        let moved = simd_distance(SIMD3(pose.columns.3.x, pose.columns.3.y, pose.columns.3.z),
+                                  SIMD3(last.columns.3.x, last.columns.3.y, last.columns.3.z))
+        let relative = simd_quatf(last).inverse * simd_quatf(pose)
+        let angle = relative.angle > .pi ? 2 * .pi - relative.angle : relative.angle
+        return moved >= minimumTranslation || angle * 180 / .pi >= minimumRotationDegrees
+    }
+
+    /// Up to `maxPhotos` spread evenly over the scan, then trimmed (largest first) to the byte budget.
+    func selectFinal(_ candidates: [RoomPhotoEvidence]) -> [RoomPhotoEvidence] {
+        var chosen = candidates
+        if chosen.count > maxPhotos {
+            let step = Double(chosen.count - 1) / Double(maxPhotos - 1)
+            chosen = (0..<maxPhotos).map { candidates[Int((Double($0) * step).rounded())] }
+        }
+        while chosen.map(\.byteCount).reduce(0, +) > maxTotalBytes,
+              let largest = chosen.indices.max(by: { chosen[$0].byteCount < chosen[$1].byteCount }) {
+            chosen.remove(at: largest)
+        }
+        return chosen
+    }
+}
+
+nonisolated protocol PhotoEncoding: Sendable {
+    /// Writes `image` as a JPEG to `url` and returns its size in bytes.
+    func writeJPEG(_ image: CGImage, quality: Double, to url: URL) throws -> Int
+}
+
+/// ImageIO JPEG writer. Adds no metadata: no location, no EXIF; calibration lives in the manifest.
+nonisolated struct ImageIOPhotoEncoder: PhotoEncoding {
+    func writeJPEG(_ image: CGImage, quality: Double, to url: URL) throws -> Int {
+        guard let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.jpeg.identifier as CFString, 1, nil) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        CGImageDestinationAddImage(destination, image, [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary)
+        guard CGImageDestinationFinalize(destination) else { throw CocoaError(.fileWriteUnknown) }
+        try FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                                              ofItemAtPath: url.path)
+        return (try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
+    }
+}
+
+/// Keeps a bounded set of calibrated reference photos during one scan session.
+///
+/// Frames arrive from the scan's sampling loop. A frame becomes a candidate only when tracking is
+/// normal and the camera has moved to a new view; at most one JPEG encode runs at a time (frames
+/// arriving meanwhile are dropped). Every callback is checked against the current session, so
+/// work finishing after a cancel or a new scan is thrown away instead of attached to the wrong room.
+final class RoomEvidenceRecorder {
+    enum RecorderError: Error {
+        case staleSession
+    }
+
+    private let policy: PhotoCandidatePolicy
+    private let encoder: any PhotoEncoding
+    private let rootDirectory: URL
+
+    private var sessionID: UUID?
+    private var lastConsidered: TimeInterval?
+    private var lastKeptPose: simd_float4x4?
+    private var candidates: [RoomPhotoEvidence] = []
+    private var interruptions = 0
+    private var encoding: Task<Void, Never>?
+
+    nonisolated static var defaultRoot: URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("RoomFlowEvidence", isDirectory: true)
+    }
+
+    init(policy: PhotoCandidatePolicy = PhotoCandidatePolicy(),
+         encoder: any PhotoEncoding = ImageIOPhotoEncoder(),
+         rootDirectory: URL = RoomEvidenceRecorder.defaultRoot) {
+        self.policy = policy
+        self.encoder = encoder
+        self.rootDirectory = rootDirectory
+    }
+
+    var maxLongEdge: Int { policy.maxLongEdge }
+
+    private func directory(for session: UUID) -> URL {
+        rootDirectory.appendingPathComponent(session.uuidString, isDirectory: true)
+    }
+
+    // MARK: - Lifecycle
+
+    /// Begins a new session, abandoning any previous one.
+    func start(sessionID: UUID) {
+        if let current = self.sessionID { cancel(sessionID: current) }
+        self.sessionID = sessionID
+        lastConsidered = nil
+        lastKeptPose = nil
+        candidates = []
+        interruptions = 0
+        try? FileManager.default.createDirectory(at: directory(for: sessionID), withIntermediateDirectories: true)
+    }
+
+    /// Offers a frame. `makeImage` is only called for frames that will actually be kept,
+    /// and must return the downscaled, unrotated sensor image.
+    func consider(snapshot: PhotoFrameSnapshot, sessionID: UUID, makeImage: () -> CGImage?) {
+        guard sessionID == self.sessionID else { return }
+        guard snapshot.trackingNormal else {
+            // Tracking was lost: poses of earlier photos may no longer match the final room.
+            interruptions += 1
+            for index in candidates.indices { candidates[index].trackingContinuous = false }
+            return
+        }
+        if let last = lastConsidered, snapshot.timestamp - last < policy.minimumInterval { return }
+        lastConsidered = snapshot.timestamp
+        guard encoding == nil, policy.isNewView(snapshot.cameraToWorld, since: lastKeptPose),
+              let image = makeImage() else { return }
+        lastKeptPose = snapshot.cameraToWorld
+
+        // Rescale intrinsics to the exported pixel grid.
+        let sx = Float(image.width) / Float(snapshot.imageWidth)
+        let sy = Float(image.height) / Float(snapshot.imageHeight)
+        var intrinsics = snapshot.intrinsics
+        intrinsics[0][0] *= sx
+        intrinsics[2][0] *= sx
+        intrinsics[1][1] *= sy
+        intrinsics[2][1] *= sy
+
+        var photo = RoomPhotoEvidence(
+            id: UUID(), sessionID: sessionID, timestamp: snapshot.timestamp,
+            pixelWidth: image.width, pixelHeight: image.height,
+            cameraToWorld: RoomPhotoEvidence.columnMajor(snapshot.cameraToWorld),
+            intrinsics: RoomPhotoEvidence.columnMajor(intrinsics),
+            trackingContinuous: true, byteCount: 0
+        )
+        let url = directory(for: sessionID).appendingPathComponent(photo.fileName)
+        photo.fileURL = url
+        let encoder = self.encoder, quality = policy.jpegQuality, interruptionsAtCapture = interruptions
+
+        encoding = Task { [weak self, photo] in
+            let bytes = await Task.detached(priority: .utility) {
+                try? encoder.writeJPEG(image, quality: quality, to: url)
+            }.value
+            self?.encodingFinished(photo, bytes: bytes, interruptionsAtCapture: interruptionsAtCapture)
+        }
+    }
+
+    private func encodingFinished(_ photo: RoomPhotoEvidence, bytes: Int?, interruptionsAtCapture: Int) {
+        encoding = nil
+        guard photo.sessionID == sessionID, let bytes else {
+            if let url = photo.fileURL { try? FileManager.default.removeItem(at: url) }
+            return
+        }
+        var photo = photo
+        photo.byteCount = bytes
+        photo.trackingContinuous = interruptions == interruptionsAtCapture
+        candidates.append(photo)
+        if candidates.count > policy.maxCandidates {
+            // Thin out evenly so early and late parts of the scan stay covered.
+            let dropped = candidates.enumerated().filter { !$0.offset.isMultiple(of: 2) }.map(\.element)
+            candidates = candidates.enumerated().filter { $0.offset.isMultiple(of: 2) }.map(\.element)
+            dropped.forEach { if let url = $0.fileURL { try? FileManager.default.removeItem(at: url) } }
+        }
+    }
+
+    /// Ends the session and returns the chosen photos (files stay until the caller saves or discards them).
+    /// Never fails because of image problems: an empty array still lets the scan be kept.
+    func finish(sessionID: UUID) async throws -> [RoomPhotoEvidence] {
+        guard sessionID == self.sessionID else { throw RecorderError.staleSession }
+        await encoding?.value
+        let chosen = policy.selectFinal(candidates)
+        let keep = Set(chosen.map(\.id))
+        for photo in candidates where !keep.contains(photo.id) {
+            if let url = photo.fileURL { try? FileManager.default.removeItem(at: url) }
+        }
+        self.sessionID = nil
+        candidates = []
+        return chosen
+    }
+
+    /// Abandons the session and deletes only its unfinished files.
+    func cancel(sessionID: UUID) {
+        guard sessionID == self.sessionID else { return }
+        self.sessionID = nil
+        candidates = []
+        try? FileManager.default.removeItem(at: directory(for: sessionID))
+    }
+
+    /// Removes a finished session's temporary photos once they've been copied into a saved room.
+    nonisolated static func removeTemporaryFiles(sessionID: UUID, rootDirectory: URL = defaultRoot) {
+        try? FileManager.default.removeItem(at: rootDirectory.appendingPathComponent(sessionID.uuidString, isDirectory: true))
+    }
+
+    /// Waits for the in-flight encode, if any (tests and orderly shutdown).
+    func waitUntilIdle() async {
+        await encoding?.value
+    }
+}
+
+// MARK: - ARKit frames
+
+extension RoomEvidenceRecorder {
+    private static let imageContext = CIContext()
+
+    /// Offers the current AR frame. Only pose data is copied unless the frame is kept,
+    /// and then only a downscaled image; the ARFrame is not retained.
+    func consider(frame: ARFrame, sessionID: UUID) {
+        let camera = frame.camera
+        let snapshot = PhotoFrameSnapshot(
+            timestamp: frame.timestamp,
+            cameraToWorld: camera.transform,
+            intrinsics: camera.intrinsics,
+            imageWidth: Int(camera.imageResolution.width),
+            imageHeight: Int(camera.imageResolution.height),
+            trackingNormal: camera.trackingState == .normal
+        )
+        let buffer = frame.capturedImage
+        let maxLongEdge = maxLongEdge
+        consider(snapshot: snapshot, sessionID: sessionID) {
+            Self.downscaledImage(buffer, maxLongEdge: maxLongEdge)
+        }
+    }
+
+    /// Sensor-orientation image scaled so its long edge is at most `maxLongEdge`. Never rotated or cropped.
+    private static func downscaledImage(_ buffer: CVPixelBuffer, maxLongEdge: Int) -> CGImage? {
+        let image = CIImage(cvPixelBuffer: buffer)
+        let longEdge = max(image.extent.width, image.extent.height)
+        let scale = min(1, CGFloat(maxLongEdge) / longEdge)
+        let scaled = image.applyingFilter("CILanczosScaleTransform", parameters: [
+            kCIInputScaleKey: scale,
+            kCIInputAspectRatioKey: 1,
+        ])
+        let size = CGRect(x: 0, y: 0,
+                          width: (image.extent.width * scale).rounded(),
+                          height: (image.extent.height * scale).rounded())
+        return imageContext.createCGImage(scaled, from: size)
+    }
+}

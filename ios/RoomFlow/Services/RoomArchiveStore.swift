@@ -7,6 +7,7 @@ import Foundation
 /// rooms/<capture-id>/capture.roomplan.json   original RoomPlan bytes, written once, never replaced
 /// rooms/<capture-id>/editable.roomflow.json  current RoomModel, replaced atomically on each save
 /// rooms/<capture-id>/record.json             name, date, evidence status
+/// rooms/<capture-id>/photos.json, photos/     optional reference photos and their calibration
 /// staging/…                                  in-progress saves; never listed
 /// ```
 /// A new room is assembled in `staging/` and published with a single directory rename,
@@ -41,6 +42,8 @@ actor RoomArchiveStore {
     private static let rawName = "capture.roomplan.json"
     private static let editableName = "editable.roomflow.json"
     private static let recordName = "record.json"
+    private static let photosName = "photos.json"
+    private static let photosFolder = "photos"
 
     private let root: URL
     private let writeData: DataWriter
@@ -63,8 +66,8 @@ actor RoomArchiveStore {
     /// Saves a freshly processed scan. Retrying with identical raw bytes is a no-op;
     /// a different scan under the same ID is refused so the original is never replaced.
     func saveCapture(id: UUID, rawData: Data, editableData: Data,
-                     name: String? = nil, capturedAt: Date = Date(),
-                     evidenceStatus: SavedRoomRecord.EvidenceStatus = .geometryOnly) throws {
+                     photos: [RoomPhotoEvidence] = [],
+                     name: String? = nil, capturedAt: Date = Date()) throws {
         let destination = roomDirectory(id)
         if fileManager.fileExists(atPath: destination.path) {
             let existing = try Data(contentsOf: destination.appendingPathComponent(Self.rawName))
@@ -81,10 +84,19 @@ actor RoomArchiveStore {
             name: name ?? Self.defaultName(for: capturedAt),
             capturedAt: capturedAt,
             editedRevision: Self.revision(in: editableData) ?? 0,
-            evidenceStatus: evidenceStatus
+            evidenceStatus: photos.isEmpty ? .geometryOnly : .photos
         )
         try writeData(rawData, staging.appendingPathComponent(Self.rawName))
         try writeData(editableData, staging.appendingPathComponent(Self.editableName))
+        if !photos.isEmpty {
+            let folder = staging.appendingPathComponent(Self.photosFolder, isDirectory: true)
+            try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
+            for photo in photos {
+                guard let source = photo.fileURL else { throw CocoaError(.fileNoSuchFile) }
+                try fileManager.copyItem(at: source, to: folder.appendingPathComponent(photo.fileName))
+            }
+            try writeData(Self.encoder.encode(photos), staging.appendingPathComponent(Self.photosName))
+        }
         try writeData(Self.encoder.encode(record), staging.appendingPathComponent(Self.recordName))
 
         try fileManager.createDirectory(at: roomsDirectory, withIntermediateDirectories: true)
@@ -106,10 +118,19 @@ actor RoomArchiveStore {
     func load(id: UUID) throws -> RoomArchive {
         let directory = roomDirectory(id)
         guard let record = readRecord(in: directory) else { throw ArchiveError.notFound }
+        var photos: [RoomPhotoEvidence] = []
+        if let data = try? Data(contentsOf: directory.appendingPathComponent(Self.photosName)) {
+            photos = try Self.decoder.decode([RoomPhotoEvidence].self, from: data).map { photo in
+                var photo = photo
+                photo.fileURL = directory.appendingPathComponent(Self.photosFolder).appendingPathComponent(photo.fileName)
+                return photo
+            }
+        }
         return RoomArchive(
             record: record,
             rawData: try Data(contentsOf: directory.appendingPathComponent(Self.rawName)),
-            editableData: try Data(contentsOf: directory.appendingPathComponent(Self.editableName))
+            editableData: try Data(contentsOf: directory.appendingPathComponent(Self.editableName)),
+            photos: photos
         )
     }
 
