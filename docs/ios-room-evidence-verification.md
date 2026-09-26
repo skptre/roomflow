@@ -43,6 +43,23 @@ Simulator results do not prove LiDAR capture.
 | Photo metadata | Inspected exported JPEGs | No GPS, device make/model, or date; only ImageIO's pixel-dimension EXIF tags |
 | Region correctness | Independent Python recomputation of every object × photo | 0 mismatches with the app |
 
+## Spike: live detected objects (2026-09-26, `6e967ca`, iPhone 15 Pro, debug build)
+
+Two scans with `LiveRoomObserver` logging `RoomCaptureSession` `didUpdate` rooms.
+
+| Check | Result |
+| --- | --- |
+| Session delegate already set by `RoomCaptureView` | No — `nil` in both scans; taking the slot removed nothing |
+| Apple's live preview (walls, boxes, coaching) | Unchanged (user-confirmed) |
+| Live update rate | ~1.7/s (86 in 57 s, 126 in 81 s) |
+| Session end and final room | Normal: `error=nil`, `didPresent` delivered, room saved |
+| Live object IDs in final room | 4 of 4 kept their live ID |
+| ID stability while boxes refine | Stable: e.g. 85×90×84 → 85×94×89 cm, low → medium, same ID, no remove/re-add |
+| Detection latency | Objects first appeared 31 s and 72 s into scans, after the camera had rested on them |
+| Categories seen | Only `sofa` (~90 cm boxes, likely armchairs); confidence often `low` |
+
+Conclusion: live detection is usable for furniture-aware photo hints; the timer-polling fallback is not needed.
+
 ## Findings
 
 1. **RoomPlan coverage is by category.** Small items (a bin, a wipes box) were missed or labeled generically
