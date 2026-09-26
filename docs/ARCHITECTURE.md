@@ -50,6 +50,7 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | --- | --- | --- |
 | `RoomModel.swift` | Native editable room in RoomFlow's frame (longest wall on +X, corner at origin, floor y=0) | `RoomModel` (`jsonData()`, `jsonEncoder/Decoder`), `RoomDimensions`, `Vector3`, `FloorPoint`, `Wall`, `WallOpening`, `EstimatedColor` (`hex`, `sampleCount`; 0 = illustrative), `CaptureAlignment` |
 | `RoomObject.swift` | Furniture/fixture in the room frame | `RoomObject` (`isMovable(category:)`, `fixtureCategories`), `ObjectDimensions` |
+| `ObjectNames.swift` | Display-friendly names for furniture categories in UI text (stored data keeps the category) | `ObjectNames` (`display(category:)`) |
 | `SampleRoom.swift` | DEBUG-only synthetic 4.2×3.8 m room with illustrative colors | `SampleRoom.make()` |
 | `SavedRoomRecord.swift` | Saved-room list entry and loaded archive | `SavedRoomRecord` (`EvidenceStatus`), `RawCapture` (frozen bytes), `RoomArchive` (raw, editable, photos, appearance, selection) |
 | `ScanCaptureResult.swift` | Everything one finished scan produced | `ScanCaptureResult` (room, colors, photos) |
@@ -82,7 +83,8 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | File | Purpose |
 | --- | --- |
 | `HomeView.swift` | Entry screen; photo opt-in toggle; freezes raw bytes, converts, saves, opens plan; DEBUG room menu |
-| `RoomScanView.swift` | Full-screen RoomPlan UI with Cancel / Done / failure states |
+| `RoomScanView.swift` | Full-screen RoomPlan UI with Cancel / Done / failure states; shows `ScanFocusHintView` when a furniture object is in focus |
+| `ScanFocusHintView.swift` | Small hint capsule under scan controls showing furniture name, photo count/progress ring, and guidance; appears when furniture is framed and photo capture is on | `ScanFocusHintView`, `message(for:)` |
 | `RoomEditorView.swift` | Top-down Canvas plan (floor, grid, furniture, walls, openings), tap select, selection card |
 | `ScanSummaryView.swift` | Details and exports: Review room, reference photos, Share RoomPlan JSON, Room package, editable JSON |
 | `SavedRoomsView.swift` | Lists and reopens saved rooms |
@@ -95,6 +97,7 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | File | Covers |
 | --- | --- |
 | `RoomFlowTests.swift` | Smoke: sample room builds without LiDAR |
+| `ScanFocusHintTests.swift` | Display names (camelCase splitting, special cases) and message text (copy rules for 0/1+ photos, new angle, complete) |
 | `RoomPlanFileExportTests.swift` | File name, exact bytes, replace-only-own-file, bad directory |
 | `RoomArchiveStoreTests.swift` | Original bytes survive edits, no overwrite by a different scan, failed write keeps revision, photos + appearance saved, staging leftovers ignored |
 | `RoomEvidenceRecorderTests.swift` | Limits, busy drop, cancel/late completion, stale session, encode failure, tracking interruption, new-view policy |
