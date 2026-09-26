@@ -53,10 +53,13 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
     @ObservationIgnored private let evidenceRecorder = RoomEvidenceRecorder()
     /// Identifies this scan's photos so late work from an older session is never attached.
     @ObservationIgnored private var sessionID = UUID()
-    #if DEBUG
-    /// SPIKE: logs live detected objects; see `LiveRoomObserver`.
+    /// Live detected objects during a scan; see LiveRoomObserver.
     @ObservationIgnored private let liveObserver = LiveRoomObserver()
-    #endif
+
+    /// The furniture currently framed and its photo progress; nil unless photo capture is on and something is framed.
+    private(set) var focusHint: FocusHint?
+    @ObservationIgnored private var focusTracker = ObjectFocusTracker()
+    @ObservationIgnored private var sampleTick = 0
 
     // Built lazily so unsupported devices never create an AR view.
     // RoomCaptureView bundles the camera feed, coaching UI, and its own RoomCaptureSession.
@@ -94,12 +97,13 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         colorEstimates = .none
         photos = []
         colorSampler.reset()
+        focusTracker.reset()
+        focusHint = nil
+        sampleTick = 0
         sessionID = UUID()
         if capturePhotos { evidenceRecorder.start(sessionID: sessionID) }
         state = .scanning
-        #if DEBUG
         liveObserver.install(on: captureView.captureSession)
-        #endif
         captureView.captureSession.run(configuration: RoomCaptureSession.Configuration())
         startColorSampling()
     }
@@ -109,6 +113,7 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         guard state == .scanning else { return }
         stopColorSampling()
         state = .processing
+        focusHint = nil
         captureView.captureSession.stop()
     }
 
@@ -117,6 +122,7 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         stopColorSampling()
         colorSampler.reset()
         evidenceRecorder.cancel(sessionID: sessionID)
+        focusHint = nil
         if state == .scanning {
             captureView.captureSession.stop()
         }
@@ -150,9 +156,7 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         colorEstimates = colorSampler.estimate(for: processedResult)
         colorSampler.reset()
         capturedRoom = processedResult
-        #if DEBUG
         liveObserver.logFinalOverlap(with: processedResult)
-        #endif
         // Photos are optional: any problem finishing them leaves an empty list, never a failed scan.
         let session = sessionID
         Task {
@@ -166,21 +170,65 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
 
     // MARK: - Color sampling
 
-    // Grabs a downscaled camera frame a little faster than once a second while scanning.
+    // Every 250 ms: focus hints (pose only). Every third tick (~750 ms, as before): colors and ambient photos.
     private func startColorSampling() {
         colorSampling?.cancel()
         colorSampling = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
                 if let frame = self.captureView.captureSession.arSession.currentFrame {
-                    self.colorSampler.capture(frame)
-                    if self.capturePhotos {
-                        self.evidenceRecorder.consider(frame: frame, sessionID: self.sessionID)
+                    if self.sampleTick.isMultiple(of: 3) {
+                        self.colorSampler.capture(frame)
+                        if self.capturePhotos {
+                            self.evidenceRecorder.consider(frame: frame, sessionID: self.sessionID)
+                        }
                     }
+                    if self.capturePhotos { self.updateFocus(with: frame) }
+                    self.sampleTick += 1
                 }
-                try? await Task.sleep(for: .milliseconds(750))
+                try? await Task.sleep(for: .milliseconds(250))
             }
         }
+    }
+
+    /// Runs the focus tracker on `frame`, takes a focused photo when one is due, and publishes the hint.
+    private func updateFocus(with frame: ARFrame) {
+        let snapshot = RoomEvidenceRecorder.snapshot(of: frame)
+        let depthMap = (frame.sceneDepth ?? frame.smoothedSceneDepth)?.depthMap
+        let objects = liveObserver.latestObjects()
+        var hint: FocusHint?
+        switch focusTracker.update(objects: objects, camera: snapshot,
+                                   depthAt: { u, v in Self.depth(in: depthMap, u: u, v: v) }) {
+        case .none:
+            hint = nil
+        case .hint(let current):
+            hint = current
+        case .shoot(let current):
+            hint = current
+            if let object = objects.first(where: { $0.sourceId == current.objectId }),
+               evidenceRecorder.captureFocused(frame: frame, objectId: current.objectId, sessionID: sessionID) {
+                focusTracker.recordShot(objectId: current.objectId, cameraToWorld: snapshot.cameraToWorld,
+                                        objectCenter: object.center)
+                hint?.shotsTaken += 1
+                hint?.dwellProgress = 0
+            }
+        }
+        // Publish only real changes so SwiftUI isn't redrawn every tick for nothing.
+        if hint != focusHint { focusHint = hint }
+    }
+
+    /// LiDAR depth in meters at a normalized, top-left-origin image point; nil without depth or for invalid values.
+    private static func depth(in map: CVPixelBuffer?, u: Double, v: Double) -> Float? {
+        guard let map else { return nil }
+        CVPixelBufferLockBaseAddress(map, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(map, .readOnly) }
+        guard let base = CVPixelBufferGetBaseAddress(map) else { return nil }
+        let width = CVPixelBufferGetWidth(map), height = CVPixelBufferGetHeight(map)
+        let x = min(width - 1, max(0, Int(u * Double(width))))
+        let y = min(height - 1, max(0, Int(v * Double(height))))
+        let row = base.advanced(by: y * CVPixelBufferGetBytesPerRow(map)).assumingMemoryBound(to: Float32.self)
+        let value = row[x]
+        return value.isFinite && value > 0 ? value : nil
     }
 
     private func stopColorSampling() {
@@ -193,6 +241,7 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         stopColorSampling()
         colorSampler.reset()
         evidenceRecorder.cancel(sessionID: sessionID)
+        focusHint = nil
     }
 
     // MARK: - Permissions
