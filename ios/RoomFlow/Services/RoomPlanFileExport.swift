@@ -21,10 +21,14 @@ nonisolated enum RoomPlanFileExport {
         return url
     }
 
-    /// Encodes the capture and writes it to a scoped temporary folder for sharing.
-    static func export(_ capture: CapturedRoom, directory: URL = defaultDirectory) throws -> URL {
-        let data = try JSONEncoder().encode(capture)
-        return try write(data: data, roomID: capture.identifier, directory: directory)
+    /// The one place the raw format is defined: the default encoder, nothing added.
+    static func encode(_ capture: CapturedRoom) throws -> RawCapture {
+        RawCapture(id: capture.identifier, data: try JSONEncoder().encode(capture))
+    }
+
+    /// Writes already-frozen capture bytes to a scoped temporary folder for sharing.
+    static func export(_ raw: RawCapture, directory: URL = defaultDirectory) throws -> URL {
+        try write(data: raw.data, roomID: raw.id, directory: directory)
     }
 
     static var defaultDirectory: URL {

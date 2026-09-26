@@ -1,4 +1,3 @@
-import RoomPlan
 import SwiftUI
 import UIKit
 
@@ -8,8 +7,8 @@ struct ScanSummaryView: View {
     let room: RoomModel
     /// True for the debug sample room, which must never look like a real scan.
     var isSample = false
-    /// The untouched scan; nil for debug/sample rooms, which have no raw file to export.
-    var capture: CapturedRoom? = nil
+    /// The untouched scan bytes; nil for debug/sample rooms, which have no raw file to export.
+    var rawCapture: RawCapture? = nil
     /// Camera colors for `capture`; exported separately in a later step, never inside the raw file.
     var colors: RoomColorEstimates? = nil
 
@@ -62,7 +61,7 @@ struct ScanSummaryView: View {
                 }
             }
 
-            if capture != nil {
+            if rawCapture != nil {
                 Section {
                     if let rawExportURL {
                         ShareLink(item: rawExportURL) {
@@ -115,10 +114,10 @@ struct ScanSummaryView: View {
 
     /// Writes the raw file once for this screen. A failure leaves the room and editor untouched.
     private func makeRawExport() {
-        guard let capture else { return }
+        guard let rawCapture else { return }
         rawExportError = nil
         do {
-            rawExportURL = try RoomPlanFileExport.export(capture)
+            rawExportURL = try RoomPlanFileExport.export(rawCapture)
         } catch {
             rawExportError = error.localizedDescription
             isShowingRawExportAlert = true
