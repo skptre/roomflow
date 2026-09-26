@@ -88,6 +88,15 @@ describe('catalog store', () => {
     expect(store.getState().status).toBe('ready')
   })
 
+  it('refuses a snapshot whose links or photos are not https', async () => {
+    const bad = structuredClone(snapshot)
+    bad.products[0]!.url = 'javascript:alert(1)'
+    await expect(createCatalogStore(async () => bad).getState().load()).rejects.toThrow()
+    const badPhoto = structuredClone(snapshot)
+    badPhoto.products[0]!.imageUrl = 'http://cdn.shopify.com/a.jpg'
+    await expect(createCatalogStore(async () => badPhoto).getState().load()).rejects.toThrow()
+  })
+
   it('replaces a refreshed offer everywhere it is read', async () => {
     const store = createCatalogStore(async () => snapshot)
     await store.getState().load()
