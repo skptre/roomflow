@@ -1,4 +1,5 @@
 /** Registry of hand-authored parametric assemblies, keyed by assembly id. */
+import { scannedSeating } from './scannedSeating'
 import type { Assembly } from '../../domain/assembly'
 import { bed, dresser, nightstand } from './bedroom'
 import { mirror, plant, rug, vase, wallArt } from './decor'
@@ -7,6 +8,7 @@ import { coffeeTable, loungeChair, sofa } from './living'
 import { bookshelf, desk, deskChair } from './workspace'
 
 const all: Assembly[] = [
+  ...scannedSeating,
   bed,
   nightstand,
   dresser,

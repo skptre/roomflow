@@ -4,6 +4,7 @@
  * Coordinate conventions are documented in ./units.ts.
  */
 import { z } from 'zod'
+import { Appearance } from '../recognition/contract'
 
 const Id = z.string().min(1)
 /** Zod 4 numbers already reject NaN and ±Infinity. */
@@ -103,6 +104,7 @@ export const RoomObject = z.object({
   /** Lock placement: automated changes may not move or rotate it. */
   lockPlacement: z.boolean(),
   foundItemId: Id.optional(),
+  appearance: z.object({ description: Appearance, model: z.string().max(100), source: z.literal('ai-estimated') }).optional(),
 })
 export type RoomObject = z.infer<typeof RoomObject>
 
