@@ -116,6 +116,7 @@ AGENTS.md
 - [ ] Scripts: `dev`, `build` (`tsc -b && vite build`), `typecheck` (`tsc -b --noEmit`), `test` (`vitest run`), `lint` (`eslint .`). `strict` + `noUncheckedIndexedAccess` on.
 - [ ] Tokens in `index.css` `@theme`: neutral warm placeholder palette (surface, ink, muted, accent, danger, success), radius scale, spacing, font stack, motion durations/easings. Mirror 3D colors in `scene/palette.ts`. Comment at top: "Aesthetic TBD — change here only."
 - [ ] Shell: full-bleed canvas base layer; floating panels on top. StartScreen: "Import a room scan" (file picker + drag-drop) and "Open sample room (synthetic)".
+- [ ] Root `.gitattributes` with `* text=auto eol=lf` (Windows + Mac teammates; avoids CRLF churn in diffs).
 - [ ] `.github/workflows/web-ci.yml`: on PR + push to main, `working-directory: web`, Node 24, `npm ci`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
 - [ ] `.github/pull_request_template.md`: What changed · User-visible result · Verified (commands run + browser checks, screenshots) · Not verified / limitations · Review focus for this PR.
 - [ ] `AGENTS.md` (Codex reads this): "Follow CLAUDE.md and spec.md." plus a **Review guidelines** section: prioritize money/unknown-price, preview isolation, undo, revision staleness, coordinate conventions, door openings, fabricated data, disposal of three.js resources, `ios/` untouched by web PRs; flag missing tests on those; mark findings blocking vs non-blocking; skip pure style nits.
