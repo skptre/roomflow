@@ -43,7 +43,7 @@ struct ScanSummaryView: View {
             if let rawCapture {
                 Section {
                     NavigationLink {
-                        RoomEvidenceReviewView(captureID: rawCapture.id, room: room, photos: photos)
+                        RoomEvidenceReviewView(captureID: rawCapture.id, room: room, photos: photos, associations: appearance?.associations ?? [])
                     } label: {
                         Label("Review room", systemImage: "checklist")
                     }
@@ -63,6 +63,13 @@ struct ScanSummaryView: View {
                         )
                     } label: {
                         Label("Reference photos (\(photos.count))", systemImage: "photo.on.rectangle")
+                    }
+                    if let appearance,
+                       let summary = PhotoCoverage.make(objects: room.objects, associations: appearance.associations,
+                                                        photoIds: Set(photos.map(\.id)), label: { _ in nil }).summary {
+                        Text(summary)
+                            .font(.footnote)
+                            .foregroundStyle(Color.rfSecondaryText)
                     }
                 }
             }
