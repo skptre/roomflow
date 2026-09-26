@@ -166,6 +166,8 @@ export const Product = z.object({
   url: z.url().optional(),
   /** Main product photo (store CDN). */
   imageUrl: z.url().optional(),
+  /** The store's option names in order ("Fabric", "Leg Finish"); variants carry the values. */
+  optionNames: z.array(z.string()).optional(),
 })
 export type Product = z.infer<typeof Product>
 
@@ -176,6 +178,10 @@ export const Variant = z.object({
   label: z.string(),
   dimensions: Dimensions,
   asset: AssetRef,
+  /** This variant's value for each of the product's optionNames. */
+  optionValues: z.array(z.string()).optional(),
+  /** Photo of this variant (store CDN). */
+  imageUrl: z.url().optional(),
 })
 export type Variant = z.infer<typeof Variant>
 
