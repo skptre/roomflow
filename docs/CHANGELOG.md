@@ -5,6 +5,13 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### iOS: spike: log live detected objects during scanning
+- New `ios/RoomFlow/Services/LiveRoomObserver.swift` (`LiveRoomObserver`, `install(on:)`, `logFinalOverlap(with:)`),
+  wired in `RoomScanService.start()` / `captureView(didPresent:)` under `#if DEBUG`.
+- Why: step 1 of furniture-aware photo capture. Checks that `RoomCaptureSession.delegate` can deliver live
+  `didUpdate` rooms without breaking `RoomCaptureView`'s preview, and whether live object IDs match the final room.
+  Logs go to the Xcode console and Console.app (subsystem `RoomFlow`, category `LiveObjects`).
+
 ### Docs: project records and indexing
 - Added `docs/INDEX.md`, `docs/ARCHITECTURE.md`, `docs/CHANGELOG.md`, `docs/DECISIONS.md`, and the rules in
   `.claude/documentation.md` / `.claude/index.md`, referenced from `CLAUDE.md` and `AGENTS.md`.
