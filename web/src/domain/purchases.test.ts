@@ -21,12 +21,32 @@ describe('purchaseSummary', () => {
     const room = withObjects(sampleRoom(), entryToObject(lampEntry, { id: 'lamp', position: { x: 0, z: 0 }, yaw: 0 }, 2))
     const summary = purchaseSummary(room, sources, usd(60000))
     expect(summary.lines).toEqual([
-      { id: 'lamp', name: 'Linen Floor Lamp', variantLabel: 'Standard', quantity: 2, unitPrice: usd(14900), lineTotal: usd(29800), isSample: true },
+      {
+        id: 'lamp',
+        name: 'Linen Floor Lamp',
+        variantLabel: 'Standard',
+        quantity: 2,
+        unitPrice: usd(14900),
+        lineTotal: usd(29800),
+        isSample: true,
+        offerId: lampEntry.offer.id,
+        store: 'Sample catalog',
+        url: null,
+        retrievedAt: lampEntry.offer.retrievedAt,
+      },
     ])
     expect(summary.ownedCount).toBe(4)
     expect(summary.subtotal.total).toEqual(usd(29800))
     expect(summary.budget).toBe('under')
     expect(summary.anySample).toBe(true)
+  })
+
+  it('links each real purchase to its store listing and says when the price was read', () => {
+    const lampEntry = entry('v-linen-floor-lamp-std')
+    const real = { ...lampEntry.offer, id: 'offer:real', merchant: 'Schoolhouse', url: 'https://schoolhouse.com/products/isaac-floor-lamp?variant=1', isSample: false }
+    const room = withObjects(sampleRoom(), { ...entryToObject(lampEntry, { id: 'lamp', position: { x: 0, z: 0 }, yaw: 0 }), offerId: real.id })
+    const [line] = purchaseSummary(room, { offers: new Map([[real.id, real]]) }, null).lines
+    expect(line).toMatchObject({ offerId: 'offer:real', store: 'Schoolhouse', url: real.url, retrievedAt: real.retrievedAt, isSample: false })
   })
 
   it('keeps an unknown price unknown in lines and in the budget', () => {
