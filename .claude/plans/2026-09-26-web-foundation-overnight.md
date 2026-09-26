@@ -192,11 +192,11 @@ FoundItem = { id; name; category; photoRef?; dimensions; price: Money|null; stor
 
 ## Task 7: Look & feel foundation
 
-- [ ] `materials.ts`: procedural 256² textures (woodgrain, weave, plaster, knit) generated once, cached, disposed; meter UVs.
-- [ ] Palette/lighting pass on the synthetic room with furniture: warm key light from window, soft shadows, contact shading, tone mapping. Two alternate palettes in `palette.ts` behind a dev toggle, so the user can pick an aesthetic later.
-- [ ] UI primitives: FloatingPanel, buttons, chips, tooltips — tokened, Motion transitions (≤200 ms, reduced-motion aware), focus rings.
-- [ ] `HoverTag`: hover any object → small floating tag (name · "Yours" or price · dims), never covering the object; click → select with lift + outline.
-- [ ] Browser check: 3 screenshots (overview, hover, selected). Must look warmer, fuller, calmer than Rumi's gray/flat look. Commit `feat(ui): design tokens, materials, lighting, hover tags`.
+- [x] `materials.ts`: procedural 256² textures (woodgrain, weave, plaster, knit) generated once, cached, disposed; meter UVs.
+- [x] Palette/lighting pass on the synthetic room with furniture: warm key light from window, soft shadows, contact shading, tone mapping. Two alternate palettes in `palette.ts` behind a dev toggle, so the user can pick an aesthetic later.
+- [x] UI primitives: FloatingPanel, buttons, chips, tooltips — tokened, Motion transitions (≤200 ms, reduced-motion aware), focus rings.
+- [x] `HoverTag`: hover any object → small floating tag (name · "Yours" or price · dims), never covering the object; click → select with lift + outline.
+- [x] Browser check: 3 screenshots (overview, hover, selected). Must look warmer, fuller, calmer than Rumi's gray/flat look. Commit `feat(ui): design tokens, materials, lighting, hover tags`.
 
 ## Task 8: Direct manipulation
 
@@ -280,3 +280,4 @@ Empty/loading/error states everywhere, mobile-width check, keyboard-only pass, d
 - 2026-09-26 · T4 design store + commands · feat/web-pr3-store · 27 new tests (91 total). Purchases derived from committed objects (captured/owned = owned). Revision bumps on undo/redo/setBudget too. User may move locked items at command level; UI refuses drag (T8).
 - 2026-09-26 · T5 dollhouse architecture · feat/web-pr4-scene · wall profiles via polygon-clipping (RF1 pinned), exterior cutaway w/ hysteresis, camera fit once per room, key light through first window, N8AO+SMAA+AgX. Browser: sample room opens, orbit 4 angles, door gap + window visible, cut walls follow camera. Furniture still sized boxes (T6). Visual polish pending T7.
 - 2026-09-26 · T6 assets · feat/web-pr4-scene · Assembly schema + validator (≤64 parts, rotated bounds, 1% tol), 16 composed assemblies, meter-UV part geometry cache, shared materials, AssetView (parametric|glb|placeholder w/ error+suspense fallback), dev lineup at ?lineup, test GLB generator. Convention added: object front faces local +Z; fixture bed/desk/chair yaws updated. Browser (Chrome DevTools, since pane hidden): lineup + room screenshots OK. Dev-only console noise: drei Html unmount warning under StrictMode.
+- 2026-09-26 · T7 look & feel · feat/web-pr5-interact · weave/knit textures, wall section tone, shadow-catcher ground, Neutral tone mapping, stronger AO; palettes warm (default) / stone / clay via ?palette= (CSS + scene); Button/Chip/FloatingPanel/Tooltip + motion tokens + MotionConfig reducedMotion=user; HoverTag (name · Yours/price · W×D×H) anchored above projected silhouette; click selects with lift + outline; click empty clears. Browser (Chrome DevTools): overview, hover, selected, 2 alt palettes.

@@ -1,11 +1,15 @@
 import { lazy, Suspense, useState } from 'react'
 import { useStore } from 'zustand'
-import { designStore } from './domain/designStore'
+import { designStore, type PurchaseSources } from './domain/designStore'
 import sampleScan from './fixtures/synthetic-bedroom.roomplan.json?raw'
 import { MAX_IMPORT_BYTES, parseRoomPlanJson } from './import/roomplan'
 import { Backdrop } from './scene/Backdrop'
 import { RoomScene } from './scene/RoomScene'
+import { Chip } from './ui/Chip'
 import { StartScreen } from './ui/StartScreen'
+
+/** No catalog is connected yet; prices come in with the sample catalog. */
+const NO_SOURCES: PurchaseSources = { offers: new Map() }
 
 const AssetLineup = lazy(() => import('./scene/dev/AssetLineup').then((m) => ({ default: m.AssetLineup })))
 const showLineup = new URLSearchParams(window.location.search).has('lineup')
@@ -57,15 +61,15 @@ function Workspace() {
     <main className="relative h-full w-full overflow-hidden">
       {room ? (
         <>
-          <RoomScene room={room} />
+          <RoomScene room={room} sources={NO_SOURCES} />
           <header className="pointer-events-none absolute top-4 left-4 flex items-center gap-2">
             <h1 className="rounded-pill bg-surface/90 px-3 py-1.5 text-sm font-medium text-ink shadow-panel backdrop-blur">
               {room.name}
             </h1>
             {room.source.kind === 'synthetic' ? (
-              <span className="rounded-pill bg-surface-sunken/90 px-2 py-1 text-xs font-medium text-muted shadow-panel">
+              <Chip tone="muted" className="shadow-panel">
                 Synthetic sample
-              </span>
+              </Chip>
             ) : null}
           </header>
         </>
