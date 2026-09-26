@@ -5,8 +5,9 @@ export type GestureEnd = { kind: 'move' | 'rotate'; status: PlacementCheck['stat
 /**
  * What releasing a drag or rotate gesture does. A cancelled gesture never
  * commits. A move commits only onto a valid spot. A rotation that would overlap
- * snaps back; one that only pokes outside is committed, and the rotate command
- * nudges it back inside (the user is told).
+ * snaps back; one that only pokes outside goes to the rotate command, which
+ * nudges it back inside — and is still refused if that nudged pose overlaps
+ * (rotateObject with rejectOverlap).
  */
 export function gestureOutcome({ kind, status, cancelled }: GestureEnd): 'commit' | 'snap-back' {
   if (cancelled) return 'snap-back'

@@ -172,7 +172,8 @@ export const FurnitureObject = memo(function FurnitureObject({
           .show(g.status === 'outside' ? `${object.name} doesn't fit there.` : `${object.name} would overlap ${names.join(', ')}.`, 'warning')
         return
       }
-      const committed = g.kind === 'move' ? moveObject(object.id, g.position) : rotateObject(object.id, g.yaw)
+      const committed =
+        g.kind === 'move' ? moveObject(object.id, g.position) : rotateObject(object.id, g.yaw, { rejectOverlap: true })
       if (!committed) snapBack()
     }
     const onUp = () => end(false)
