@@ -21,6 +21,9 @@ struct ScanSummaryView: View {
     @State private var rawExportURL: URL?
     @State private var rawExportError: String?
     @State private var isShowingRawExportAlert = false
+    @State private var packageResult: RoomPackageExport.Result?
+    @State private var isPreparingPackage = false
+    @State private var packageError: String?
 
     var body: some View {
         List {
@@ -110,6 +113,34 @@ struct ScanSummaryView: View {
                 }
             }
 
+            if let rawCapture {
+                Section {
+                    if let packageResult {
+                        ShareLink(item: packageResult.url) {
+                            Label("Share Room Package", systemImage: "shippingbox")
+                        }
+                        Text(packageSummary(packageResult))
+                            .font(.caption)
+                            .foregroundStyle(Color.rfSecondaryText)
+                    } else if isPreparingPackage {
+                        ProgressView("Preparing package…")
+                    } else {
+                        Button("Prepare Room Package", systemImage: "shippingbox") {
+                            Task { await preparePackage(captureID: rawCapture.id) }
+                        }
+                    }
+                    if let packageError {
+                        Label(packageError, systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                } header: {
+                    Text("Room package (preview format)")
+                } footer: {
+                    Text("One file with the original scan, the editable room, your names and the photos chosen in Review room. The web importer doesn't read packages yet; use Share RoomPlan JSON for it today.")
+                }
+            }
+
             Section {
                 Button(didCopy ? "Copied" : "Copy Editable Room JSON", systemImage: didCopy ? "checkmark" : "doc.on.doc") {
                     UIPasteboard.general.string = json
@@ -134,6 +165,8 @@ struct ScanSummaryView: View {
         }
         .onAppear {
             if rawExportURL == nil { makeRawExport() }
+            // Review choices may have changed while away: never offer a package built from older ones.
+            packageResult = nil
         }
         .alert("Couldn't create the RoomPlan file", isPresented: $isShowingRawExportAlert) {
             Button("Retry", action: makeRawExport)
@@ -141,6 +174,30 @@ struct ScanSummaryView: View {
         } message: {
             Text(rawExportError ?? "")
         }
+    }
+
+    /// Builds a fresh package from the saved room and the latest Review choices.
+    /// Failure is shown here and leaves the saved room and the raw export untouched.
+    private func preparePackage(captureID: UUID) async {
+        isPreparingPackage = true
+        packageError = nil
+        defer { isPreparingPackage = false }
+        do {
+            let archive = try await RoomArchiveStore.shared.load(id: captureID)
+            packageResult = try await RoomPackageExport.export(archive: archive, selection: archive.selection)
+        } catch {
+            packageError = "Couldn't prepare the package. \(error.localizedDescription) Tap Prepare to try again."
+        }
+    }
+
+    private func packageSummary(_ result: RoomPackageExport.Result) -> String {
+        var text = result.sharedPhotoCount == 0
+            ? "Scan only, no photos."
+            : "Includes \(result.sharedPhotoCount) photo\(result.sharedPhotoCount == 1 ? "" : "s")."
+        if result.omittedPhotoCount > 0 {
+            text += " \(result.omittedPhotoCount) selected photo\(result.omittedPhotoCount == 1 ? " was" : "s were") left out to stay under the size limit."
+        }
+        return text
     }
 
     /// Writes the raw file once for this screen. A failure leaves the room and editor untouched.
