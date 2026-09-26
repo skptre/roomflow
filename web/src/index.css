@@ -1,0 +1,83 @@
+/*
+ * Roomflow design tokens.
+ * Aesthetic TBD — change here only. 3D colors live in src/scene/palette.ts and
+ * should stay in step with the values below.
+ */
+@import 'tailwindcss';
+
+@theme {
+  /* Color — neutral warm placeholder palette */
+  --color-canvas: #efe9e1; /* backdrop behind the room */
+  --color-surface: #fbf8f4; /* floating panels */
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #f3eee7;
+  --color-line: #e2d9cd; /* hairlines and dividers */
+  --color-ink: #2b2723; /* primary text */
+  --color-muted: #7a7066; /* secondary text */
+  --color-accent: #b5673f; /* primary action, selection */
+  --color-accent-ink: #ffffff; /* text on accent */
+  --color-accent-soft: #f3e2d7;
+  --color-danger: #b53f3f;
+  --color-danger-soft: #f6dddd;
+  --color-success: #4f7a52;
+  --color-success-soft: #dfeadf;
+  --color-focus: #3f6fb5; /* focus ring, distinct from accent */
+
+  /* Type */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Radius scale */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+
+  /* Spacing base (Tailwind derives p-1, gap-2, ... from this) */
+  --spacing: 4px;
+
+  /* Elevation */
+  --shadow-panel: 0 1px 2px rgb(43 39 35 / 0.06), 0 8px 24px rgb(43 39 35 / 0.08);
+  --shadow-float: 0 2px 6px rgb(43 39 35 / 0.1), 0 16px 40px rgb(43 39 35 / 0.12);
+
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 320ms;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
