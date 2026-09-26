@@ -4,6 +4,8 @@
  * commands applied atomically: all succeed or the room is left unchanged.
  */
 import { z } from 'zod'
+import { Appearance } from '../recognition/contract'
+import { appearanceAsset } from '../recognition/appearanceAsset'
 import { blocksFloor, clampIntoRoom, footprintsOverlap, insideRoom, verticalOverlap } from './geometry'
 import { Finishes, RoomObject, Vec2, type Room } from './schema'
 import { normalizeYaw } from './units'
@@ -22,6 +24,7 @@ const Id = z.string().min(1)
  * so every one is validated here before it touches a room.
  */
 export const Command = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('setAppearance'), id: Id, appearance: Appearance, model: z.string().min(1).max(100) }),
   z.object({ type: z.literal('add'), object: RoomObject }),
   z.object({ type: z.literal('move'), id: Id, position: Vec2 }),
   z.object({ type: z.literal('rotate'), id: Id, yaw: z.number() }),
@@ -68,6 +71,19 @@ function withObject(room: Room, index: number, object: RoomObject): Room {
 
 function applyOne(room: Room, command: Command, actor: Actor, warnings: string[]): Room {
   switch (command.type) {
+    case 'setAppearance': {
+      const index = objectIndex(room, command.id)
+      const object = room.objects[index]!
+      if (object.sourceKind !== 'captured' && object.sourceKind !== 'owned') throw new CommandError('Appearance matching is only for your existing furniture.')
+      if (command.appearance.template === 'unsupported') throw new CommandError('No suitable furniture model was identified.')
+      return withObject(room, index, {
+        ...object,
+        asset: appearanceAsset(command.appearance),
+        fidelity: 'approximate',
+        appearance: { description: command.appearance, model: command.model, source: 'ai-estimated' },
+      })
+    }
+
     case 'add': {
       const parsed = RoomObject.safeParse(command.object)
       if (!parsed.success) throw new CommandError(`That item has invalid data (${parsed.error.issues[0]!.message}).`)
