@@ -33,10 +33,30 @@ export const CATEGORIES: Readonly<Record<string, CategoryInfo>> = {
   rug: { label: 'Rug', assemblyId: 'rug', typical: { width: 2.0, height: 0.01, depth: 1.4 }, mount: 'floor' },
   plant: { label: 'Plant', assemblyId: 'plant', typical: { width: 0.5, height: 1.2, depth: 0.5 }, mount: 'floor' },
   'wall-art': { label: 'Wall art', assemblyId: 'wall-art', typical: { width: 0.6, height: 0.8, depth: 0.04 }, mount: 'wall', mountHeight: 1.2 },
-  mirror: { label: 'Mirror', assemblyId: 'mirror', typical: { width: 0.5, height: 1.5, depth: 0.03 }, mount: 'wall', mountHeight: 0.4 },
+  // Floor mirrors: they stand on the floor, leaning against a wall.
+  mirror: { label: 'Mirror', assemblyId: 'mirror', typical: { width: 0.5, height: 1.5, depth: 0.03 }, mount: 'wall', mountHeight: 0 },
   vase: { label: 'Vase', assemblyId: 'vase', typical: { width: 0.18, height: 0.3, depth: 0.18 }, mount: 'surface' },
 }
 
+/** Captured (RoomPlan) categories and the catalog categories that can stand in for them. */
+const STAND_INS: Readonly<Record<string, string[]>> = {
+  table: ['desk', 'coffee-table'],
+  chair: ['desk-chair', 'lounge-chair'],
+  storage: ['dresser', 'nightstand', 'bookshelf'],
+}
+
+/** Catalog categories offered as alternatives for an object of this category. */
+export function alternativeCategories(category: string): string[] {
+  const standIns = STAND_INS[category]
+  if (standIns) return standIns
+  return CATEGORIES[category] ? [category] : []
+}
+
 export function categoryInfo(category: string): CategoryInfo | undefined {
-  return CATEGORIES[category]
+  return Object.hasOwn(CATEGORIES, category) ? CATEGORIES[category] : undefined
+}
+
+/** Hung on a wall above the floor (art): it can't be turned or dragged across the floor. */
+export function isWallHung(object: { category: string; pose: { position: { y: number } } }): boolean {
+  return categoryInfo(object.category)?.mount === 'wall' && object.pose.position.y > 1e-6
 }

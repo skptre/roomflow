@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from 'react'
 import type { PurchaseSources } from '../domain/designStore'
+import { isWallHung } from '../domain/categories'
 import { designStore } from '../domain/designStore'
 import { formatLength, priceLabel, provenanceLabel } from '../domain/labels'
 import type { MeasurementSource, RoomObject } from '../domain/schema'
@@ -64,7 +65,7 @@ function Toggle({ label, hint, checked, onChange, icon }: { label: string; hint:
 }
 
 /** Details and controls for the selected object. */
-export function Inspector({ object, sources }: { object: RoomObject; sources: PurchaseSources }) {
+export function Inspector({ object, sources, onBrowseAlternatives }: { object: RoomObject; sources: PurchaseSources; onBrowseAlternatives: () => void }) {
   const price = priceLabel(object, sources)
   const { width, height, depth, source } = object.dimensions
 
@@ -108,12 +109,13 @@ export function Inspector({ object, sources }: { object: RoomObject; sources: Pu
       </div>
 
       <div className="mt-3 flex items-center gap-1 border-t border-line pt-3">
-        <Button size="sm" icon={<RotateLeftIcon />} aria-label="Turn left 15°" disabled={object.lockPlacement} onClick={() => rotateSelected(1)} />
-        <Button size="sm" icon={<RotateRightIcon />} aria-label="Turn right 15°" disabled={object.lockPlacement} onClick={() => rotateSelected(-1)} />
-        <span className="flex-1" />
-        <Button size="sm" variant="danger" icon={<TrashIcon />} onClick={() => removeSelected()}>
-          Remove
+        <Button size="sm" icon={<RotateLeftIcon />} aria-label="Turn left 15°" disabled={object.lockPlacement || isWallHung(object)} onClick={() => rotateSelected(1)} />
+        <Button size="sm" icon={<RotateRightIcon />} aria-label="Turn right 15°" disabled={object.lockPlacement || isWallHung(object)} onClick={() => rotateSelected(-1)} />
+        <Button size="sm" variant="secondary" onClick={onBrowseAlternatives}>
+          Alternatives
         </Button>
+        <span className="flex-1" />
+        <Button size="sm" variant="danger" icon={<TrashIcon />} aria-label="Remove from room" onClick={() => removeSelected()} />
       </div>
     </FloatingPanel>
   )
