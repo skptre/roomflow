@@ -5,7 +5,11 @@ struct HomeView: View {
     @State private var isScanning = false
     @State private var showUnsupported = false
     @State private var pendingScan: CapturedRoom?
-    @State private var latestScan: CapturedRoom?
+    /// The untouched RoomPlan result, kept for saving/export later.
+    @State private var latestCapture: CapturedRoom?
+    /// Our editable model built from `latestCapture` (or the debug sample room).
+    @State private var latestRoom: RoomModel?
+    @State private var latestRoomIsSample = false
     @State private var showSummary = false
 
     var body: some View {
@@ -41,12 +45,22 @@ struct HomeView: View {
                     Text("Saved rooms are coming soon.")
                         .font(.footnote)
                         .foregroundStyle(Color.rfSecondaryText)
+
+                    #if DEBUG
+                    Button("Load sample room (debug)") {
+                        latestRoom = SampleRoom.make()
+                        latestRoomIsSample = true
+                        showSummary = true
+                    }
+                    .font(.footnote)
+                    .padding(.top, 8)
+                    #endif
                 }
                 .padding(24)
             }
             .navigationDestination(isPresented: $showSummary) {
-                if let latestScan {
-                    ScanSummaryView(room: latestScan)
+                if let latestRoom {
+                    ScanSummaryView(room: latestRoom, isSample: latestRoomIsSample)
                 }
             }
         }
@@ -67,7 +81,9 @@ struct HomeView: View {
     // so the two transitions don't fight each other.
     private func openPendingScan() {
         guard let pendingScan else { return }
-        latestScan = pendingScan
+        latestCapture = pendingScan
+        latestRoom = RoomPlanConverter.convert(pendingScan)
+        latestRoomIsSample = false
         self.pendingScan = nil
         showSummary = true
     }
