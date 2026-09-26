@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import fixtures from './__fixtures__/shopify-products.json'
 import { normalizeProduct } from './normalize'
 import { ShopifyProduct } from './shopify'
-import { SnapshotProduct } from './snapshot'
+import { SnapshotProduct, variantId, variantLabel, variantUrl } from './snapshot'
 import { storeByDomain } from './stores'
 
 const IN = 0.0254
@@ -28,13 +28,14 @@ describe('normalizeProduct', () => {
     expect(product.optionNames).toEqual(['Fabric', 'Leg Finish', 'Arm Style'])
     const v = product.variants[0]!
     const rv = src.variants[0]!
-    expect(v.id).toBe(`shop:www.burrow.com:${src.id}:${rv.id}`)
-    expect(v.label).toBe('Ivory - Performance Basketweave / Walnut - Wood / Block')
+    expect(v.sid).toBe(rv.id)
+    expect(variantId(product, v)).toBe(`shop:www.burrow.com:${src.id}:${rv.id}`)
+    expect(variantLabel(v)).toBe('Ivory - Performance Basketweave / Walnut - Wood / Block')
     expect(v.optionValues).toEqual(['Ivory - Performance Basketweave', 'Walnut - Wood', 'Block'])
-    expect(v.url).toBe(`https://www.burrow.com/products/${src.handle}?variant=${rv.id}`)
+    expect(variantUrl(product, v)).toBe(`https://www.burrow.com/products/${src.handle}?variant=${rv.id}`)
     expect(v.price).toEqual({ amountMinor: 96400, currency: 'USD' })
     expect(v.available).toBe(false)
-    expect(product.variants.map((x) => x.id)).toHaveLength(new Set(product.variants.map((x) => x.id)).size)
+    expect(product.variants.map((x) => x.sid)).toHaveLength(new Set(product.variants.map((x) => x.sid)).size)
   })
 
   it('marks size estimated when the listing gives none', () => {
@@ -70,6 +71,8 @@ describe('normalizeProduct', () => {
     expect(product.variants[0]!.dimensions.width).toBeCloseTo(8 * IN, 6)
     expect(product.variants[0]!.dimensions.height).toBeCloseTo(10 * IN, 6)
     expect(product.variants[0]!.price).toEqual({ amountMinor: 2900, currency: 'USD' })
+    // 14 in = 0.35559999999999997 in floating point; stored to the micrometer instead.
+    expect(product.variants[1]!.dimensions.height).toBe(0.3556)
   })
 
   it("never shows a store's placeholder price (Loloi lists 99999.00)", () => {
@@ -92,9 +95,11 @@ describe('normalizeProduct', () => {
     src.variants[0] = { ...src.variants[0]!, title: 'Default Title', option1: 'Default Title', featured_image: null }
     const product = normalized(src, 'polyandbark.com')
     expect(product.optionNames).toEqual([])
-    expect(product.variants[0]!.label).toBe('Standard')
+    expect(variantLabel(product.variants[0]!)).toBe('Standard')
     expect(product.variants[0]!.optionValues).toEqual([])
-    expect(product.variants[0]!.imageUrl).toBe(src.images[0]!.src)
+    // Same photo as the product: not repeated per variant.
+    expect(product.imageUrl).toBe(src.images[0]!.src)
+    expect(product.variants[0]!.imageUrl).toBeUndefined()
   })
 
   it('prefers the variant photo over the product photo', () => {

@@ -7,16 +7,15 @@
 import { z } from 'zod'
 import { Dimensions, Money } from '../domain/schema'
 
+/** Compact: id, link and label are derived from the product (see helpers below). */
 export const SnapshotVariant = z.object({
-  /** shop:<domain>:<productId>:<variantId> */
-  id: z.string().min(1),
-  label: z.string().min(1),
+  /** The store's variant id. */
+  sid: z.number().int().positive(),
   /** Values in the product's option order; empty for a single default variant. */
   optionValues: z.array(z.string()),
   dimensions: Dimensions,
+  /** Only when this variant has its own photo (otherwise the product's). */
   imageUrl: z.url().optional(),
-  /** Exact variant page: https://<domain>/products/<handle>?variant=<id> */
-  url: z.url(),
   /** null = unknown (unparseable, placeholder, or not listed). Never zero-for-unknown. */
   price: Money.nullable(),
   available: z.boolean(),
@@ -47,3 +46,18 @@ export const Snapshot = z.object({
   products: z.array(SnapshotProduct),
 })
 export type Snapshot = z.infer<typeof Snapshot>
+
+/** shop:<domain>:<productId>:<variantId> */
+export function variantId(product: Pick<SnapshotProduct, 'id'>, variant: Pick<SnapshotVariant, 'sid'>): string {
+  return `${product.id}:${variant.sid}`
+}
+
+/** The exact variant page: https://<domain>/products/<handle>?variant=<id> */
+export function variantUrl(product: Pick<SnapshotProduct, 'url'>, variant: Pick<SnapshotVariant, 'sid'>): string {
+  return `${product.url}?variant=${variant.sid}`
+}
+
+/** "Ivory / Walnut - Wood", or "Standard" for a product sold one way. */
+export function variantLabel(variant: Pick<SnapshotVariant, 'optionValues'>): string {
+  return variant.optionValues.filter(Boolean).join(' / ') || 'Standard'
+}
