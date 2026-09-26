@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CatalogEntry } from '../domain/catalog'
-import { matchesMood, sizedImage } from './display'
+import { inStockFirst, matchesMood, sizedImage } from './display'
 
 function entry(name: string, label = 'Standard', tags: string[] = []): CatalogEntry {
   return {
@@ -19,6 +19,16 @@ describe('sizedImage', () => {
 
   it('leaves other hosts alone', () => {
     expect(sizedImage('https://example.com/a.jpg', 240)).toBe('https://example.com/a.jpg')
+  })
+})
+
+describe('inStockFirst', () => {
+  it('moves sold-out listings after the rest, keeping order within each group', () => {
+    const a = entry('A')
+    const b = { ...entry('B'), offer: { ...entry('B').offer, available: false } }
+    const c = { ...entry('C'), offer: { ...entry('C').offer, available: true } }
+    const d = { ...entry('D'), offer: { ...entry('D').offer, available: false } }
+    expect(inStockFirst([b, a, d, c]).map((e) => e.product.name)).toEqual(['A', 'C', 'B', 'D'])
   })
 })
 

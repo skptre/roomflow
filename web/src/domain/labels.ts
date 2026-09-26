@@ -30,7 +30,13 @@ export function provenanceLabel(source: MeasurementSource): string {
   return PROVENANCE[source]
 }
 
-export type PriceLabel = { kind: 'owned' | 'price' | 'unknown'; text: string }
+/** A size with its source: "160 × 210 × 95 cm · listed", or "≈ … · estimated" when it is not a measurement. */
+export function formatSizeWithSource(dimensions: Dimensions): string {
+  const measured = dimensions.source === 'merchant' || dimensions.source === 'captured' || dimensions.source === 'user'
+  return `${measured ? '' : '≈ '}${formatDimensions(dimensions)} · ${provenanceLabel(dimensions.source)}`
+}
+
+export type PriceLabel ={ kind: 'owned' | 'price' | 'unknown'; text: string }
 
 /** What this placed object adds to the purchase: nothing (yours), a price, or unknown. */
 export function priceLabel(object: RoomObject, sources: PurchaseSources): PriceLabel {
