@@ -20,24 +20,27 @@ type Options = {
   extraEntries?: ZipEntry[]
   folder?: string
   skipFile?: string
+  mutateAppearance?: (appearance: Record<string, any>) => void
 }
 
 /** Builds a package the way the iOS app does, optionally broken in one specific way. */
 async function makePackage(options: Options = {}): Promise<Uint8Array> {
   const enc = (s: string) => new TextEncoder().encode(s)
+  const appearance: Record<string, any> = {
+    schemaVersion: 1, captureId: CAPTURE,
+    colors: [
+      { sourceId: firstObjectId, hex: '#E4DED3', sampleCount: 30, provenance: 'camera-estimate' },
+      { sourceId: firstWallId, hex: '#F0EBE3', sampleCount: 40, provenance: 'camera-estimate' },
+      { sourceId: 'not-in-scan', hex: '#000000', sampleCount: 5, provenance: 'camera-estimate' },
+    ],
+    floorColor: { hex: '#4A4B50', sampleCount: 120 },
+    annotations: [{ sourceId: firstObjectId, label: 'guest bed', provenance: 'user-supplied' }],
+  }
+  options.mutateAppearance?.(appearance)
   const files: Record<string, Uint8Array> = {
     'capture.roomplan.json': enc(fixtureText),
     'editable.roomflow.json': enc('{"revision":0}'),
-    'appearance.json': enc(JSON.stringify({
-      schemaVersion: 1, captureId: CAPTURE,
-      colors: [
-        { sourceId: firstObjectId, hex: '#E4DED3', sampleCount: 30, provenance: 'camera-estimate' },
-        { sourceId: firstWallId, hex: '#F0EBE3', sampleCount: 40, provenance: 'camera-estimate' },
-        { sourceId: 'not-in-scan', hex: '#000000', sampleCount: 5, provenance: 'camera-estimate' },
-      ],
-      floorColor: { hex: '#4A4B50', sampleCount: 120 },
-      annotations: [{ sourceId: firstObjectId, label: 'guest bed', provenance: 'user-supplied' }],
-    })),
+    'appearance.json': enc(JSON.stringify(appearance)),
   }
   if (options.withPhoto !== false) files[`photos/${PHOTO}.jpg`] = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
   const manifest: Record<string, any> = {
@@ -95,6 +98,22 @@ describe('parseRoomflowPackage', () => {
     expect(labelled.name).toBe('guest bed')
     expect(labelled.category).toBe('bed')
     expect(labelled.dimensions.source).toBe('captured')
+  })
+
+  it('uses the scanned floor color as a plain floor when the phone sampled it enough', async () => {
+    const { room } = await load(await makePackage())
+    expect(room.finishes.floor).toBe('#4a4b50')
+    expect(room.finishes.floorTexture).toBe('plain')
+  })
+
+  it('keeps the default wood floor when the floor color is missing or barely sampled', async () => {
+    const thin = await makePackage({ mutateAppearance: (a) => { a.floorColor = { hex: '#123456', sampleCount: 2 } } })
+    const none = await makePackage({ mutateAppearance: (a) => { a.floorColor = null } })
+    for (const bytes of [thin, none]) {
+      const { room } = await load(bytes)
+      expect(room.finishes.floor).toBe('#c9a882')
+      expect(room.finishes.floorTexture).toBeUndefined()
+    }
   })
 
   it('accepts a geometry-only package', async () => {

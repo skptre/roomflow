@@ -112,6 +112,8 @@ export const Finishes = z.object({
   wall: HexColor,
   floor: HexColor,
   accent: HexColor.optional(),
+  /** Absent = the look's wood floor. 'plain' = a matte floor in `floor`, used for a color sampled by the phone. */
+  floorTexture: z.enum(['woodgrain', 'plain']).optional(),
 })
 export type Finishes = z.infer<typeof Finishes>
 
