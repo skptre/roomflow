@@ -22,7 +22,7 @@ const EXCLUDE: Rule[] = [
   [/\bfabric\b(?! swatch)|yardage/, 'fabric-yardage'],
   [/\bpulls?\b(?!-\s*out)|\bknobs?\b|\bhooks?\b|hardware|\bleg\b|\blegs\b|\brack\b/, 'hardware'],
   [/sheets?\b|sheeting|duvet|pillowcase|\bshams?\b|comforter|quilt|coverlet|bed blanket|bedding|bed bundles/, 'bedding'],
-  [/mattress|adjustable base|box foundation|body pillow|pillow insert|down alternative/, 'sleep-product'],
+  [/mattress|adjustable base|box foundation|body pillow|pillow insert|down alternative|foam pillow|comfort pillow|sleep(ing)? pillow|side sleeper/, 'sleep-product'],
   [/towel|\bbath\b|bath rug|bath mat|tub mat|shower curtain|\brobes?\b|slipper|loungewear|clog|baby/, 'bath-or-apparel'],
   [/add-?on|expansion|lift kit|headboard/, 'bed-add-on'],
   [/roman shade|\bshades?\b|\bblinds?\b/, 'window-shade'],
