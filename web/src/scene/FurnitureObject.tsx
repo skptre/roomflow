@@ -27,6 +27,8 @@ type FurnitureObjectProps = {
   object: RoomObject
   selected: boolean
   hovered: boolean
+  /** Hidden with the cut-away wall it hangs on. */
+  hidden: boolean
   sources: PurchaseSources
   reducedMotion: boolean
   onHover: (id: string | null) => void
@@ -64,6 +66,7 @@ export const FurnitureObject = memo(function FurnitureObject({
   object,
   selected,
   hovered,
+  hidden,
   sources,
   reducedMotion,
   onHover,
@@ -107,7 +110,7 @@ export const FurnitureObject = memo(function FurnitureObject({
   }
 
   function beginGesture(event: ThreeEvent<PointerEvent>, kind: Gesture['kind']) {
-    if (event.button !== 0) return
+    if (event.button !== 0 || hidden) return
     event.stopPropagation()
     const hit = floorPoint(event.clientX, event.clientY, camera, element)
     if (!hit) return
@@ -205,6 +208,7 @@ export const FurnitureObject = memo(function FurnitureObject({
   }
 
   const handleOver = (event: ThreeEvent<PointerEvent>) => {
+    if (hidden) return
     event.stopPropagation()
     onHover(object.id)
     if (!gesture.current) document.body.style.cursor = object.lockPlacement ? 'not-allowed' : 'grab'
@@ -214,7 +218,7 @@ export const FurnitureObject = memo(function FurnitureObject({
     if (!gesture.current) document.body.style.cursor = ''
   }
   const handleClick = (event: ThreeEvent<MouseEvent>) => {
-    if (event.delta > DRAG_SLOP) return
+    if (event.delta > DRAG_SLOP || hidden) return
     event.stopPropagation()
     onSelect(object.id)
   }
@@ -223,7 +227,7 @@ export const FurnitureObject = memo(function FurnitureObject({
   const ringRadius = Math.hypot(width, depth) / 2 + 0.12
 
   return (
-    <group ref={poseRef} position={[position.x, position.y, position.z]} rotation-y={yaw}>
+    <group ref={poseRef} position={[position.x, position.y, position.z]} rotation-y={yaw} visible={!hidden}>
       {feedback ? (
         <mesh rotation-x={-Math.PI / 2} position-y={0.004} renderOrder={1}>
           <planeGeometry args={[width, depth]} />
