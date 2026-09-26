@@ -35,13 +35,13 @@ export function Lighting({ room }: { room: Room }) {
   return (
     <>
       <SceneEnvironment />
-      <hemisphereLight args={[palette.lightSky, palette.lightGround, 0.9]} />
+      <hemisphereLight args={[palette.lightSky, palette.lightGround, 0.75]} />
       <primitive object={target} />
       <directionalLight
         position={keyPosition}
         target={target}
         color={palette.lightKey}
-        intensity={2.4}
+        intensity={2.6}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0004}

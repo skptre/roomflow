@@ -156,6 +156,22 @@ function applyOne(room: Room, command: Command, actor: Actor, warnings: string[]
   }
 }
 
+export type PlacementCheck = { status: 'ok' | 'overlap' | 'outside'; overlaps: string[] }
+
+/**
+ * Would this object fit at a candidate position and yaw? Used for live feedback
+ * while dragging or rotating, before any command is applied. "outside" wins
+ * over "overlap" because an outside placement will be refused.
+ */
+export function checkPlacement(room: Room, id: string, position: Vec2, yaw: number): PlacementCheck {
+  const object = room.objects.find((candidate) => candidate.id === id)
+  if (!object) throw new Error(`No object with id ${id} in this room.`)
+  const moved = { ...object, pose: { position: { x: position.x, y: object.pose.position.y, z: position.z }, yaw } }
+  if (!insideRoom(moved, room.floorPolygon)) return { status: 'outside', overlaps: [] }
+  const overlaps = room.objects.filter((other) => other.id !== id && footprintsOverlap(moved, other)).map((other) => other.id)
+  return { status: overlaps.length > 0 ? 'overlap' : 'ok', overlaps }
+}
+
 /** Apply commands in order. Returns a new room; the input room is never mutated. */
 export function applyCommands(room: Room, commands: readonly Command[], actor: Actor): CommandResult {
   const warnings: string[] = []
