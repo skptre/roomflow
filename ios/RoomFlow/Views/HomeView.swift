@@ -7,6 +7,8 @@ struct HomeView: View {
     @State private var pendingScan: (room: CapturedRoom, colors: RoomColorEstimates)?
     /// The untouched RoomPlan result, kept for saving/export later.
     @State private var latestCapture: CapturedRoom?
+    /// Camera colors for `latestCapture`; exported separately, never inside the raw file.
+    @State private var latestColorEstimates: RoomColorEstimates?
     /// Our editable model built from `latestCapture` (or a debug room).
     @State private var latestRoom: RoomModel?
     @State private var latestRoomIsSample = false
@@ -54,7 +56,8 @@ struct HomeView: View {
             }
             .navigationDestination(isPresented: $showEditor) {
                 if let latestRoom {
-                    RoomEditorView(room: latestRoom, isSample: latestRoomIsSample)
+                    RoomEditorView(room: latestRoom, isSample: latestRoomIsSample,
+                                   capture: latestCapture, colors: latestColorEstimates)
                         .id(latestRoom.id)
                 }
             }
@@ -77,6 +80,7 @@ struct HomeView: View {
     private func openPendingScan() {
         guard let pendingScan else { return }
         latestCapture = pendingScan.room
+        latestColorEstimates = pendingScan.colors
         latestRoom = RoomPlanConverter.convert(pendingScan.room, colors: pendingScan.colors)
         latestRoomIsSample = false
         self.pendingScan = nil
@@ -103,6 +107,9 @@ struct HomeView: View {
     }
 
     private func open(_ room: RoomModel, isSample: Bool) {
+        // Debug rooms have no RoomPlan capture; clear it so an older scan is never exported with them.
+        latestCapture = nil
+        latestColorEstimates = nil
         latestRoom = room
         latestRoomIsSample = isSample
         showEditor = true
