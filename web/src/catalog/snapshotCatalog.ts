@@ -9,7 +9,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla'
 import type { CatalogEntry, CatalogQuery, CatalogResult, CatalogSource } from '../domain/catalog'
 import { categoryInfo } from '../domain/categories'
 import type { AssetRef, Offer } from '../domain/schema'
-import { Snapshot } from '../shop/snapshot'
+import { Snapshot, variantId, variantLabel, variantUrl } from '../shop/snapshot'
 
 /** What renders a category until product-specific block recipes exist. */
 function categoryAsset(category: string): AssetRef {
@@ -19,39 +19,42 @@ function categoryAsset(category: string): AssetRef {
 
 export function snapshotEntries(snapshot: Snapshot): CatalogEntry[] {
   return snapshot.products.flatMap((p) =>
-    p.variants.map((v): CatalogEntry => ({
-      product: {
-        id: p.id,
-        name: p.name,
-        category: p.category,
-        tags: p.tags,
-        vendor: p.vendor,
-        store: p.store,
-        url: p.url,
-        ...(p.imageUrl ? { imageUrl: p.imageUrl } : {}),
-        optionNames: p.optionNames,
-      },
-      variant: {
-        id: v.id,
-        productId: p.id,
-        label: v.label,
-        dimensions: v.dimensions,
-        asset: categoryAsset(p.category),
-        optionValues: v.optionValues,
-        ...(v.imageUrl ? { imageUrl: v.imageUrl } : {}),
-      },
-      offer: {
-        id: `offer:${v.id}`,
-        variantId: v.id,
-        merchant: p.store,
-        url: v.url,
-        price: v.price,
-        retrievedAt: snapshot.retrievedAt,
-        isSample: false,
-        available: v.available,
-        sourceStore: p.storeDomain,
-      },
-    })),
+    p.variants.map((sv): CatalogEntry => {
+      const v = { ...sv, id: variantId(p, sv), label: variantLabel(sv), url: variantUrl(p, sv), imageUrl: sv.imageUrl ?? p.imageUrl }
+      return {
+        product: {
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          tags: p.tags,
+          vendor: p.vendor,
+          store: p.store,
+          url: p.url,
+          ...(p.imageUrl ? { imageUrl: p.imageUrl } : {}),
+          optionNames: p.optionNames,
+        },
+        variant: {
+          id: v.id,
+          productId: p.id,
+          label: v.label,
+          dimensions: v.dimensions,
+          asset: categoryAsset(p.category),
+          optionValues: v.optionValues,
+          ...(v.imageUrl ? { imageUrl: v.imageUrl } : {}),
+        },
+        offer: {
+          id: `offer:${v.id}`,
+          variantId: v.id,
+          merchant: p.store,
+          url: v.url,
+          price: v.price,
+          retrievedAt: snapshot.retrievedAt,
+          isSample: false,
+          available: v.available,
+          sourceStore: p.storeDomain,
+        },
+      }
+    }),
   )
 }
 

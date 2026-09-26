@@ -50,6 +50,9 @@ function plausible(size: ListedSize | null): ListedSize | null {
   return out
 }
 
+/** Meters to the micrometer: exact enough, without float noise in the snapshot. */
+const micro = (meters: number) => Math.round(meters * 1e6) / 1e6
+
 function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
 }
@@ -78,6 +81,7 @@ export function normalizeProduct(raw: ShopifyProduct, store: StoreInfo): Normali
   const isDefault = raw.variants.length === 1 && raw.variants[0]!.title === DEFAULT_TITLE
   const options = isDefault ? [] : [...raw.options].sort((a, b) => a.position - b.position)
   const productUrl = `https://${store.domain}/products/${raw.handle}`
+  const productImage = raw.images[0]?.src
   const kind = sizeKind(category)
   const described = plausible(parseOverallDimensions(stripHtml(raw.body_html ?? ''))) ?? {}
   // Furniture names often state the width ("Sofa 86\"", "Aspen 39\" Modular Corner").
@@ -99,13 +103,13 @@ export function normalizeProduct(raw: ShopifyProduct, store: StoreInfo): Normali
       }
     })
     const price = store.listsPrices ? moneyFromDecimalString(variant.price, store.currency) : null
+    const image = variantImage(raw, variant)
+    const dimensions = completeDimensions(listed, estimate)
     return {
-      id: `shop:${store.domain}:${raw.id}:${variant.id}`,
-      label: optionValues.filter(Boolean).join(' / ') || 'Standard',
+      sid: variant.id,
       optionValues,
-      dimensions: completeDimensions(listed, estimate),
-      imageUrl: variantImage(raw, variant),
-      url: `${productUrl}?variant=${variant.id}`,
+      dimensions: { ...dimensions, width: micro(dimensions.width), height: micro(dimensions.height), depth: micro(dimensions.depth) },
+      ...(image && image !== productImage ? { imageUrl: image } : {}),
       // 0.00 on furniture or decor is a placeholder (unreleased or hidden listing), not free.
       price: price && price.amountMinor > 0 ? price : null,
       available: variant.available,
@@ -122,7 +126,7 @@ export function normalizeProduct(raw: ShopifyProduct, store: StoreInfo): Normali
     storeDomain: store.domain,
     handle: raw.handle,
     url: productUrl,
-    imageUrl: raw.images[0]?.src,
+    ...(productImage ? { imageUrl: productImage } : {}),
     optionNames: options.map((option) => option.name),
     variants,
   }
