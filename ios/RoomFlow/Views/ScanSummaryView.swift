@@ -13,6 +13,8 @@ struct ScanSummaryView: View {
     var colors: RoomColorEstimates? = nil
     /// Reference photos saved with the scan (empty when photo capture was off).
     var photos: [RoomPhotoEvidence] = []
+    /// Candidate photo regions for captured objects (nil for older saved rooms).
+    var appearance: RoomAppearanceEvidence? = nil
 
     @State private var json = ""
     @State private var didCopy = false
@@ -38,7 +40,12 @@ struct ScanSummaryView: View {
             if !photos.isEmpty {
                 Section {
                     NavigationLink {
-                        RoomPhotosView(photos: photos)
+                        RoomPhotosView(
+                            photos: photos,
+                            associations: appearance?.associations ?? [],
+                            labels: Dictionary(room.objects.compactMap { o in o.sourceId.map { ($0, o.id) } },
+                                               uniquingKeysWith: { first, _ in first })
+                        )
                     } label: {
                         Label("Reference photos (\(photos.count))", systemImage: "photo.on.rectangle")
                     }

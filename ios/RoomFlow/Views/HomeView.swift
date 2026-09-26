@@ -8,6 +8,7 @@ struct HomeView: View {
     /// Opt-in: keep calibrated reference photos during the scan.
     @AppStorage("includeReferencePhotos") private var includeReferencePhotos = false
     @State private var latestPhotos: [RoomPhotoEvidence] = []
+    @State private var latestAppearance: RoomAppearanceEvidence?
     /// The untouched RoomPlan result as frozen JSON bytes: what gets saved and shared.
     @State private var latestRawCapture: RawCapture?
     /// Camera colors for `latestRawCapture`; exported separately, never inside the raw file.
@@ -75,7 +76,7 @@ struct HomeView: View {
                 if let latestRoom {
                     RoomEditorView(room: latestRoom, isSample: latestRoomIsSample,
                                    rawCapture: latestRawCapture, colors: latestColorEstimates,
-                                   photos: latestPhotos)
+                                   photos: latestPhotos, appearance: latestAppearance)
                         .id(latestRoom.id)
                 }
             }
@@ -107,6 +108,9 @@ struct HomeView: View {
         latestRawCapture = try? RoomPlanFileExport.encode(pendingScan.room)
         latestColorEstimates = pendingScan.colors
         latestPhotos = pendingScan.photos
+        // Match photos against the final processed room only.
+        latestAppearance = RoomEvidenceProjector.appearance(room: pendingScan.room, colors: pendingScan.colors,
+                                                            photos: pendingScan.photos)
         latestRoom = RoomPlanConverter.convert(pendingScan.room, colors: pendingScan.colors)
         latestRoomIsSample = false
         Task { await saveAndOpenLatest() }
@@ -119,7 +123,8 @@ struct HomeView: View {
                 throw CocoaError(.fileWriteUnknown, userInfo: [NSLocalizedDescriptionKey: "The scan couldn't be encoded."])
             }
             try await RoomArchiveStore.shared.saveCapture(id: raw.id, rawData: raw.data,
-                                                          editableData: room.jsonData(), photos: latestPhotos)
+                                                          editableData: room.jsonData(), photos: latestPhotos,
+                                                          appearance: latestAppearance)
             // Point at the saved room's copies, then drop the scan's temporary photos.
             let temporarySessions = Set(latestPhotos.map(\.sessionID))
             if !latestPhotos.isEmpty, let saved = try? await RoomArchiveStore.shared.load(id: raw.id).photos {
@@ -157,6 +162,7 @@ struct HomeView: View {
         latestRawCapture = nil
         latestColorEstimates = nil
         latestPhotos = []
+        latestAppearance = nil
         latestRoom = room
         latestRoomIsSample = isSample
         showEditor = true

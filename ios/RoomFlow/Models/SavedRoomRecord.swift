@@ -34,4 +34,6 @@ nonisolated struct RoomArchive: Sendable {
     var editableData: Data
     /// Reference photos saved with the scan, with `fileURL` pointing into the saved room.
     var photos: [RoomPhotoEvidence] = []
+    /// Approximate colors and photo regions; nil for rooms saved before this existed.
+    var appearance: RoomAppearanceEvidence? = nil
 }
