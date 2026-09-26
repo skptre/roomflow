@@ -11,6 +11,8 @@ struct ScanSummaryView: View {
     var rawCapture: RawCapture? = nil
     /// Camera colors for `capture`; exported separately in a later step, never inside the raw file.
     var colors: RoomColorEstimates? = nil
+    /// Reference photos saved with the scan (empty when photo capture was off).
+    var photos: [RoomPhotoEvidence] = []
 
     @State private var json = ""
     @State private var didCopy = false
@@ -31,6 +33,16 @@ struct ScanSummaryView: View {
                 LabeledContent("Width", value: meters(room.dimensions.width))
                 LabeledContent("Length", value: meters(room.dimensions.length))
                 LabeledContent("Height", value: meters(room.dimensions.height))
+            }
+
+            if !photos.isEmpty {
+                Section {
+                    NavigationLink {
+                        RoomPhotosView(photos: photos)
+                    } label: {
+                        Label("Reference photos (\(photos.count))", systemImage: "photo.on.rectangle")
+                    }
+                }
             }
 
             Section("Structure") {
