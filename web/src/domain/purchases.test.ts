@@ -46,9 +46,9 @@ describe('purchaseSummary', () => {
 
 describe('alternativeCategories', () => {
   it('maps captured categories to catalog categories that can stand in for them', () => {
-    expect(alternativeCategories('table')).toEqual(['desk', 'coffee-table'])
-    expect(alternativeCategories('chair')).toEqual(['desk-chair', 'lounge-chair'])
-    expect(alternativeCategories('storage')).toEqual(['dresser', 'nightstand', 'bookshelf'])
+    expect(alternativeCategories('table')).toEqual(['desk', 'coffee-table', 'dining-table', 'side-table', 'console'])
+    expect(alternativeCategories('chair')).toEqual(['desk-chair', 'lounge-chair', 'dining-chair'])
+    expect(alternativeCategories('storage')).toEqual(['dresser', 'nightstand', 'bookshelf', 'cabinet'])
     expect(alternativeCategories('floor-lamp')).toEqual(['floor-lamp'])
     expect(alternativeCategories('refrigerator')).toEqual([])
   })
