@@ -23,6 +23,7 @@ const SNAP_COARSE = Math.PI / 12 // 15° with Shift
 
 type FurnitureObjectProps = {
   object: RoomObject
+  editable?: boolean
   selected: boolean
   hovered: boolean
   sources: PurchaseSources
@@ -60,6 +61,7 @@ function currentRoom() {
  */
 export const FurnitureObject = memo(function FurnitureObject({
   object,
+  editable = true,
   selected,
   hovered,
   sources,
@@ -105,7 +107,7 @@ export const FurnitureObject = memo(function FurnitureObject({
   }
 
   function beginGesture(event: ThreeEvent<PointerEvent>, kind: Gesture['kind']) {
-    if (event.button !== 0) return
+    if (!editable || event.button !== 0) return
     event.stopPropagation()
     const hit = floorPoint(event.clientX, event.clientY, camera, element)
     if (!hit) return
@@ -169,7 +171,12 @@ export const FurnitureObject = memo(function FurnitureObject({
         const names = g.overlaps.map((id) => room?.objects.find((o) => o.id === id)?.name ?? 'another item')
         noticeStore
           .getState()
-          .show(g.status === 'outside' ? `${object.name} doesn't fit there.` : `${object.name} would overlap ${names.join(', ')}.`, 'warning')
+          .show(
+            g.status === 'outside'
+              ? `${object.name} doesn't fit there.`
+              : `${object.name} would overlap ${names.join(', ')}.`,
+            'warning',
+          )
         return
       }
       const committed = g.kind === 'move' ? moveObject(object.id, g.position) : rotateObject(object.id, g.yaw)
@@ -199,14 +206,15 @@ export const FurnitureObject = memo(function FurnitureObject({
   const handleOver = (event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation()
     onHover(object.id)
-    if (!gesture.current) document.body.style.cursor = object.lockPlacement ? 'not-allowed' : 'grab'
+    if (!gesture.current)
+      document.body.style.cursor = !editable ? 'default' : object.lockPlacement ? 'not-allowed' : 'grab'
   }
   const handleOut = () => {
     onHover(null)
     if (!gesture.current) document.body.style.cursor = ''
   }
   const handleClick = (event: ThreeEvent<MouseEvent>) => {
-    if (event.delta > DRAG_SLOP) return
+    if (!editable || event.delta > DRAG_SLOP) return
     event.stopPropagation()
     onSelect(object.id)
   }
@@ -227,7 +235,7 @@ export const FurnitureObject = memo(function FurnitureObject({
           />
         </mesh>
       ) : null}
-      {selected && !object.lockPlacement ? (
+      {selected && editable && !object.lockPlacement ? (
         <group>
           <mesh
             rotation-x={-Math.PI / 2}

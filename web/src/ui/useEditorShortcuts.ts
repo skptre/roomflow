@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { cancelCatalogPreview } from './catalogActions'
 import { designStore } from '../domain/designStore'
 import { redo, removeSelected, rotateSelected, undo } from './editorActions'
 
@@ -12,10 +13,11 @@ function typingInField(target: EventTarget | null): boolean {
  * Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z or Ctrl+Y redo, Escape clears selection.
  * Ignored while typing in a field.
  */
-export function useEditorShortcuts() {
+export function useEditorShortcuts(enabled = true) {
   useEffect(() => {
+    if (!enabled) return
     function onKeyDown(event: KeyboardEvent) {
-      if (typingInField(event.target)) return
+      if (typingInField(event.target) || (event.target instanceof Element && event.target.closest('dialog'))) return
       const mod = event.ctrlKey || event.metaKey
       const key = event.key.toLowerCase()
 
@@ -39,11 +41,12 @@ export function useEditorShortcuts() {
       } else if ((key === 'delete' || key === 'backspace') && hasSelection) {
         event.preventDefault()
         removeSelected()
-      } else if (key === 'escape' && hasSelection) {
-        designStore.getState().select(null)
+      } else if (key === 'escape') {
+        if (designStore.getState().preview) cancelCatalogPreview()
+        else if (hasSelection) designStore.getState().select(null)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [enabled])
 }

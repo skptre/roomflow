@@ -1,93 +1,131 @@
-import { useId, useRef, useState, type DragEvent } from 'react'
+import { useId, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { StudioIcon, Wordmark } from './StudioIcon'
 
 type StartScreenProps = {
   onImportFile: (file: File) => void
   onOpenSample: () => void
-  /** Readable problem with the last attempt, shown under the actions. */
+  onResume?: () => void
   error?: string | null
   busy?: boolean
+  children: ReactNode
 }
 
-/** First screen: bring in a scan or open the synthetic sample room. */
-export function StartScreen({ onImportFile, onOpenSample, error, busy = false }: StartScreenProps) {
+export function StartScreen({ onImportFile, onOpenSample, onResume, error, busy = false, children }: StartScreenProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const errorId = useId()
-
-  const handleDrop = (event: DragEvent) => {
+  function handleDrop(event: DragEvent) {
     event.preventDefault()
     setDragging(false)
-    const file = event.dataTransfer.files[0]
-    if (file) onImportFile(file)
+    if (!busy && event.dataTransfer.files[0]) onImportFile(event.dataTransfer.files[0])
   }
-
   return (
     <div
-      className="absolute inset-0 flex items-center justify-center p-6"
+      className={`welcome ${dragging ? 'is-dragging' : ''}`}
       onDragOver={(event) => {
         event.preventDefault()
         setDragging(true)
       }}
-      onDragLeave={() => setDragging(false)}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false)
+      }}
       onDrop={handleDrop}
     >
-      <section
-        aria-labelledby="start-title"
-        className={`w-full max-w-md rounded-xl bg-surface/95 p-8 shadow-float backdrop-blur transition-[outline-color] duration-[var(--duration-base)] outline-2 outline-offset-4 ${
-          dragging ? 'outline-accent' : 'outline-transparent'
-        }`}
-      >
-        <h1 id="start-title" className="font-display text-2xl font-semibold tracking-tight text-ink">
-          Roomflow
-        </h1>
-        <p className="mt-1 text-muted">Your room, with anything you find.</p>
-
-        <div className="mt-8 flex flex-col gap-3">
-          <button
-            type="button"
-            disabled={busy}
-            aria-describedby={error ? errorId : undefined}
-            onClick={() => inputRef.current?.click()}
-            className="rounded-md bg-accent px-4 py-3 text-left font-medium text-accent-ink shadow-panel transition-opacity duration-[var(--duration-fast)] hover:opacity-90 disabled:opacity-50"
-          >
-            Import a room scan
-            <span className="block text-sm font-normal opacity-80">
-              Choose or drop a RoomPlan .json file
-            </span>
-          </button>
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".json,application/json"
-            className="sr-only"
-            tabIndex={-1}
-            aria-hidden="true"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              if (file) onImportFile(file)
-              event.target.value = ''
-            }}
-          />
-
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onOpenSample}
-            className="flex items-center justify-between rounded-md border border-line bg-surface-raised px-4 py-3 text-left font-medium text-ink transition-colors duration-[var(--duration-fast)] hover:bg-surface-sunken disabled:opacity-50"
-          >
-            Open sample room
-            <span className="rounded-pill bg-surface-sunken px-2 py-0.5 text-xs font-medium text-muted">
-              Synthetic
-            </span>
-          </button>
-        </div>
-
-        {error ? (
-          <p id={errorId} role="alert" className="mt-4 rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">
-            {error}
+      <header className="welcome-header">
+        <Wordmark />
+        <span className="welcome-note">
+          <StudioIcon name="leaf" size={16} /> A space to make your own
+        </span>
+      </header>
+      <div className="welcome-content">
+        <section className="welcome-copy" aria-labelledby="start-title">
+          <div className="eyebrow">
+            <span className="tiny-line" /> YOUR VERY OWN DESIGN STUDIO
+          </div>
+          <h1 id="start-title">
+            Your room,
+            <br />
+            your way
+          </h1>
+          <p className="welcome-description">
+            See how a new piece fits. Move your favorites around. Explore the possibilities, right in your own room.
           </p>
-        ) : null}
-      </section>
+          <div className="welcome-actions">
+            <button className="studio-primary" disabled={busy} onClick={onResume ?? onOpenSample}>
+              {onResume ? 'Back to my room' : 'Make yourself at home'}
+              <StudioIcon name="arrow" />
+            </button>
+            <p className="action-caption">
+              {onResume
+                ? 'Pick up where you left off in this session.'
+                : 'Start with our sample bedroom. No scan needed.'}
+            </p>
+            <button
+              className="welcome-import"
+              disabled={busy}
+              aria-describedby={error ? errorId : undefined}
+              onClick={() => inputRef.current?.click()}
+            >
+              <StudioIcon name="upload" size={18} />
+              {busy ? 'Opening your room…' : 'Bring in my own room'}
+              <span>RoomPlan .json</span>
+            </button>
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".json,application/json"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) onImportFile(file)
+                event.target.value = ''
+              }}
+            />
+          </div>
+          {error && (
+            <p id={errorId} className="import-error" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="welcome-values">
+            <span>
+              <StudioIcon name="check" size={16} /> Try things freely
+            </span>
+            <span>
+              <StudioIcon name="check" size={16} /> Every edit is undoable
+            </span>
+          </div>
+        </section>
+        <div className="welcome-room">
+          <div className="room-arch" />
+          <div className="welcome-scene">{children}</div>
+          <div className="room-note">
+            <span className="note-script">A fresh perspective</span>
+            <span>A SAMPLE BEDROOM, FULL OF POSSIBILITIES</span>
+          </div>
+          <div className="material-story">
+            <span className="material-swatch swatch-oak" />
+            <span className="material-swatch swatch-linen" />
+            <span className="material-swatch swatch-clay" />
+            <span>
+              Good things
+              <br />
+              come together
+            </span>
+          </div>
+        </div>
+      </div>
+      <footer className="welcome-footer">
+        <span>YOUR ROOM, WITH ANYTHING YOU FIND</span>
+        <span>Made for the way you live</span>
+      </footer>
+      {dragging && (
+        <div className="drop-overlay">
+          <StudioIcon name="upload" size={40} />
+          <h2>Your room belongs here</h2>
+          <p>Drop your RoomPlan .json scan to begin.</p>
+        </div>
+      )}
     </div>
   )
 }

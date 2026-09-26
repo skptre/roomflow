@@ -1,113 +1,126 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
+import { useStore } from 'zustand'
 import type { CatalogEntry, PlacementTarget } from '../domain/catalog'
+import { designStore } from '../domain/designStore'
 import { formatDimensions } from '../domain/labels'
 import { formatMoney } from '../domain/money'
-import { Button } from './Button'
-import { endPreview, placeEntry, previewEntry } from './catalogActions'
-import { Chip } from './Chip'
+import { endPreview, ownsPreview, placeEntry, previewEntry } from './catalogActions'
+import { FurnitureThumbnail } from './FurnitureThumbnail'
+import { StudioIcon } from './StudioIcon'
 
-type ProductCardProps = {
-  /** All variants of one product (sizes / finishes), in catalog order. */
-  variants: CatalogEntry[]
-  target: PlacementTarget
-}
-
-/** One product: hover or focus to preview it in the room, pick a variant and quantity, then add or swap it in. */
-export function ProductCard({ variants, target }: ProductCardProps) {
+export function ProductCard({ variants, target }: { variants: CatalogEntry[]; target: PlacementTarget }) {
   const [variantIndex, setVariantIndex] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [problem, setProblem] = useState<string | null>(null)
   const owner = useId()
   const entry = variants[variantIndex] ?? variants[0]!
-  const product = entry.product
-  const price = entry.offer.price
-  const action = target.mode === 'swap' ? 'Swap in' : 'Add to room'
-
-  const preview = (next: CatalogEntry = entry, qty = quantity) => {
+  const preview = useStore(designStore, (state) => state.preview)
+  const active = preview !== null && ownsPreview(owner)
+  useEffect(() => () => endPreview(owner), [owner])
+  function tryEntry(next = entry, qty = quantity) {
     const outcome = previewEntry(owner, next, target, qty)
     setProblem(outcome.ok ? null : outcome.message)
   }
-  const leave = () => endPreview(owner)
-
   return (
-    <article
-      aria-label={product.name}
-      onPointerEnter={() => preview()}
-      onPointerLeave={leave}
-      onFocus={() => preview()}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) leave()
-      }}
-      className="rounded-lg border border-line bg-surface-raised p-3 transition-shadow duration-[var(--duration-fast)] hover:shadow-panel focus-within:shadow-panel"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold text-ink">{product.name}</h3>
-          <p className="text-xs text-muted">{formatDimensions(entry.variant.dimensions)}</p>
-        </div>
-        <span className={`shrink-0 text-sm font-semibold ${price ? 'text-ink' : 'text-muted'}`}>
-          {price ? formatMoney({ amountMinor: price.amountMinor * quantity, currency: price.currency }) : 'Price unknown'}
-        </span>
+    <article className={`product-card ${active ? 'is-previewing' : ''}`} aria-label={entry.product.name}>
+      <div className="product-image">
+        <FurnitureThumbnail asset={entry.variant.asset} dimensions={entry.variant.dimensions} />
+        <span className="product-style">{entry.product.tags.slice(0, 2).join(' · ')}</span>
+        {active && (
+          <span className="preview-badge">
+            <StudioIcon name="eye" size={14} /> Trying it on
+          </span>
+        )}
       </div>
-
-      {variants.length > 1 ? (
-        <div role="radiogroup" aria-label={`${product.name} options`} className="mt-2 flex flex-wrap gap-1">
-          {variants.map((option, index) => (
-            <button
-              key={option.variant.id}
-              type="button"
-              role="radio"
-              aria-checked={index === variantIndex}
-              onClick={() => {
+      <div className="product-copy">
+        <div className="product-title">
+          <h3>{entry.product.name}</h3>
+          <strong>
+            {entry.offer.price
+              ? formatMoney({ ...entry.offer.price, amountMinor: entry.offer.price.amountMinor * quantity })
+              : 'Unpriced'}
+          </strong>
+        </div>
+        <p className="product-dimensions">{formatDimensions(entry.variant.dimensions)}</p>
+        {variants.length > 1 ? (
+          <label className="variant-select">
+            <span>Size / finish</span>
+            <select
+              aria-label={`${entry.product.name} size or finish`}
+              value={variantIndex}
+              onChange={(event) => {
+                const index = Number(event.target.value)
                 setVariantIndex(index)
-                preview(option)
+                setProblem(null)
+                if (active) tryEntry(variants[index]!)
               }}
-              className={`rounded-pill px-2 py-0.5 text-xs transition-colors duration-[var(--duration-fast)] ${
-                index === variantIndex ? 'bg-accent text-accent-ink' : 'bg-surface-sunken text-muted hover:text-ink'
-              }`}
             >
-              {option.variant.label}
+              {variants.map((variant, index) => (
+                <option value={index} key={variant.variant.id}>
+                  {variant.variant.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <p className="single-variant">
+            {entry.variant.label} <span>· Sample piece</span>
+          </p>
+        )}
+        {active && (
+          <div className="quantity-row">
+            <span>Quantity</span>
+            <div role="group" aria-label={`Quantity of ${entry.product.name}`}>
+              <button
+                aria-label={`Fewer ${entry.product.name}`}
+                disabled={quantity <= 1}
+                onClick={() => {
+                  setQuantity(quantity - 1)
+                  tryEntry(entry, quantity - 1)
+                }}
+              >
+                −
+              </button>
+              <output aria-live="polite">{quantity}</output>
+              <button
+                aria-label={`More ${entry.product.name}`}
+                disabled={quantity >= 9}
+                onClick={() => {
+                  setQuantity(quantity + 1)
+                  tryEntry(entry, quantity + 1)
+                }}
+              >
+                +
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="product-actions">
+          {active ? (
+            <>
+              <button className="studio-secondary" onClick={() => endPreview(owner)}>
+                Cancel
+              </button>
+              <button className="studio-primary" onClick={() => placeEntry(owner, entry, target, quantity)}>
+                <StudioIcon name="check" size={16} />
+                {target.mode === 'swap' ? 'Use this piece' : 'Add to room'}
+              </button>
+            </>
+          ) : (
+            <button className="try-button" onClick={() => tryEntry()}>
+              <StudioIcon name="plus" size={16} />
+              Try in my room
+              <StudioIcon name="arrow" size={16} />
             </button>
-          ))}
+          )}
         </div>
-      ) : null}
-
-      <div className="mt-3 flex items-center gap-2">
-        {entry.offer.isSample ? <Chip tone="muted">Sample</Chip> : null}
-        <span className="flex-1" />
-        <QuantityStepper
-          value={quantity}
-          label={product.name}
-          onChange={(next) => {
-            setQuantity(next)
-            preview(entry, next)
-          }}
-        />
-        <Button size="sm" variant="primary" disabled={problem !== null} onClick={() => placeEntry(owner, entry, target, quantity)}>
-          {action}
-        </Button>
+        {problem && (
+          <p role="status" className="product-problem">
+            {problem}{' '}
+            {target.mode === 'add' ? 'Try replacing a piece you already have.' : 'Try a smaller size or another piece.'}
+          </p>
+        )}
       </div>
-      {problem ? <p className="mt-2 text-xs text-danger">{problem}</p> : null}
     </article>
-  )
-}
-
-function QuantityStepper({ value, label, onChange }: { value: number; label: string; onChange: (next: number) => void }) {
-  const id = useId()
-  return (
-    <div className="flex items-center rounded-md border border-line" role="group" aria-labelledby={id}>
-      <span id={id} className="sr-only">
-        Quantity of {label}
-      </span>
-      <button type="button" aria-label="Fewer" disabled={value <= 1} onClick={() => onChange(value - 1)} className="h-8 w-7 text-muted disabled:opacity-40">
-        −
-      </button>
-      <output aria-live="polite" className="w-5 text-center text-sm tabular-nums text-ink">
-        {value}
-      </output>
-      <button type="button" aria-label="More" disabled={value >= 9} onClick={() => onChange(value + 1)} className="h-8 w-7 text-muted disabled:opacity-40">
-        +
-      </button>
-    </div>
   )
 }
