@@ -42,7 +42,7 @@ const products = new Map<string, SnapshotProduct>()
 const storeRows: Snapshot['stores'] = []
 const excluded = new Map<string, number>()
 const unmappedTypes = new Map<string, number>()
-let truncated = 0
+const truncated = new Map<string, number>()
 
 mkdirSync(rawDir, { recursive: true })
 for (const store of STORES) {
@@ -79,7 +79,7 @@ for (const store of STORES) {
     // Pages can shift while we read them; keep one copy per store product.
     if (!products.has(normalized.product.id)) kept += 1
     products.set(normalized.product.id, normalized.product)
-    truncated += normalized.truncatedVariants
+    truncated.set(normalized.product.id, normalized.truncatedVariants)
   }
   storeRows.push({ domain: store.domain, name: store.name, products: kept, errors: result.errors })
   console.log(`  ${result.products.length} listings over ${result.pages} pages → ${kept} kept${result.errors.length ? `, errors: ${result.errors.join('; ')}` : ''}`)
@@ -143,7 +143,7 @@ function report(snap: Snapshot): string {
       .sort((a, b) => b[1].products - a[1].products)
       .map(([c, r]) => `| ${CATEGORIES[c]?.label ?? c} | ${r.products} | ${r.variants} | ${pct(r.merchant, r.variants)} | ${pct(r.priced, r.variants)} | ${pct(r.available, r.variants)} |`),
     ``,
-    `Variants beyond ${MAX_VARIANTS} per product were left out: ${truncated}.`,
+    `Variants beyond ${MAX_VARIANTS} per product were left out of the kept products: ${snap.products.reduce((n, p) => n + (truncated.get(p.id) ?? 0), 0)}.`,
     ``,
     `## Excluded listings`,
     ``,
