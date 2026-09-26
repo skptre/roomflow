@@ -4,6 +4,8 @@ import { useReducedMotion } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'
 import { useStore } from 'zustand'
 import { designStore, type PurchaseSources } from '../domain/designStore'
+import { isWallHung } from '../domain/categories'
+import { hostWall } from '../domain/layout'
 import type { Room, Vec2 } from '../domain/schema'
 import { Architecture } from './Architecture'
 import { CameraRig } from './CameraRig'
@@ -68,6 +70,8 @@ export function RoomScene({ room, sources }: { room: Room; sources: PurchaseSour
             key={object.id}
             object={object}
             selected={object.id === selectedId}
+            // Art on a wall that is cut away for the dollhouse view goes with it instead of floating.
+            hidden={isWallHung(object) && cut.has(hostWall(room, object) ?? '')}
             hovered={object.id === hoveredId}
             sources={sources}
             reducedMotion={reducedMotion}

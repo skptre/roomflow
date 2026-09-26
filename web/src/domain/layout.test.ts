@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sampleRoom } from '../test/rooms'
 import { footprintsOverlap, insideRoom } from './geometry'
-import { freeSpot } from './layout'
+import { blocksDoorway, freeSpot, hostWall } from './layout'
 
 describe('freeSpot', () => {
   it('finds a spot inside the room that overlaps nothing', () => {
@@ -39,5 +39,36 @@ describe('freeSpot', () => {
     const pose = freeSpot(room, { width: 1.6, depth: 2.1 }, { near: { x: bed.pose.position.x, z: bed.pose.position.z }, ignoreId: 'OBJ-BED', yaws: [bed.pose.yaw] })
     expect(pose).not.toBeNull()
     expect(Math.hypot(pose!.position.x - bed.pose.position.x, pose!.position.z - bed.pose.position.z)).toBeLessThan(0.11)
+  })
+})
+
+describe('door clearance', () => {
+  it('never places a new floor item in front of a door', () => {
+    const room = sampleRoom()
+    const door = room.openings.find((o) => o.kind === 'door')!
+    const wall = room.walls.find((w) => w.id === door.wallId)!
+    // Search right next to the door: the nearest free spot must be outside the entry zone.
+    const t = door.offsetAlongWall / Math.hypot(wall.end.x - wall.start.x, wall.end.z - wall.start.z)
+    const doorPoint = { x: wall.start.x + (wall.end.x - wall.start.x) * t, z: wall.start.z + (wall.end.z - wall.start.z) * t + 0.3 }
+    const pose = freeSpot(room, { width: 0.4, depth: 0.4 }, { near: doorPoint })!
+    const candidate = { ...room.objects[0]!, id: 'x', dimensions: { width: 0.4, height: 1, depth: 0.4, source: 'merchant' as const }, pose }
+    expect(blocksDoorway(room, candidate)).toBe(false)
+    expect(blocksDoorway(room, { ...candidate, pose: { ...pose, position: { x: doorPoint.x, y: 0, z: doorPoint.z } } })).toBe(true)
+  })
+})
+
+describe('hostWall', () => {
+  it('finds the wall a hung item is on, and none for free-standing items', () => {
+    const room = sampleRoom()
+    const south = room.walls.find((w) => w.id === 'WALL-A-SOUTH')!
+    const art = {
+      ...room.objects[0]!,
+      id: 'art',
+      category: 'wall-art',
+      dimensions: { width: 0.6, height: 0.8, depth: 0.04, source: 'merchant' as const },
+      pose: { position: { x: 0.6, y: 1.2, z: south.start.z + 0.022 }, yaw: 0 },
+    }
+    expect(hostWall(room, art)).toBe('WALL-A-SOUTH')
+    expect(hostWall(room, room.objects.find((o) => o.id === 'OBJ-CHAIR')!)).toBeNull()
   })
 })

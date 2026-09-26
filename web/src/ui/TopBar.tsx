@@ -10,10 +10,16 @@ import { Tooltip } from './Tooltip'
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform)
 const MOD = isMac ? '⌘' : 'Ctrl+'
 
-type TopBarProps = { room: Room; catalogOpen: boolean; onToggleCatalog: () => void }
+type TopBarProps = {
+  room: Room
+  catalogOpen: boolean
+  onToggleCatalog: () => void
+  looksOpen: boolean
+  onToggleLooks: () => void
+}
 
 /** Room identity on the left; browse and history controls on the right. Stays small so the room leads. */
-export function TopBar({ room, catalogOpen, onToggleCatalog }: TopBarProps) {
+export function TopBar({ room, catalogOpen, onToggleCatalog, looksOpen, onToggleLooks }: TopBarProps) {
   const canUndo = useStore(designStore, (state) => state.past.length > 0)
   const canRedo = useStore(designStore, (state) => state.future.length > 0)
 
@@ -28,6 +34,9 @@ export function TopBar({ room, catalogOpen, onToggleCatalog }: TopBarProps) {
         ) : null}
       </div>
       <div className="pointer-events-auto flex items-center gap-1 rounded-pill bg-surface/90 p-1 shadow-panel backdrop-blur">
+        <Button variant={looksOpen ? 'primary' : 'ghost'} size="sm" aria-pressed={looksOpen} onClick={onToggleLooks} className="rounded-pill">
+          Try a look
+        </Button>
         <Button variant={catalogOpen ? 'primary' : 'ghost'} size="sm" aria-pressed={catalogOpen} onClick={onToggleCatalog} className="rounded-pill">
           Browse
         </Button>
