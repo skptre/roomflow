@@ -37,18 +37,77 @@ nonisolated struct PhotoCandidatePolicy: Sendable {
         return moved >= minimumTranslation || angle * 180 / .pi >= minimumRotationDegrees
     }
 
-    /// Up to `maxPhotos` spread evenly over the scan, then trimmed (largest first) to the byte budget.
+    /// Evenly spread pick of `count` items, keeping the first and last.
+    private func spread<T>(_ items: [T], count: Int) -> [T] {
+        guard items.count > count else { return items }
+        guard count > 1 else { return count == 1 ? [items[0]] : [] }
+        let step = Double(items.count - 1) / Double(count - 1)
+        return (0..<count).map { items[Int((Double($0) * step).rounded())] }
+    }
+
+    /// Focused photos grouped by object: each group in capture order, groups in first-seen order.
+    private func focusGroups(_ photos: [RoomPhotoEvidence]) -> [[RoomPhotoEvidence]] {
+        var order: [UUID] = []
+        var groups: [UUID: [RoomPhotoEvidence]] = [:]
+        for photo in photos.sorted(by: { $0.timestamp < $1.timestamp }) {
+            guard let id = photo.focusObjectId else { continue }
+            if groups[id] == nil { order.append(id) }
+            groups[id, default: []].append(photo)
+        }
+        return order.compactMap { groups[$0] }
+    }
+
+    /// Keeps at most `maxCandidates`: ambient photos are thinned first (every other one), then the newest
+    /// photo of whichever object has the most. Returns the dropped photos so their files can be deleted.
+    func thin(_ candidates: [RoomPhotoEvidence]) -> (kept: [RoomPhotoEvidence], dropped: [RoomPhotoEvidence]) {
+        var kept = candidates
+        var dropped: [RoomPhotoEvidence] = []
+        while kept.count > maxCandidates {
+            let ambient = kept.filter { $0.focusObjectId == nil }
+            let remove: Set<UUID>
+            if ambient.count > 1 {
+                remove = Set(ambient.enumerated().filter { !$0.offset.isMultiple(of: 2) }.map(\.element.id))
+            } else if let busiest = focusGroups(kept).max(by: { $0.count < $1.count }), let newest = busiest.last,
+                      busiest.count > 1 || ambient.isEmpty {
+                remove = [newest.id]
+            } else if let only = ambient.first {
+                remove = [only.id]
+            } else {
+                break
+            }
+            dropped += kept.filter { remove.contains($0.id) }
+            kept.removeAll { remove.contains($0.id) }
+        }
+        return (kept, dropped)
+    }
+
+    /// Up to `maxPhotos`: one focused photo per object first (then a second each, …), the rest ambient
+    /// photos spread over the scan; then trimmed to the byte budget, ambient first. Sorted by capture time.
     func selectFinal(_ candidates: [RoomPhotoEvidence]) -> [RoomPhotoEvidence] {
-        var chosen = candidates
-        if chosen.count > maxPhotos {
-            let step = Double(chosen.count - 1) / Double(maxPhotos - 1)
-            chosen = (0..<maxPhotos).map { candidates[Int((Double($0) * step).rounded())] }
+        let groups = focusGroups(candidates)
+        var chosen: [RoomPhotoEvidence] = []
+        var round = 0
+        while chosen.count < maxPhotos, groups.contains(where: { $0.count > round }) {
+            for group in groups where group.count > round && chosen.count < maxPhotos {
+                chosen.append(group[round])
+            }
+            round += 1
         }
-        while chosen.map(\.byteCount).reduce(0, +) > maxTotalBytes,
-              let largest = chosen.indices.max(by: { chosen[$0].byteCount < chosen[$1].byteCount }) {
-            chosen.remove(at: largest)
+        let ambient = candidates.filter { $0.focusObjectId == nil }.sorted { $0.timestamp < $1.timestamp }
+        chosen += spread(ambient, count: maxPhotos - chosen.count)
+
+        while chosen.map(\.byteCount).reduce(0, +) > maxTotalBytes, !chosen.isEmpty {
+            if let largest = chosen.indices.filter({ chosen[$0].focusObjectId == nil })
+                .max(by: { chosen[$0].byteCount < chosen[$1].byteCount }) {
+                chosen.remove(at: largest)
+            } else if let busiest = focusGroups(chosen).max(by: { $0.count < $1.count }),
+                      let largest = busiest.max(by: { $0.byteCount < $1.byteCount }) {
+                chosen.removeAll { $0.id == largest.id }
+            } else {
+                break
+            }
         }
-        return chosen
+        return chosen.sorted { $0.timestamp < $1.timestamp }
     }
 }
 
@@ -139,6 +198,22 @@ final class RoomEvidenceRecorder {
         lastConsidered = snapshot.timestamp
         guard encoding == nil, policy.isNewView(snapshot.cameraToWorld, since: lastKeptPose),
               let image = makeImage() else { return }
+        startEncode(image, snapshot: snapshot, sessionID: sessionID, focusObjectId: nil)
+    }
+
+    /// Keeps a deliberate photo of `objectId` now, bypassing the motion gate (the focus tracker decided).
+    /// Returns false — and the caller must not count a photo — when the session is stale, tracking isn't
+    /// normal, another photo is still encoding, or no image could be made.
+    func captureFocused(snapshot: PhotoFrameSnapshot, objectId: UUID, sessionID: UUID,
+                        makeImage: () -> CGImage?) -> Bool {
+        guard sessionID == self.sessionID, snapshot.trackingNormal, encoding == nil,
+              let image = makeImage() else { return false }
+        startEncode(image, snapshot: snapshot, sessionID: sessionID, focusObjectId: objectId)
+        return true
+    }
+
+    /// Records the pose, rescales intrinsics to the exported image, and starts the single in-flight JPEG encode.
+    private func startEncode(_ image: CGImage, snapshot: PhotoFrameSnapshot, sessionID: UUID, focusObjectId: UUID?) {
         lastKeptPose = snapshot.cameraToWorld
 
         // Rescale intrinsics to the exported pixel grid.
@@ -159,6 +234,7 @@ final class RoomEvidenceRecorder {
         )
         let url = directory(for: sessionID).appendingPathComponent(photo.fileName)
         photo.fileURL = url
+        photo.focusObjectId = focusObjectId
         let encoder = self.encoder, quality = policy.jpegQuality, interruptionsAtCapture = interruptions
 
         encoding = Task { [weak self, photo] in
@@ -179,12 +255,9 @@ final class RoomEvidenceRecorder {
         photo.byteCount = bytes
         photo.trackingContinuous = interruptions == interruptionsAtCapture
         candidates.append(photo)
-        if candidates.count > policy.maxCandidates {
-            // Thin out evenly so early and late parts of the scan stay covered.
-            let dropped = candidates.enumerated().filter { !$0.offset.isMultiple(of: 2) }.map(\.element)
-            candidates = candidates.enumerated().filter { $0.offset.isMultiple(of: 2) }.map(\.element)
-            dropped.forEach { if let url = $0.fileURL { try? FileManager.default.removeItem(at: url) } }
-        }
+        let (kept, dropped) = policy.thin(candidates)
+        candidates = kept
+        dropped.forEach { if let url = $0.fileURL { try? FileManager.default.removeItem(at: url) } }
     }
 
     /// Ends the session and returns the chosen photos (files stay until the caller saves or discards them).
@@ -226,11 +299,10 @@ final class RoomEvidenceRecorder {
 extension RoomEvidenceRecorder {
     private static let imageContext = CIContext()
 
-    /// Offers the current AR frame. Only pose data is copied unless the frame is kept,
-    /// and then only a downscaled image; the ARFrame is not retained.
-    func consider(frame: ARFrame, sessionID: UUID) {
+    /// Copies pose and calibration out of an AR frame without retaining the frame itself.
+    static func snapshot(of frame: ARFrame) -> PhotoFrameSnapshot {
         let camera = frame.camera
-        let snapshot = PhotoFrameSnapshot(
+        return PhotoFrameSnapshot(
             timestamp: frame.timestamp,
             cameraToWorld: camera.transform,
             intrinsics: camera.intrinsics,
@@ -238,9 +310,22 @@ extension RoomEvidenceRecorder {
             imageHeight: Int(camera.imageResolution.height),
             trackingNormal: camera.trackingState == .normal
         )
+    }
+
+    /// Offers the current AR frame. Only pose data is copied unless the frame is kept,
+    /// and then only a downscaled image; the ARFrame is not retained.
+    func consider(frame: ARFrame, sessionID: UUID) {
         let buffer = frame.capturedImage
         let maxLongEdge = maxLongEdge
-        consider(snapshot: snapshot, sessionID: sessionID) {
+        consider(snapshot: Self.snapshot(of: frame), sessionID: sessionID) {
+            Self.downscaledImage(buffer, maxLongEdge: maxLongEdge)
+        }
+    }
+
+    /// Focused photo from the current AR frame; see `captureFocused(snapshot:objectId:sessionID:makeImage:)`.
+    func captureFocused(frame: ARFrame, objectId: UUID, sessionID: UUID) -> Bool {
+        let buffer = frame.capturedImage, maxLongEdge = maxLongEdge
+        return captureFocused(snapshot: Self.snapshot(of: frame), objectId: objectId, sessionID: sessionID) {
             Self.downscaledImage(buffer, maxLongEdge: maxLongEdge)
         }
     }

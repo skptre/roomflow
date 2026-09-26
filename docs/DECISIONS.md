@@ -28,6 +28,15 @@ Rejected: rotating files, which would silently invalidate the calibration and ev
 Off by default; ≤12 JPEGs, long edge ≤1280 px, ≤20 MiB, one encode at a time, frames dropped while busy.
 Rejected: continuous capture or video, which costs scan smoothness, storage and privacy.
 
+## Per-object photos are kept ahead of ambient ones
+`PhotoCandidatePolicy.thin` and `selectFinal` now protect focused (per-object) photos, thinning or spreading
+ambient photos first and only touching a focused photo when no ambient one is left or an object hogs every
+slot. Rejected: keeping the old even spread over capture time for everything — it could drop the only photo
+of a small or briefly-seen item just because it arrived between two evenly-spaced ambient frames. Focus IDs
+never enter the package manifest or leave the device archive; the association a saved room actually uses
+always comes from `RoomEvidenceProjector.associate(room:photos:)` against the final processed room, never a
+live focus ID, so this stays a capture-time convenience rather than a second source of truth.
+
 ## Object↔photo matches are projected bounds, not identities
 Box corners projected with the photo's pose; near-plane crossings rejected; photos before a tracking
 interruption skipped. Rejected: claiming visibility or product identity from a rectangle.
