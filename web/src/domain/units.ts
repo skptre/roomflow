@@ -7,6 +7,7 @@
  *   when seen from above (it turns +X toward -Z). Stored yaw is in (-π, π].
  * - An object's origin is the bottom-center of its footprint.
  * - Dimensions are { width: along local X, height: along Y, depth: along local Z }.
+ * - An object's front faces local +Z (a bed's headboard and a desk's back are at -Z).
  *
  * RoomPlan data is converted into this frame only in src/import/roomplan.ts.
  */

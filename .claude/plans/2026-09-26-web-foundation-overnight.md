@@ -185,10 +185,10 @@ FoundItem = { id; name; category; photoRef?; dimensions; price: Money|null; stor
 ## Task 6: Assets — parametric furniture, GLB slot, placeholder
 
 **Produces:** `assembly.ts` schema: `Part { name; shape:'box'|'cylinder'|'sphere'; size; position; rotation?; color; material:'matte'|'wood'|'metal'|'glass'|'fabric'|'ceramic'|'leaf'; texture?:'plain'|'woodgrain'|'weave'|'plaster'|'knit' }`, `Assembly { id; category; generatorVersion:'hand-v1'; parts: 1..64 }`, validator with rotated half-extents inside unit box (1% tolerance). `AssetView` renders by `AssetRef.kind`.
-- [ ] Tests: >64 parts, NaN, part outside box (incl. only-after-rotation), bad material/color rejected; all fixture assemblies valid.
-- [ ] Author ~16 assemblies, **composed not bare**: bed *with bedding + pillows*, nightstand, desk, desk chair, lounge chair, sofa, coffee table, floor lamp, table lamp, bookshelf *with books*, dresser, rug, plant (pot + leaf clusters), wall art, mirror, vase. Rounded bevels (fabric soft, hard ~4 mm), shared materials, `castShadow`.
-- [ ] `placeholder`: translucent tokened box + "Preparing model" label. `glb`: drei `useGLTF` scaled to authoritative dims (no GLB assets yet — loader path + a tiny generated test GLB is enough).
-- [ ] Browser check: lineup screenshot; every piece recognizable at dollhouse distance. **Iterate until it looks good — boxes that read as boxes are not done.** Commit `feat(scene): validated parametric furniture, GLB slot, preparing placeholder`.
+- [x] Tests: >64 parts, NaN, part outside box (incl. only-after-rotation), bad material/color rejected; all fixture assemblies valid.
+- [x] Author ~16 assemblies, **composed not bare**: bed *with bedding + pillows*, nightstand, desk, desk chair, lounge chair, sofa, coffee table, floor lamp, table lamp, bookshelf *with books*, dresser, rug, plant (pot + leaf clusters), wall art, mirror, vase. Rounded bevels (fabric soft, hard ~4 mm), shared materials, `castShadow`.
+- [x] `placeholder`: translucent tokened box + "Preparing model" label. `glb`: drei `useGLTF` scaled to authoritative dims (no GLB assets yet — loader path + a tiny generated test GLB is enough).
+- [x] Browser check: lineup screenshot; every piece recognizable at dollhouse distance. **Iterate until it looks good — boxes that read as boxes are not done.** Commit `feat(scene): validated parametric furniture, GLB slot, preparing placeholder`.
 
 ## Task 7: Look & feel foundation
 
@@ -279,3 +279,4 @@ Empty/loading/error states everywhere, mobile-width check, keyboard-only pass, d
 - 2026-09-26 · T3 RoomPlan import · feat/web-pr2-import · 21 import tests; added Room.source.nativeToApp (capture→app mapping). No real scan in fixtures/scans/ yet — real-scan test still open. Open questions for iOS in docs/contracts/room-import.md.
 - 2026-09-26 · T4 design store + commands · feat/web-pr3-store · 27 new tests (91 total). Purchases derived from committed objects (captured/owned = owned). Revision bumps on undo/redo/setBudget too. User may move locked items at command level; UI refuses drag (T8).
 - 2026-09-26 · T5 dollhouse architecture · feat/web-pr4-scene · wall profiles via polygon-clipping (RF1 pinned), exterior cutaway w/ hysteresis, camera fit once per room, key light through first window, N8AO+SMAA+AgX. Browser: sample room opens, orbit 4 angles, door gap + window visible, cut walls follow camera. Furniture still sized boxes (T6). Visual polish pending T7.
+- 2026-09-26 · T6 assets · feat/web-pr4-scene · Assembly schema + validator (≤64 parts, rotated bounds, 1% tol), 16 composed assemblies, meter-UV part geometry cache, shared materials, AssetView (parametric|glb|placeholder w/ error+suspense fallback), dev lineup at ?lineup, test GLB generator. Convention added: object front faces local +Z; fixture bed/desk/chair yaws updated. Browser (Chrome DevTools, since pane hidden): lineup + room screenshots OK. Dev-only console noise: drei Html unmount warning under StrictMode.
