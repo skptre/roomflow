@@ -1,0 +1,58 @@
+import { beforeEach, describe, expect, it } from 'vitest'
+import { designStore } from '../domain/designStore'
+import { lamp, sampleRoom } from '../test/rooms'
+import { rotateObject } from './editorActions'
+import { noticeStore } from './noticeStore'
+
+beforeEach(() => {
+  designStore.getState().loadRoom(sampleRoom())
+  noticeStore.getState().dismiss()
+})
+
+describe('rotateObject', () => {
+  it('says so when the room nudged the item to keep it inside', () => {
+    // The desk sits flush against the east wall; turned 90° its long side pokes through it.
+    expect(rotateObject('OBJ-DESK', 0)).toBe(true)
+    expect(noticeStore.getState().notice?.text).toMatch(/nudged/i)
+  })
+
+  it('stays quiet when the rotation fits where it is', () => {
+    expect(rotateObject('OBJ-CHAIR', 0)).toBe(true)
+    expect(noticeStore.getState().notice).toBeNull()
+  })
+})
+
+describe('rotateObject for a ring gesture (rejectOverlap)', () => {
+  // Codex repro: a 4 × 4 m room; A (2 × 1 m) at (0.5, 2) turned 90°, B (0.2 × 0.2 m) at (1.7, 2).
+  function squareRoom() {
+    const base = sampleRoom()
+    const a = { ...lamp('A', 0.5, 2), name: 'A', dimensions: { width: 2, height: 0.8, depth: 1, source: 'merchant' as const } }
+    a.pose = { ...a.pose, yaw: Math.PI / 2 }
+    const b = { ...lamp('B', 1.7, 2), name: 'B', dimensions: { width: 0.2, height: 0.8, depth: 0.2, source: 'merchant' as const } }
+    return {
+      ...base,
+      floorPolygon: [
+        { x: 0, z: 0 },
+        { x: 4, z: 0 },
+        { x: 4, z: 4 },
+        { x: 0, z: 4 },
+      ],
+      objects: [a, b],
+    }
+  }
+
+  it('snaps back when the nudged-inside pose would overlap something', () => {
+    designStore.getState().loadRoom(squareRoom())
+    const before = designStore.getState().committed!.room
+    expect(rotateObject('A', 0, { rejectOverlap: true })).toBe(false)
+    expect(designStore.getState().committed!.room).toBe(before)
+    expect(noticeStore.getState().notice?.text).toMatch(/overlap/i)
+  })
+
+  it('still commits and reports a nudge when the final pose is clear', () => {
+    const room = squareRoom()
+    designStore.getState().loadRoom({ ...room, objects: room.objects.filter((o) => o.id === 'A') })
+    expect(rotateObject('A', 0, { rejectOverlap: true })).toBe(true)
+    expect(noticeStore.getState().notice?.text).toMatch(/nudged/i)
+  })
+})

@@ -1,11 +1,19 @@
+import { AnimatePresence } from 'motion/react'
 import { lazy, Suspense, useState } from 'react'
 import { useStore } from 'zustand'
-import { designStore } from './domain/designStore'
+import { designStore, viewRoom, type PurchaseSources } from './domain/designStore'
 import sampleScan from './fixtures/synthetic-bedroom.roomplan.json?raw'
 import { MAX_IMPORT_BYTES, parseRoomPlanJson } from './import/roomplan'
 import { Backdrop } from './scene/Backdrop'
 import { RoomScene } from './scene/RoomScene'
+import { Inspector } from './ui/Inspector'
+import { NoticeBar } from './ui/NoticeBar'
 import { StartScreen } from './ui/StartScreen'
+import { TopBar } from './ui/TopBar'
+import { useEditorShortcuts } from './ui/useEditorShortcuts'
+
+/** No catalog is connected yet; prices come in with the sample catalog. */
+const NO_SOURCES: PurchaseSources = { offers: new Map() }
 
 const AssetLineup = lazy(() => import('./scene/dev/AssetLineup').then((m) => ({ default: m.AssetLineup })))
 const showLineup = new URLSearchParams(window.location.search).has('lineup')
@@ -24,7 +32,13 @@ export default function App() {
 }
 
 function Workspace() {
-  const room = useStore(designStore, (state) => state.committed?.room ?? null)
+  // The scene shows the preview when one is active, otherwise the committed room.
+  const room = useStore(designStore, viewRoom)
+  const selected = useStore(designStore, (state) => {
+    const shown = viewRoom(state)
+    return shown?.objects.find((object) => object.id === state.selectedId) ?? null
+  })
+  useEditorShortcuts()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -57,17 +71,14 @@ function Workspace() {
     <main className="relative h-full w-full overflow-hidden">
       {room ? (
         <>
-          <RoomScene room={room} />
-          <header className="pointer-events-none absolute top-4 left-4 flex items-center gap-2">
-            <h1 className="rounded-pill bg-surface/90 px-3 py-1.5 text-sm font-medium text-ink shadow-panel backdrop-blur">
-              {room.name}
-            </h1>
-            {room.source.kind === 'synthetic' ? (
-              <span className="rounded-pill bg-surface-sunken/90 px-2 py-1 text-xs font-medium text-muted shadow-panel">
-                Synthetic sample
-              </span>
-            ) : null}
-          </header>
+          <RoomScene room={room} sources={NO_SOURCES} />
+          <TopBar room={room} />
+          <div className="pointer-events-none absolute top-18 right-4 flex flex-col items-end gap-3">
+            <AnimatePresence>
+              {selected ? <Inspector key={selected.id} object={selected} sources={NO_SOURCES} /> : null}
+            </AnimatePresence>
+          </div>
+          <NoticeBar />
         </>
       ) : (
         <>

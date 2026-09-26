@@ -13,7 +13,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { applyCommands, type Actor, type Command } from './commands'
 import type { PurchaseLine } from './money'
-import { Money, type FoundItem, type Offer, type Room } from './schema'
+import { Money, type FoundItem, type Offer, type Room, type RoomObject } from './schema'
 
 export const HISTORY_LIMIT = 100
 
@@ -71,27 +71,31 @@ export type PurchaseSources = {
 }
 
 /**
- * Purchase lines derived from a room's objects. Captured and owned furniture
- * add no new cost; a product whose offer is missing is unpriced, never free.
+ * The purchase line for one placed object. Captured and owned furniture add no
+ * new cost; a product whose offer is missing (or belongs to another variant)
+ * is unpriced, never free.
  */
-export function purchaseLines(room: Room, sources: PurchaseSources): PurchaseLine[] {
-  return room.objects.map((object) => {
-    switch (object.sourceKind) {
-      case 'captured':
-      case 'owned':
-        return { id: object.id, unitPrice: null, quantity: object.quantity, owned: true }
-      case 'product': {
-        const offer = object.offerId ? sources.offers.get(object.offerId) : undefined
-        // An offer for a different variant says nothing about this item's price.
-        const price = offer && offer.variantId === object.variantId ? offer.price : null
-        return { id: object.id, unitPrice: price, quantity: object.quantity, owned: false }
-      }
-      case 'found': {
-        const item = object.foundItemId ? sources.foundItems?.get(object.foundItemId) : undefined
-        return { id: object.id, unitPrice: item?.price ?? null, quantity: object.quantity, owned: item?.owned ?? false }
-      }
+export function purchaseLine(object: RoomObject, sources: PurchaseSources): PurchaseLine {
+  switch (object.sourceKind) {
+    case 'captured':
+    case 'owned':
+      return { id: object.id, unitPrice: null, quantity: object.quantity, owned: true }
+    case 'product': {
+      const offer = object.offerId ? sources.offers.get(object.offerId) : undefined
+      // An offer for a different variant says nothing about this item's price.
+      const price = offer && offer.variantId === object.variantId ? offer.price : null
+      return { id: object.id, unitPrice: price, quantity: object.quantity, owned: false }
     }
-  })
+    case 'found': {
+      const item = object.foundItemId ? sources.foundItems?.get(object.foundItemId) : undefined
+      return { id: object.id, unitPrice: item?.price ?? null, quantity: object.quantity, owned: item?.owned ?? false }
+    }
+  }
+}
+
+/** Purchase lines derived from a room's objects (see purchaseLine). */
+export function purchaseLines(room: Room, sources: PurchaseSources): PurchaseLine[] {
+  return room.objects.map((object) => purchaseLine(object, sources))
 }
 
 function existing(room: Room | null, id: string | null): string | null {

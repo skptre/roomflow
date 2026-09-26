@@ -49,6 +49,31 @@
   --duration-slow: 320ms;
 }
 
+/* Alternate palettes for choosing an aesthetic (dev toggle: ?palette=stone|clay). Mirror src/scene/palette.ts. */
+@layer base {
+  :root[data-palette='stone'] {
+    --color-canvas: #e7e8e5;
+    --color-surface: #f8f8f6;
+    --color-surface-sunken: #eeefec;
+    --color-line: #d9dcd8;
+    --color-ink: #25282b;
+    --color-muted: #6c7176;
+    --color-accent: #4f6f64;
+    --color-accent-soft: #dde7e2;
+  }
+
+  :root[data-palette='clay'] {
+    --color-canvas: #ecdfd3;
+    --color-surface: #fbf5ef;
+    --color-surface-sunken: #f2e7dc;
+    --color-line: #e3d2c2;
+    --color-ink: #2e2420;
+    --color-muted: #806a5d;
+    --color-accent: #a4512e;
+    --color-accent-soft: #f1dccf;
+  }
+}
+
 @layer base {
   html,
   body,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { lamp, sampleRoom } from '../test/rooms'
-import { applyCommands, type Command } from './commands'
+import { applyCommands, checkPlacement, type Command } from './commands'
 import type { Room } from './schema'
 
 function run(room: Room, commands: Command[], actor: 'user' | 'auto' = 'user') {
@@ -150,5 +150,30 @@ describe('applyCommands', () => {
     const ok = run(room, [{ type: 'restyle', finishes: { wall: '#ffffff', floor: '#000000' } }])
     expect(ok.ok && ok.room.finishes.wall).toBe('#ffffff')
     expect(run(room, [{ type: 'restyle', finishes: { wall: 'red', floor: '#000000' } }]).ok).toBe(false)
+  })
+})
+
+describe('checkPlacement', () => {
+  it('is ok for a free spot inside the room', () => {
+    expect(checkPlacement(sampleRoom(), 'OBJ-CHAIR', { x: 0.2, z: -0.6 }, 0)).toEqual({ status: 'ok', overlaps: [] })
+  })
+
+  it('reports overlaps by object id, ignoring the object itself', () => {
+    const room = sampleRoom()
+    const bed = find(room, 'OBJ-BED')!
+    const result = checkPlacement(room, 'OBJ-CHAIR', { x: bed.pose.position.x, z: bed.pose.position.z }, 0)
+    expect(result.status).toBe('overlap')
+    expect(result.overlaps).toEqual(['OBJ-BED'])
+  })
+
+  it('reports outside before overlap', () => {
+    expect(checkPlacement(sampleRoom(), 'OBJ-CHAIR', { x: 2.1, z: 0 }, 0).status).toBe('outside')
+  })
+
+  it('uses the rotated footprint', () => {
+    // The 1.2 × 0.6 desk fits flush to the east wall only when its long side runs along the wall.
+    const room = sampleRoom()
+    expect(checkPlacement(room, 'OBJ-DESK', { x: 1.7, z: 0.05 }, -Math.PI / 2).status).toBe('ok')
+    expect(checkPlacement(room, 'OBJ-DESK', { x: 1.7, z: 0.05 }, 0).status).toBe('outside')
   })
 })

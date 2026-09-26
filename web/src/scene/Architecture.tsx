@@ -4,7 +4,7 @@ import { ExtrudeGeometry, MeshStandardMaterial, Shape, Vector2, type Mesh } from
 import type { Opening, Room, Vec2, Wall } from '../domain/schema'
 import { outwardNormal } from './cutaway'
 import { proceduralTexture } from './materials'
-import { palette } from './palette'
+import { palette, paletteName } from './palette'
 import { slabWallProfile, wallLength, wallShapes, wallThickness } from './wallGeometry'
 
 /** Thickness of the floor slab under the room (reads as an architectural model base). */
@@ -21,16 +21,18 @@ type ArchitectureProps = {
 
 /** Floor slab, walls with openings, and door/window frames for a room. */
 export function Architecture({ room, cut, reducedMotion }: ArchitectureProps) {
+  // The dev palette toggle (?palette=…) previews its own wall/floor colors over the room's finishes.
+  const finishes = paletteName === 'warm' ? room.finishes : { ...room.finishes, wall: palette.wall, floor: palette.floor }
   return (
     <group>
-      <Floor polygon={room.floorPolygon} color={room.finishes.floor} />
+      <Floor polygon={room.floorPolygon} color={finishes.floor} />
       {room.walls.map((wall) => (
         <WallMesh
           key={wall.id}
           wall={wall}
           openings={room.openings}
           floorPolygon={room.floorPolygon}
-          color={room.finishes.wall}
+          color={finishes.wall}
           cut={cut.has(wall.id)}
           reducedMotion={reducedMotion}
         />
@@ -141,12 +143,16 @@ function WallMesh({ wall, openings, floorPolygon, color, cut, reducedMotion }: W
     mesh.position.y = SLAB * (scale - 1)
   })
 
+  // ExtrudeGeometry groups: 0 = wall faces, 1 = cut edges (top, ends, reveals) in a darker section tone.
   // Owned here (not by JSX) so unmounting never disposes the shared plaster texture.
-  const material = useMemo(
-    () => new MeshStandardMaterial({ color, map: proceduralTexture('plaster'), roughness: 0.92 }),
+  const materials = useMemo(
+    () => [
+      new MeshStandardMaterial({ color, map: proceduralTexture('plaster'), roughness: 0.92 }),
+      new MeshStandardMaterial({ color: palette.wallSection, roughness: 0.95 }),
+    ],
     [color],
   )
-  useEffect(() => () => material.dispose(), [material])
+  useEffect(() => () => materials.forEach((material) => material.dispose()), [materials])
   const showStub = settled && cut
   const standing = settled && !cut
 
@@ -155,7 +161,7 @@ function WallMesh({ wall, openings, floorPolygon, color, cut, reducedMotion }: W
       <mesh
         ref={meshRef}
         geometry={showStub ? stub : full}
-        material={material}
+        material={materials}
         castShadow
         receiveShadow
         dispose={null}
