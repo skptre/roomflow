@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { lamp, sampleRoom } from '../test/rooms'
-import { formatDimensions, priceLabel } from './labels'
+import { formatDimensions, priceLabel, provenanceLabel } from './labels'
 import type { Offer } from './schema'
 
 const offer: Offer = {
@@ -45,5 +45,15 @@ describe('priceLabel', () => {
 
   it('does not use an offer that belongs to another variant', () => {
     expect(priceLabel({ ...lamp(), variantId: 'v-other' }, { offers: new Map([['o-lamp', offer]]) }).kind).toBe('unknown')
+  })
+})
+
+describe('provenanceLabel', () => {
+  it('names where a measurement came from in plain words', () => {
+    expect(provenanceLabel('captured')).toBe('measured')
+    expect(provenanceLabel('merchant')).toBe('listed')
+    expect(provenanceLabel('user')).toBe('you measured')
+    expect(provenanceLabel('estimated')).toBe('estimated')
+    expect(provenanceLabel('unknown')).toBe('unknown')
   })
 })
