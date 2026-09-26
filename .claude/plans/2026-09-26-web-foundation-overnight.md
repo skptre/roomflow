@@ -147,8 +147,8 @@ Product { id; name; category; tags; images? } · Variant { id; productId; label;
 Offer { id; variantId; merchant; url?; price: Money|null; retrievedAt; isSample }
 FoundItem = { id; name; category; photoRef?; dimensions; price: Money|null; store?; link?; owned: boolean }
 ```
-- [ ] Tests: identity → yaw 0; +90° Y matrix `[0,0,-1,0, 0,1,0,0, 1,0,0,0, tx,ty,tz,1]` → yaw ≈ π/2, `y = ty − h/2`; `normalizeYaw(3π) ≈ π`; `Dimensions` rejects NaN/∞/0/neg; Offer accepts `price:null`; Room rejects opening with unknown `wallId`.
-- [ ] Implement (yaw = `atan2(m[8], m[0])`). Commit `feat(domain): coordinate conventions and core schemas`.
+- [x] Tests: identity → yaw 0; +90° Y matrix `[0,0,-1,0, 0,1,0,0, 1,0,0,0, tx,ty,tz,1]` → yaw ≈ π/2, `y = ty − h/2`; `normalizeYaw(3π) ≈ π`; `Dimensions` rejects NaN/∞/0/neg; Offer accepts `price:null`; Room rejects opening with unknown `wallId`.
+- [x] Implement (yaw = `atan2(m[8], m[0])`). Commit `feat(domain): coordinate conventions and core schemas`.
 
 ## Task 2: Geometry + money
 
@@ -274,3 +274,4 @@ Empty/loading/error states everywhere, mobile-width check, keyboard-only pass, d
 
 <!-- One line per finished task: time · task · commit/PR · notes (what's unverified). -->
 - 2026-09-26 · T0 scaffold · branch feat/web-pr1-foundation · Vite 8/React 19/TS 6 template; template ships oxlint (kept instead of eslint, `--deny-warnings`). Browser: start screen renders, keyboard + focus ring OK, no console errors. CI not yet run on GitHub.
+- 2026-09-26 · T1 units + schemas · feat/web-pr1-foundation · 13 tests. Money schema lives in schema.ts (Offer/FoundItem need it); opening offset = wall start → opening center.
