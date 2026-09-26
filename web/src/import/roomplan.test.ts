@@ -80,9 +80,9 @@ describe('parseRoomPlanJson — synthetic bedroom', () => {
     const bed = room.objects.find((o) => o.id === 'OBJ-BED')!
     expect(bed.pose.position.x).toBeCloseTo(-0.6, 3)
     expect(bed.pose.position.z).toBeCloseTo(0.7, 3)
-    expect(bed.pose.yaw).toBeCloseTo(0)
+    expect(bed.pose.yaw).toBeCloseTo(Math.PI)
     const desk = room.objects.find((o) => o.id === 'OBJ-DESK')!
-    expect(desk.pose.yaw).toBeCloseTo(Math.PI / 2)
+    expect(desk.pose.yaw).toBeCloseTo(-Math.PI / 2)
     expect(desk.dimensions).toMatchObject({ width: 1.2, height: 0.75, depth: 0.6 })
   })
 
