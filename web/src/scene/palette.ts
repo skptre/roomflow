@@ -5,14 +5,14 @@
  * Dev toggle: add ?palette=stone or ?palette=clay to the URL.
  */
 const warm = {
-  background: '#efe9e1',
+  background: '#f0ece4',
   ground: '#e6dfd5',
   wall: '#f4efe8',
   wallSection: '#ddd4c8',
   floor: '#c9a882',
   trim: '#d8cfc3',
   glass: '#cfe0e8',
-  selection: '#b5673f',
+  selection: '#96513f',
   hover: '#d99a74',
   invalid: '#b53f3f',
   placeholder: '#b9ada0',
@@ -70,7 +70,9 @@ export function resolvePaletteName(value: string | null): PaletteName {
 
 /** The palette chosen for this page load (dev toggle via ?palette=…; defaults to warm). */
 export const paletteName: PaletteName =
-  typeof window === 'undefined' ? 'warm' : resolvePaletteName(new URLSearchParams(window.location.search).get('palette'))
+  typeof window === 'undefined'
+    ? 'warm'
+    : resolvePaletteName(new URLSearchParams(window.location.search).get('palette'))
 
 export const palette: ScenePalette = palettes[paletteName]
 export type Palette = ScenePalette

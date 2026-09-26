@@ -25,11 +25,17 @@ function commandsFor(entry: CatalogEntry, target: PlacementTarget, quantity: num
   const room = designStore.getState().committed?.room
   if (!room) return { ok: false, outcome: { ok: false, reason: 'no-room', message: 'Open a room first.' } }
   const commands = placementCommands(room, entry, target, quantity)
-  if (!commands) return { ok: false, outcome: { ok: false, reason: 'no-space', message: 'No free space for this size.' } }
+  if (!commands)
+    return { ok: false, outcome: { ok: false, reason: 'no-space', message: 'No free space for this size.' } }
   return { ok: true, commands }
 }
 
-export function previewEntry(owner: string, entry: CatalogEntry, target: PlacementTarget, quantity: number): PreviewOutcome {
+export function previewEntry(
+  owner: string,
+  entry: CatalogEntry,
+  target: PlacementTarget,
+  quantity: number,
+): PreviewOutcome {
   const built = commandsFor(entry, target, quantity)
   if (!built.ok) {
     endPreview(previewOwner ?? owner)
@@ -84,6 +90,18 @@ export function placeEntry(owner: string, entry: CatalogEntry, target: Placement
   }
   const added = commands.find((command) => command.type === 'add')
   if (added?.type === 'add') designStore.getState().select(added.object.id)
-  noticeStore.getState().show(target.mode === 'swap' ? `Swapped in ${entry.product.name}.` : `Added ${entry.product.name}.`)
+  noticeStore
+    .getState()
+    .show(target.mode === 'swap' ? `Swapped in ${entry.product.name}.` : `Added ${entry.product.name}.`)
   return true
+}
+
+/** Dismiss an explicit preview when leaving its browsing context. */
+export function cancelCatalogPreview() {
+  previewOwner = null
+  designStore.getState().cancelPreview()
+}
+
+export function ownsPreview(owner: string): boolean {
+  return previewOwner === owner
 }

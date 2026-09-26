@@ -4,7 +4,7 @@ import { designStore } from '../domain/designStore'
 import { formatMoney } from '../domain/money'
 import { formatSubtotal, purchaseSummary, type PurchaseSummary, type SummarySources } from '../domain/purchases'
 import { Chip } from './Chip'
-import { FloatingPanel } from './FloatingPanel'
+import { StudioIcon } from './StudioIcon'
 import { noticeStore } from './noticeStore'
 
 const CURRENCY = 'USD'
@@ -13,7 +13,13 @@ function totalText(summary: PurchaseSummary): string {
   return formatSubtotal(summary.subtotal, CURRENCY)
 }
 
-function BudgetLine({ summary, budget }: { summary: PurchaseSummary; budget: { amountMinor: number; currency: string } | null }) {
+function BudgetLine({
+  summary,
+  budget,
+}: {
+  summary: PurchaseSummary
+  budget: { amountMinor: number; currency: string } | null
+}) {
   const unpriced = summary.subtotal.unpricedCount
   switch (summary.budget) {
     case 'no-budget':
@@ -47,7 +53,10 @@ export function SubtotalBar({ sources }: { sources: SummarySources }) {
   const listId = useId()
   const budgetId = useId()
 
-  const summary = useMemo(() => (committed ? purchaseSummary(committed.room, sources, committed.budget) : null), [committed, sources])
+  const summary = useMemo(
+    () => (committed ? purchaseSummary(committed.room, sources, committed.budget) : null),
+    [committed, sources],
+  )
   const previewSummary = useMemo(
     () => (committed && preview ? purchaseSummary(preview.room, sources, committed.budget) : null),
     [committed, preview, sources],
@@ -57,13 +66,25 @@ export function SubtotalBar({ sources }: { sources: SummarySources }) {
   const unpriced = summary.subtotal.unpricedCount
 
   return (
-    <FloatingPanel label="Purchases" className="w-80 p-4">
+    <section aria-label="Your budget" className="budget-card">
+      <button
+        type="button"
+        className="budget-heading"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => setOpen(!open)}
+      >
+        <span>
+          <StudioIcon name="leaf" size={16} /> Your budget
+        </span>
+        <span>{open ? '−' : '+'}</span>
+      </button>
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-xs font-medium tracking-wide text-muted uppercase">Product subtotal</span>
         {summary.anySample ? <Chip tone="muted">Sample prices</Chip> : null}
       </div>
       <div className="mt-1 flex items-baseline gap-2">
-        <span className="text-2xl font-semibold tabular-nums text-ink">{totalText(summary)}</span>
+        <span className="budget-total tabular-nums text-ink">{totalText(summary)}</span>
         {unpriced > 0 && summary.subtotal.total ? <span className="text-xs text-muted">+ {unpriced} unpriced</span> : null}
       </div>
       {previewSummary ? (
@@ -76,7 +97,7 @@ export function SubtotalBar({ sources }: { sources: SummarySources }) {
         <BudgetLine summary={summary} budget={budget} />
       </div>
 
-      <div className="mt-3 flex items-center gap-2 border-t border-line pt-3">
+      <div className={`mt-3 flex items-center gap-2 border-t border-line pt-3 ${open ? '' : 'hidden'}`}>
         <label htmlFor={budgetId} className="text-sm text-muted">
           Budget
         </label>
@@ -94,8 +115,10 @@ export function SubtotalBar({ sources }: { sources: SummarySources }) {
       </div>
 
       {open ? (
-        <div id={listId} className="mt-2 max-h-56 overflow-y-auto">
-          {summary.lines.length === 0 ? <p className="py-2 text-sm text-muted">Nothing to buy yet.</p> : null}
+        <div id={listId} className="mt-2 max-h-44 overflow-y-auto">
+          {summary.lines.length === 0 ? (
+            <p className="py-2 text-sm text-muted">A fresh start. Your existing furniture adds no new cost.</p>
+          ) : null}
           <ul className="divide-y divide-line">
             {summary.lines.map((line) => (
               <li key={line.id} className="flex items-baseline justify-between gap-2 py-1.5 text-sm">
@@ -111,11 +134,12 @@ export function SubtotalBar({ sources }: { sources: SummarySources }) {
             ))}
           </ul>
           <p className="mt-2 text-xs text-muted">
-            Already yours: {summary.ownedCount} {summary.ownedCount === 1 ? 'item' : 'items'} (not counted). Excludes tax and shipping.
+            Already yours: {summary.ownedCount} {summary.ownedCount === 1 ? 'item' : 'items'} (not counted). Excludes
+            tax and shipping.
           </p>
         </div>
       ) : null}
-    </FloatingPanel>
+    </section>
   )
 }
 
@@ -135,7 +159,8 @@ function BudgetInput({ id, amountMinor }: { id: string; amountMinor: number | nu
       setText(amountMinor === null ? '' : String(Math.round(amountMinor / 100)))
       return
     }
-    if (dollars * 100 !== amountMinor) designStore.getState().setBudget({ amountMinor: dollars * 100, currency: CURRENCY })
+    if (dollars * 100 !== amountMinor)
+      designStore.getState().setBudget({ amountMinor: dollars * 100, currency: CURRENCY })
   }
 
   return (
@@ -154,7 +179,7 @@ function BudgetInput({ id, amountMinor }: { id: string; amountMinor: number | nu
         onKeyDown={(event) => {
           if (event.key === 'Enter') event.currentTarget.blur()
         }}
-        className="h-8 w-20 bg-transparent px-1 text-sm tabular-nums text-ink outline-none"
+        className="h-10 w-20 bg-transparent px-1 text-sm tabular-nums text-ink outline-none"
       />
     </div>
   )
