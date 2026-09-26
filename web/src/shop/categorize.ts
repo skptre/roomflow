@@ -97,6 +97,8 @@ const BY_TITLE: Rule[] = [
 /** Types too broad to decide alone: the title refines them. */
 const GENERIC = /^(|seating|furniture|outdoor furniture|dining|decor|decorative accessories|lighting|tables|storage|shelving & storage|pillows & throws|accent tables?|accessories|benches, stools & ottomans|stools?|blankets?|frames?|wall décor \+ mirrors|mirrors & frames)$/
 
+const SEATING_REFINEMENTS = new Set(['sectional', 'lounge-chair', 'ottoman', 'bench', 'dining-chair'])
+
 function first(rules: readonly Rule[], text: string): string | undefined {
   return rules.find(([pattern]) => pattern.test(text))?.[1]
 }
@@ -110,8 +112,13 @@ export function categorize({ productType, title }: ListingText): Categorized {
   if (!GENERIC.test(type)) {
     const direct = first(BY_TYPE, type)
     if (!direct) return { category: null, excluded: 'unmapped' }
-    // A broad seating type still names a sectional in its title (Poly & Bark files sectionals under sofas).
-    if (direct === 'sofa' && first(BY_TITLE, name) === 'sectional') return { category: 'sectional' }
+    // Stores file other seating under sofa types (Poly & Bark: sectionals and ottomans
+    // under "Sofas & Loveseats"; Floyd: a lounge chair under "Sectionals"). An explicit
+    // seating word in the title wins.
+    if (direct === 'sofa' || direct === 'sectional') {
+      const byTitle = first(BY_TITLE, name)
+      if (byTitle && SEATING_REFINEMENTS.has(byTitle)) return { category: byTitle }
+    }
     return { category: direct }
   }
   const byTitle = first(BY_TITLE, name)

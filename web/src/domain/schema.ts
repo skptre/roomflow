@@ -158,6 +158,14 @@ export const Product = z.object({
   category: z.string().min(1),
   tags: z.array(z.string()),
   images: z.array(z.string()).optional(),
+  /** Brand as the store lists it. */
+  vendor: z.string().optional(),
+  /** Display name of the store the listing came from. */
+  store: z.string().optional(),
+  /** The product's page at that store. */
+  url: z.url().optional(),
+  /** Main product photo (store CDN). */
+  imageUrl: z.url().optional(),
 })
 export type Product = z.infer<typeof Product>
 
@@ -180,6 +188,10 @@ export const Offer = z.object({
   price: Money.nullable(),
   retrievedAt: IsoTimestamp,
   isSample: z.boolean(),
+  /** In stock at retrievedAt; absent = not reported. */
+  available: z.boolean().optional(),
+  /** Hostname the offer was read from (the only host a refresh may contact). */
+  sourceStore: z.string().optional(),
 })
 export type Offer = z.infer<typeof Offer>
 
