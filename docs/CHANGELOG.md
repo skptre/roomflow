@@ -5,6 +5,14 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### Web: imported floor uses the color the phone measured
+- `web/src/import/roomflowPackage.ts`: `parseRoomflowPackage` sets `finishes.floor` from the package's `floorColor`
+  when it has at least `MIN_FLOOR_SAMPLES` (new, 3) camera samples, with `floorTexture: 'plain'`.
+- `web/src/domain/schema.ts`: `Finishes.floorTexture` (optional `'woodgrain' | 'plain'`; absent = wood, as before).
+- `web/src/scene/Architecture.tsx`: a plain floor renders matte without the wood-grain texture. Choosing a look still
+  replaces all finishes (wood again); undo restores the scanned floor.
+- Why: the phone sampled the floor color but the web ignored it and always drew light wood.
+
 ### Web: match scanned furniture automatically from the package's photos
 - After a `.roomflow.zip` opens, `App.tsx` (`offerAutoMatch`) offers to match every scanned item that has a usable phone
   photo and no appearance yet (≤12). `AutoMatchDialog.tsx` shows the exact crops, one consent for all, progress, and

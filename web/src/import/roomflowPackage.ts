@@ -13,6 +13,8 @@ import { DEFAULT_ZIP_LIMITS, readZip, ZipError } from './zip'
 
 /** Whole-package cap: the raw scan plus up to 20 MiB of photos and small JSON files. */
 export const MAX_PACKAGE_BYTES = 64 * 1024 * 1024
+/** Fewer camera samples than this and the phone's floor color is too unreliable to show. */
+export const MIN_FLOOR_SAMPLES = 3
 
 const RAW_PATH = 'capture.roomplan.json'
 const EDITABLE_PATH = 'editable.roomflow.json'
@@ -189,8 +191,11 @@ export async function parseRoomflowPackage(bytes: Uint8Array, options: ImportOpt
   const objectIds = new Set(imported.room.objects.map((object) => object.id))
   const surfaceIds = new Set([...objectIds, ...imported.room.walls.map((wall) => wall.id)])
   const labels = new Map(appearance.annotations.filter((a) => objectIds.has(a.sourceId)).map((a) => [a.sourceId, a.label]))
+  // A floor color the phone sampled often enough replaces the default wood (approximate: lighting affects it).
+  const floor = appearance.floorColor && appearance.floorColor.sampleCount >= MIN_FLOOR_SAMPLES ? appearance.floorColor.hex.toLowerCase() : null
   const labelled = Room.safeParse({
     ...imported.room,
+    finishes: floor ? { ...imported.room.finishes, floor, floorTexture: 'plain' } : imported.room.finishes,
     objects: imported.room.objects.map((object) => (labels.has(object.id) ? { ...object, name: labels.get(object.id)! } : object)),
   })
   if (!labelled.success) return fail("This package's names couldn't be applied.")
