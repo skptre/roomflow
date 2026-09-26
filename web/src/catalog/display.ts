@@ -35,6 +35,12 @@ function fold(text: string): string {
   return text.normalize('NFD').replace(/\p{Diacritic}/gu, '')
 }
 
+/** The moods a listing's own words suggest ("Walnut - Wood" → natural). */
+export function moodsOf(words: readonly string[]): string[] {
+  const text = fold(words.join(' '))
+  return Object.keys(MOOD_PATTERNS).filter((mood) => MOOD_PATTERNS[mood]!.test(text))
+}
+
 export function matchesMood(entry: CatalogEntry, mood: string): boolean {
   if (!mood) return true
   const pattern = MOOD_PATTERNS[mood]

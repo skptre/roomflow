@@ -10,6 +10,7 @@ import type { CatalogEntry, CatalogQuery, CatalogResult, CatalogSource } from '.
 import { categoryInfo } from '../domain/categories'
 import type { AssetRef, Offer } from '../domain/schema'
 import { Snapshot, variantId, variantLabel, variantUrl } from '../shop/snapshot'
+import { moodsOf } from './display'
 
 /** What renders a category until product-specific block recipes exist. */
 function categoryAsset(category: string): AssetRef {
@@ -21,12 +22,14 @@ export function snapshotEntries(snapshot: Snapshot): CatalogEntry[] {
   return snapshot.products.flatMap((p) =>
     p.variants.map((sv): CatalogEntry => {
       const v = { ...sv, id: variantId(p, sv), label: variantLabel(sv), url: variantUrl(p, sv), imageUrl: sv.imageUrl ?? p.imageUrl }
+      // Store tags carry no mood; the listing's own material and color words do (for looks and ranking).
+      const tags = [...new Set([...p.tags, ...moodsOf([p.name, v.label, ...p.tags])])]
       return {
         product: {
           id: p.id,
           name: p.name,
           category: p.category,
-          tags: p.tags,
+          tags,
           vendor: p.vendor,
           store: p.store,
           url: p.url,

@@ -58,8 +58,11 @@ function Workspace() {
   const variantLabels = useStore(catalogStore, (state) => state.variantLabels)
   const catalogEntries = useStore(catalogStore, (state) => state.entries)
   const sources: SummarySources = useMemo(() => ({ offers, variantLabels }), [offers, variantLabels])
-  // Looks only propose pieces the store reports in stock.
-  const lookCatalog = useMemo(() => catalogEntries.filter((entry) => entry.offer.available !== false), [catalogEntries])
+  // Looks only propose pieces the store reports in stock at a known price, so a look's total means something.
+  const lookCatalog = useMemo(
+    () => catalogEntries.filter((entry) => entry.offer.available !== false && entry.offer.price !== null),
+    [catalogEntries],
+  )
   const hasRoom = committed !== null
   useEffect(() => {
     // Fetch the catalog once a room is open; the catalog panel shows any failure and retries.
