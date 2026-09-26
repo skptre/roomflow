@@ -105,7 +105,11 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | Path | Purpose |
 | --- | --- |
 | `web/src/main.tsx`, `App.tsx`, `index.css` | App entry, root component, design tokens |
-| `web/src/import/roomplan.ts` | Imports raw RoomPlan JSON (contract: `docs/contracts/room-import.md`) |
+| `web/src/import/roomplan.ts` | Imports raw RoomPlan JSON (contract: `docs/contracts/room-import.md`): `parseRoomPlanJson`; floor outline = wall loop → `outlineFromFloors` → `alignedBoundsOutline` |
+| `web/src/import/roomflowPackage.ts` | Imports `.roomflow.zip` (`parseRoomflowPackage`, `isZipArchive`): manifest + SHA-256 checks, raw scan via `parseRoomPlanJson`, evidence (`PackageEvidence`, `PackagePhoto`, `PhotoRegion`) |
+| `web/src/import/zip.ts` | Dependency-free ZIP reader (`readZip`, `crc32`, `ZipError`, `DEFAULT_ZIP_LIMITS`) |
+| `web/src/ui/evidenceStore.ts` | In-memory package evidence beside the loaded room (`evidenceStore.set`, `regionsFor`) |
+| `web/src/test/zipWriter.ts` | Test-only ZIP builder (`makeZip`) with tampering options |
 | `web/src/domain/` | Pure logic: schema, units, geometry, layout, money, purchases, catalog, commands, design store, themes, labels, mounting |
 | `web/src/scene/` | React Three Fiber scene: architecture, furniture, camera, lighting, cutaway, gestures |
 | `web/src/ui/` | Interface components |

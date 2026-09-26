@@ -23,13 +23,17 @@ Each surface/object:
 | `parentIdentifier` | wall identifier or null | door/window → wall link |
 | `confidence` | `{ "high": {} }`-style or string | low-confidence count is reported as a warning |
 
-Ignored for now: `floors`, `sections`, `polygonCorners`, `completedEdges`, `curve`, `story`, object `attributes`.
+Also read: `floors[]` with `transform` and `polygonCorners` (local frame: native = transform · corner), used when the walls don't close.
+
+Ignored for now: `sections`, `completedEdges`, `curve`, `story`, object `attributes`.
+
+A RoomFlow package (`<capture-id>.roomflow.zip`, `docs/ios-room-package.md`) is also accepted: its `capture.roomplan.json` goes through this same importer; its evidence never changes geometry.
 
 ## Normalization applied (web side only)
 
 1. RoomPlan's frame is already meters, right-handed, Y-up, so **no rotation or scaling** is applied.
 2. Floor height = lowest wall base (`center.y − height/2`) in native coordinates.
-3. Floor outline = the largest closed loop of wall segments chained end-to-end (corners within 15 cm are joined). If no loop closes, the outline falls back to the walls' bounding box and a warning is returned.
+3. Floor outline, in order: the largest closed loop of wall segments chained end-to-end (corners within 15 cm are joined); else RoomPlan's largest valid floor polygon (`floors[].polygonCorners`, ≥ 0.5 m²); else a rectangle aligned with the longest wall that contains every wall, with a warning. (The old world-axis bounding box grew a turned, open-ended room into a much larger diamond.) A malformed `floors` list is ignored with a warning. Import warnings are shown to the user.
 4. Everything is translated so the outline's bounding box is centered at x = z = 0 and the floor is at y = 0. The translation is stored as `room.source.nativeToApp` (`app = native + nativeToApp`).
 5. Objects: origin moves from center to bottom-center (`y − height/2`); yaw = `atan2(m[8], m[0])`, radians about +Y, counter-clockwise seen from above. Only yaw is kept — RoomPlan objects are assumed upright.
 6. Openings: attached to `parentIdentifier` when that wall exists; otherwise to the **single** wall they are parallel to (within ~6°), within 20 cm of, and inside the length of. No match or several matches → opening dropped with a warning. `offsetAlongWall` = distance from wall start to the opening center; `bottom` = sill height above the floor.

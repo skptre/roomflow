@@ -286,3 +286,88 @@ describe('parseRoomPlanJson — hostile input', () => {
     )
   })
 })
+
+
+// --- Floor outline when the walls don't close (e.g. an open-ended room) ---
+
+const areaOf = (points: ReadonlyArray<{ x: number; z: number }>) =>
+  Math.abs(points.reduce((sum, p, i) => {
+    const q = points[(i + 1) % points.length]!
+    return sum + p.x * q.z - q.x * p.z
+  }, 0)) / 2
+
+/** Rotates every surface of a scan about the vertical axis (column-major transforms). */
+function rotateScan(raw: RawScan, degrees: number) {
+  const a = (degrees * Math.PI) / 180
+  const c = Math.cos(a), s = Math.sin(a)
+  const rotate = (x: number, z: number) => [c * x + s * z, -s * x + c * z] as const
+  for (const key of ['walls', 'doors', 'windows', 'openings', 'objects', 'floors']) {
+    for (const surface of (raw[key] ?? []) as RawScan[]) {
+      const m = surface.transform as number[]
+      for (const col of [0, 4, 8, 12]) {
+        const [x, z] = rotate(m[col]!, m[col + 2]!)
+        m[col] = x
+        m[col + 2] = z
+      }
+    }
+  }
+}
+
+/** RoomPlan-style floor surface whose local (x, y) are the native (x, z) of the given corners. */
+function floorSurface(corners: ReadonlyArray<{ x: number; z: number }>, floorY: number) {
+  return {
+    identifier: 'floor-1',
+    transform: [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, floorY, 0, 1],
+    polygonCorners: corners.map((p) => [p.x, p.z, 0]),
+  }
+}
+
+describe('parseRoomPlanJson — floor outline without a closed wall loop', () => {
+  const closed = load()
+  const offset = closed.room.source.nativeToApp
+  if (!offset) throw new Error('the fixture import should record nativeToApp')
+  const nativeFloor = closed.room.floorPolygon.map((p) => ({ x: p.x - offset.x, z: p.z - offset.z }))
+
+  it("uses RoomPlan's floor polygon when a wall is missing", () => {
+    const result = load(
+      mutate((raw) => {
+        raw.walls.splice(0, 1)
+        raw.floors = [floorSurface(nativeFloor, -offset.y)]
+      }),
+    )
+    expect(areaOf(result.room.floorPolygon)).toBeCloseTo(areaOf(closed.room.floorPolygon), 3)
+    expect(result.warnings.join(' ')).not.toMatch(/closed outline/)
+  })
+
+  it('falls back to a rectangle aligned with the walls, not the world axes', () => {
+    const result = load(
+      mutate((raw) => {
+        rotateScan(raw, 30)
+        raw.walls.splice(0, 1)
+      }),
+    )
+    // An axis-aligned box around a 30°-turned 4 × 3.5 m room would be ~26 m²; the aligned one stays ~14 m².
+    expect(areaOf(result.room.floorPolygon)).toBeCloseTo(areaOf(closed.room.floorPolygon), 1)
+    expect(result.warnings.join(' ')).toMatch(/closed outline/)
+  })
+
+  it('ignores a malformed floor list with a warning instead of failing', () => {
+    const result = load(
+      mutate((raw) => {
+        raw.walls.splice(0, 1)
+        raw.floors = [{ identifier: 'f', transform: [1, 2], polygonCorners: 'nope' }]
+      }),
+    )
+    expect(result.warnings.join(' ')).toMatch(/floor outline/i)
+    expect(areaOf(result.room.floorPolygon)).toBeGreaterThan(0.5)
+  })
+
+  it('keeps using the closed wall loop when the walls do close', () => {
+    const result = load(
+      mutate((raw) => {
+        raw.floors = [floorSurface([{ x: 0, z: 0 }, { x: 9, z: 0 }, { x: 9, z: 9 }], -offset.y)]
+      }),
+    )
+    expect(areaOf(result.room.floorPolygon)).toBeCloseTo(areaOf(closed.room.floorPolygon), 3)
+  })
+})
