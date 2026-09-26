@@ -114,6 +114,28 @@ describe('clampIntoRoom', () => {
     expect(clampIntoRoom(chair, ROOM)).toEqual(chair.pose)
   })
 
+  it('finds the nearest fit in a U-shaped room whose centroid lies outside the floor', () => {
+    // Notch x 2..4, z 1..4 is outside; the area centroid (3, 1.83) falls inside the notch.
+    const uRoom = [
+      { x: 0, z: 0 },
+      { x: 6, z: 0 },
+      { x: 6, z: 4 },
+      { x: 4, z: 4 },
+      { x: 4, z: 1 },
+      { x: 2, z: 1 },
+      { x: 2, z: 4 },
+      { x: 0, z: 4 },
+    ]
+    const box = placed(3, 3, 1, 1, 0.2)
+    const pose = clampIntoRoom(box, uRoom)
+    expect(pose).not.toBeNull()
+    expect(pose!.yaw).toBe(box.pose.yaw)
+    expect(insideRoom({ pose: pose!, dimensions: box.dimensions }, uRoom)).toBe(true)
+    // Nearest arm is about 1.6 m away sideways, not 2.4 m down to the bottom band.
+    const moved = Math.hypot(pose!.position.x - 3, pose!.position.z - 3)
+    expect(moved).toBeLessThan(1.8)
+  })
+
   it('returns null when the object cannot fit at that yaw', () => {
     expect(clampIntoRoom(placed(2, 2, 5, 1), ROOM)).toBeNull()
   })
