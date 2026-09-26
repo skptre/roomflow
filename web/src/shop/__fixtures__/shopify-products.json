@@ -1,0 +1,434 @@
+{
+  "burrowSofa": {
+    "id": 9787726004526,
+    "title": "Nomad King Sofa",
+    "handle": "nomad-king-sofa",
+    "body_html": "<p>Meet the sofa that changed how people buy furniture—designed to fit how people actually live. The Nomad Modular Collection combines timeless mid-century style with smart, modern engineering. Tool-free assembly, built-in USB charging, and easy-to-move modular design make it as functional as it is iconic.</p><p>Every detail is crafted for longevity—from the hardwood frame and CertiPUR-US® foam cushions to the PFAS-free, performance fabric that resists stains and everyday wear. With Nomad, you get the comfort of a classic and the flexibility of the future.</p><ul>\n<li>Universal modular design</li>\n<li>CertiPUR-US® certified cushions</li>\n<li>PFAS-free materials</li>\n<li>Reversible back cushions with tufting</li>\n</ul>",
+    "vendor": "Burrow",
+    "product_type": "Seating",
+    "tags": [
+      "Living",
+      "Nomad",
+      "Nomad Standard",
+      "Nomad Standard + Velvet Plus",
+      "regular",
+      "RGroup_Nomad_Collection",
+      "Sofa",
+      "unpublish"
+    ],
+    "options": [
+      {
+        "name": "Fabric",
+        "position": 1,
+        "values": [
+          "Ivory - Performance Basketweave"
+        ]
+      },
+      {
+        "name": "Leg Finish",
+        "position": 2,
+        "values": [
+          "Walnut - Wood",
+          "Oak - Wood",
+          "Ebony - Wood",
+          "Black - Metal"
+        ]
+      },
+      {
+        "name": "Arm Style",
+        "position": 3,
+        "values": [
+          "Block"
+        ]
+      }
+    ],
+    "images": [
+      {
+        "id": 50306196078894,
+        "src": "https://cdn.shopify.com/s/files/1/0932/3220/2030/files/lifestyle-Sofa-Sectional-Fabric.jpg?v=1764365778",
+        "variant_ids": []
+      },
+      {
+        "id": 49841010245934,
+        "src": "https://cdn.shopify.com/s/files/1/0932/3220/2030/files/NSF-BR-4-HI-LW-TF_7df6c214-9c67-42d3-ba46-c625ad40c7ed.jpg?v=1749761008",
+        "variant_ids": []
+      },
+      {
+        "id": 49840997794094,
+        "src": "https://cdn.shopify.com/s/files/1/0932/3220/2030/files/NSF-BR-4-HI-DW-TF_31be0eb5-6d42-4cef-ba5e-ea4eba7f4f83.jpg?v=1749761008",
+        "variant_ids": []
+      }
+    ],
+    "variants": [
+      {
+        "id": 50013108961582,
+        "title": "Ivory - Performance Basketweave / Walnut - Wood / Block",
+        "option1": "Ivory - Performance Basketweave",
+        "option2": "Walnut - Wood",
+        "option3": "Block",
+        "sku": "NSF-IV-4-MD-DW",
+        "available": false,
+        "price": "964.00",
+        "featured_image": {
+          "src": "https://cdn.shopify.com/s/files/1/0932/3220/2030/files/NSF-IV-4-MD-DW-UT_01186a62-db90-4eac-a893-2f3bbeeb2a82.jpg?v=1755630110"
+        }
+      },
+      {
+        "id": 50013108797742,
+        "title": "Ivory - Performance Basketweave / Oak - Wood / Block",
+        "option1": "Ivory - Performance Basketweave",
+        "option2": "Oak - Wood",
+        "option3": "Block",
+        "sku": "NSF-IV-4-MD-LW",
+        "available": false,
+        "price": "964.00",
+        "featured_image": {
+          "src": "https://cdn.shopify.com/s/files/1/0932/3220/2030/files/NSF-IV-4-MD-LW-UT_97bec80f-f1f7-4c59-aa8b-ea53f617fe38.jpg?v=1755630110"
+        }
+      },
+      {
+        "id": 50013109125422,
+        "title": "Ivory - Performance Basketweave / Ebony - Wood / Block",
+        "option1": "Ivory - Performance Basketweave",
+        "option2": "Ebony - Wood",
+        "option3": "Block",
+        "sku": "NSF-IV-4-MD-BW",
+        "available": false,
+        "price": "964.00",
+        "featured_image": {
+          "src": "https://cdn.shopify.com/s/files/1/0932/3220/2030/files/NSF-IV-4-MD-BW-UT_a23f30e7-7bba-4255-80c7-4d5e6ba17da7.jpg?v=1755630110"
+        }
+      },
+      {
+        "id": 50013109420334,
+        "title": "Ivory - Performance Basketweave / Black - Metal / Block",
+        "option1": "Ivory - Performance Basketweave",
+        "option2": "Black - Metal",
+        "option3": "Block",
+        "sku": "NSF-IV-4-MD-BM",
+        "available": false,
+        "price": "964.00",
+        "featured_image": {
+          "src": "https://cdn.shopify.com/s/files/1/0932/3220/2030/files/NSF-IV-4-MD-BM-UT_662d7003-1944-434d-b4b2-87090111a4ed.jpg?v=1755630110"
+        }
+      }
+    ]
+  },
+  "polyAndBarkSectional": {
+    "id": 15809643577417,
+    "title": "Harper 113.5\" Leather Left-Facing Pull-Out Sleeper Sectional | Chocolate Brown",
+    "handle": "harper-113-5-leather-left-facing-pull-out-sleeper-sectional-chocolate-brown",
+    "body_html": "<p><span>This sleeper sectional is ready for anything, whether lounging, napping, or hosting surprise guests! Upholstered in buttery Italian full-grain leather that gains a rich patina over time, it’s as timeless as it is cozy. The hotel-grade pull-out bed and tri-layered mattress promise premium sleep, while feather-down cushions make every seat feel VIP.</span></p>\n<!--split-->\n<ul>\n<li><span>Full-grain, pure aniline-dyed, Italian-tanned leather upholstery.</span></li>\n<li><span>Chocolate Brown features a non-pigmented leather, accentuating the natural beauty of the hide. The leather will scuff and develop into a beautiful vintage patina with use.</span></li>\n<li><span>Each hide is unique and will vary in depth of color.</span></li>\n<li><span>The pull-out bed frame boasts a commercial-grade quality, equivalent to those used in hotels.</span></li>\n<li><span>Under-chaise storage compartment with a smooth, controlled open-and-close hinge.</span></li>\n<li><span>Kiln-dried solid wood and engineered hardwood frame with reinforced joinery, ensuring longevity.</span></li>\n<li><span>Pirelli webbing suspension back support.</span></li>\n<li><span>Seat cushions are filled with a high-resilience foam core wrapped in feathers &amp; fiber.</span></li>\n<li><span>Back cushions are filled with a feather &amp; fiber blend.</span></li>\n<li><span>Loose, non-reversible seat and back cushions with removable zip-off covers.</span></li>\n<li><span>Solid wood legs in a walnut finish.</span></li>\n<li>",
+    "vendor": "Poly & Bark",
+    "product_type": "Sofas & Loveseats",
+    "tags": [
+      "collection-content-leather-designs",
+      "collection-harper-collection",
+      "color-brown",
+      "Contemporary minimal",
+      "Harper_collection",
+      "leather-kit-upsell",
+      "leather-sofas-sectionals",
+      "ltl",
+      "New",
+      "New Arrival",
+      "over-2000",
+      "sectionals"
+    ],
+    "options": [
+      {
+        "name": "Color",
+        "position": 1,
+        "values": [
+          "Chocolate Brown"
+        ]
+      }
+    ],
+    "images": [
+      {
+        "id": 84152609636425,
+        "src": "https://cdn.shopify.com/s/files/1/1150/6518/files/LR-D217-LS-CHOCB.jpg?v=1790328205",
+        "variant_ids": []
+      },
+      {
+        "id": 84152609669193,
+        "src": "https://cdn.shopify.com/s/files/1/1150/6518/files/LR-D217-LS-CHOCB_1_0248dfd7-6f52-4859-9077-95ade893f149.jpg?v=1790328206",
+        "variant_ids": []
+      },
+      {
+        "id": 84139257069641,
+        "src": "https://cdn.shopify.com/s/files/1/1150/6518/files/LR-D217-LS-CHOCB_0.jpg?v=1790259479",
+        "variant_ids": []
+      }
+    ],
+    "variants": [
+      {
+        "id": 56143275884617,
+        "title": "Chocolate Brown",
+        "option1": "Chocolate Brown",
+        "option2": null,
+        "option3": null,
+        "sku": "LR-D217-LS-CHOCB",
+        "available": true,
+        "price": "4497.00",
+        "featured_image": null
+      }
+    ]
+  },
+  "curtain": {
+    "id": 7094210953387,
+    "title": "Siberian Ice Textured Dupioni Silk Room Darkening Curtain",
+    "handle": "siberian-ice-textured-dupioni-silk-room-darkening-curtain",
+    "body_html": "<p>Dupioni silk always adds a luxurious flair to every décor style, the timeless luster and sheen the sets Dupioni silk apart. Privacy Lined — 60% room darkening opacity suited to living rooms, bedrooms, and dining rooms where privacy and atmosphere both matter. Customers rate the quality as exceptional for the price.</p>",
+    "vendor": "Half Price Drapes",
+    "product_type": "Curtain",
+    "tags": [
+      "Bedroom",
+      "Blue",
+      "Collection_Color Grouping DIS-ID",
+      "Coupon Product",
+      "Curtain",
+      "Curtains & Drapes",
+      "Dining Room",
+      "DIS-ID",
+      "DIS-ID1882",
+      "Dupioni Silk Curtains",
+      "Glam",
+      "HB"
+    ],
+    "options": [
+      {
+        "name": "SIZE",
+        "position": 1,
+        "values": [
+          "50W X 84L",
+          "50W X 96L",
+          "50W X 108L"
+        ]
+      }
+    ],
+    "images": [
+      {
+        "id": 69155400843632,
+        "src": "https://cdn.shopify.com/s/files/1/0576/6856/7211/files/DIS-ID1882-front-view-01.jpg?v=1789642103",
+        "variant_ids": []
+      },
+      {
+        "id": 69155400909168,
+        "src": "https://cdn.shopify.com/s/files/1/0576/6856/7211/files/DIS-ID1882-hook-belt-header.jpg?v=1789642105",
+        "variant_ids": []
+      },
+      {
+        "id": 69155401105776,
+        "src": "https://cdn.shopify.com/s/files/1/0576/6856/7211/files/DIS-ID1882-pole-pocket-header.jpg?v=1789642107",
+        "variant_ids": []
+      }
+    ],
+    "variants": [
+      {
+        "id": 41920811827371,
+        "title": "50W X 84L",
+        "option1": "50W X 84L",
+        "option2": null,
+        "option3": null,
+        "sku": "DIS-ID1882-84",
+        "available": false,
+        "price": "152.00",
+        "featured_image": null
+      },
+      {
+        "id": 41163191222443,
+        "title": "50W X 96L",
+        "option1": "50W X 96L",
+        "option2": null,
+        "option3": null,
+        "sku": "DIS-ID1882-96",
+        "available": false,
+        "price": "158.00",
+        "featured_image": null
+      },
+      {
+        "id": 41163191287979,
+        "title": "50W X 108L",
+        "option1": "50W X 108L",
+        "option2": null,
+        "option3": null,
+        "sku": "DIS-ID1882-108",
+        "available": true,
+        "price": "164.00",
+        "featured_image": null
+      }
+    ]
+  },
+  "artPrint": {
+    "id": 8257630503001,
+    "title": "Forest Sketch",
+    "handle": "forest-sketch",
+    "body_html": "<p><strong>Tones:</strong> Graphite, Parchment<br></p>\n<p><span><strong>About The Print: </strong>A forest sketch in black and white of a treeline lining a grassy meadow. Dry point etching on paper.    </span></p>\n<p><span><strong>About The Artist: </strong>Print by Alexander Shilling after the artist Dwight William Tryon. Tryon was an American landscape painter known for his serene and atmospheric depictions of the New England countryside. He initially pursued a career in engraving before devoting himself fully to painting. His work often featured soft, harmonious compositions with a focus on light, mood, and the effects of atmosphere. His tranquil landscapes and signature tonalist style, characterized by their subtle color palettes, earned him recognition as one of the leading American landscape painters of the late 19th and early 20th centuries. Alexander Schilling was not only a landscape painter and etcher but also known for his skill in creating prints based on the works of other artists. This practice, common in the 19th and early 20th centuries, involved translating original paintings into etchings or engravings, allowing broader public access to art through printed reproductions. Schilling's interpretations retained the mood and composition of the originals while showcasing his technical finesse in line and tone.<br>His printmaking work contributed to preserving and disseminating notable artworks before the widespread use of photographic reproduction.</span></p>",
+    "vendor": "Vintage",
+    "product_type": "Horizontal",
+    "tags": [
+      "Black & White",
+      "Meadow",
+      "Minimal",
+      "Neutral",
+      "New Prints",
+      "Pencil",
+      "Sketch",
+      "Sketches",
+      "Tree",
+      "Tree Line",
+      "Trees"
+    ],
+    "options": [
+      {
+        "name": "Material",
+        "position": 1,
+        "values": [
+          "Paper"
+        ]
+      },
+      {
+        "name": "Size",
+        "position": 2,
+        "values": [
+          "8x10",
+          "11x14",
+          "12x18"
+        ]
+      }
+    ],
+    "images": [
+      {
+        "id": 36589130907737,
+        "src": "https://cdn.shopify.com/s/files/1/1806/8745/files/ForestSketchLISTING_1.webp?v=1782328577",
+        "variant_ids": [
+          43467526406233,
+          43467526439001,
+          43467526471769
+        ]
+      },
+      {
+        "id": 36589137592409,
+        "src": "https://cdn.shopify.com/s/files/1/1806/8745/files/Forest_Sketch_22.5x55.5_LISTING.webp?v=1782328588",
+        "variant_ids": []
+      },
+      {
+        "id": 36589138116697,
+        "src": "https://cdn.shopify.com/s/files/1/1806/8745/files/ForestSketchStyledWEB.webp?v=1782328596",
+        "variant_ids": []
+      }
+    ],
+    "variants": [
+      {
+        "id": 43467526406233,
+        "title": "Paper / 8x10",
+        "option1": "Paper",
+        "option2": "8x10",
+        "option3": null,
+        "sku": "FORESTSKETCH8X10",
+        "available": true,
+        "price": "29.00",
+        "featured_image": {
+          "src": "https://cdn.shopify.com/s/files/1/1806/8745/files/ForestSketchLISTING_1.webp?v=1782328577"
+        }
+      },
+      {
+        "id": 43467526439001,
+        "title": "Paper / 11x14",
+        "option1": "Paper",
+        "option2": "11x14",
+        "option3": null,
+        "sku": "FORESTSKETCH11X14",
+        "available": true,
+        "price": "39.00",
+        "featured_image": {
+          "src": "https://cdn.shopify.com/s/files/1/1806/8745/files/ForestSketchLISTING_1.webp?v=1782328577"
+        }
+      },
+      {
+        "id": 43467526471769,
+        "title": "Paper / 12x18",
+        "option1": "Paper",
+        "option2": "12x18",
+        "option3": null,
+        "sku": "FORESTSKETCH12X18",
+        "available": true,
+        "price": "49.00",
+        "featured_image": {
+          "src": "https://cdn.shopify.com/s/files/1/1806/8745/files/ForestSketchLISTING_1.webp?v=1782328577"
+        }
+      }
+    ]
+  },
+  "rug": {
+    "id": 7273628303395,
+    "title": "VLR-01 IVORY / GREEN",
+    "handle": "vlr-01-ivory-green",
+    "body_html": "Bath mats in the Valerie Collection feature warm, neutral color palettes and are framed with a dashed border and scalloped edges.  The washable bath rug has a tufted pile that feels soft underfoot and a non-skid backing. This collection is machine-tufted of polyester in India and is OEKO-TEK certified, ensuring its materials don't contain harmful substances.  A beautiful design by Chris Loves Julia x Loloi.",
+    "vendor": "Loloi Rugs",
+    "product_type": "RUGS",
+    "tags": [
+      "Collaboration:Chris Loves Julia",
+      "Collection:VALERIE",
+      "Color:Gold/Yellow",
+      "Construction:Machine Tufted",
+      "Discontinued:boolean:False",
+      "Material:Polyester Pile",
+      "Style:Traditional",
+      "Timestamp:number:1790553600",
+      "Watchlist:boolean:False"
+    ],
+    "options": [
+      {
+        "name": "Size",
+        "position": 1,
+        "values": [
+          "1'-9\" x 2'-10\"",
+          "1'-10\" x 5'"
+        ]
+      }
+    ],
+    "images": [
+      {
+        "id": 35959267229731,
+        "src": "https://cdn.shopify.com/s/files/1/2718/0696/files/VLRIVLR-01IVGR.jpg?v=1790109423",
+        "variant_ids": []
+      },
+      {
+        "id": 35872256524323,
+        "src": "https://cdn.shopify.com/s/files/1/2718/0696/files/VLRIVLR-01IVGR_10.jpg?v=1788451906",
+        "variant_ids": []
+      },
+      {
+        "id": 35872256557091,
+        "src": "https://cdn.shopify.com/s/files/1/2718/0696/files/VLRIVLR-01IVGR_24.jpg?v=1788451906",
+        "variant_ids": []
+      }
+    ],
+    "variants": [
+      {
+        "id": 43864358486051,
+        "title": "1'-9\" x 2'-10\"",
+        "option1": "1'-9\" x 2'-10\"",
+        "option2": null,
+        "option3": null,
+        "sku": "VLRIVLR-01IVGR192A",
+        "available": true,
+        "price": "99999.00",
+        "featured_image": null
+      },
+      {
+        "id": 43864358518819,
+        "title": "1'-10\" x 5'",
+        "option1": "1'-10\" x 5'",
+        "option2": null,
+        "option3": null,
+        "sku": "VLRIVLR-01IVGR1A50",
+        "available": true,
+        "price": "99999.00",
+        "featured_image": null
+      }
+    ]
+  }
+}
