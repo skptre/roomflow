@@ -190,8 +190,7 @@ final class RoomEvidenceRecorder {
         guard sessionID == self.sessionID else { return }
         guard snapshot.trackingNormal else {
             // Tracking was lost: poses of earlier photos may no longer match the final room.
-            interruptions += 1
-            for index in candidates.indices { candidates[index].trackingContinuous = false }
+            noteTrackingInterrupted(sessionID: sessionID)
             return
         }
         if let last = lastConsidered, snapshot.timestamp - last < policy.minimumInterval { return }
@@ -199,6 +198,15 @@ final class RoomEvidenceRecorder {
         guard encoding == nil, policy.isNewView(snapshot.cameraToWorld, since: lastKeptPose),
               let image = makeImage() else { return }
         startEncode(image, snapshot: snapshot, sessionID: sessionID, focusObjectId: nil)
+    }
+
+    /// Marks a tracking interruption seen outside `consider(...)` (e.g. the focus-shot sampling tick), exactly
+    /// like that method's own tracking-lost branch: counts the interruption and marks every current candidate
+    /// uncertain, since their poses may no longer match the final room. Ignores a stale session.
+    func noteTrackingInterrupted(sessionID: UUID) {
+        guard sessionID == self.sessionID else { return }
+        interruptions += 1
+        for index in candidates.indices { candidates[index].trackingContinuous = false }
     }
 
     /// Keeps a deliberate photo of `objectId` now, bypassing the motion gate (the focus tracker decided).

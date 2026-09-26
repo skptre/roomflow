@@ -165,6 +165,24 @@ struct RoomEvidenceRecorderTests {
         #expect(photos[1].trackingContinuous == true)
     }
 
+    @Test func noteTrackingInterruptedMarksCandidatesUncertain() async throws {
+        let root = makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let recorder = RoomEvidenceRecorder(encoder: FakeEncoder(), rootDirectory: root)
+        let session = UUID()
+        recorder.start(sessionID: session)
+
+        recorder.consider(snapshot: frame(time: 0, x: 0), sessionID: session) { image() }
+        await recorder.waitUntilIdle()
+
+        recorder.noteTrackingInterrupted(sessionID: UUID()) // stale session: ignored
+        recorder.noteTrackingInterrupted(sessionID: session)
+
+        let photos = try await recorder.finish(sessionID: session)
+        #expect(photos.count == 1)
+        #expect(photos[0].trackingContinuous == false)
+    }
+
     @Test func smallMovementsAreNotNewViews() {
         let policy = PhotoCandidatePolicy()
         let start = frame(time: 0, x: 0).cameraToWorld

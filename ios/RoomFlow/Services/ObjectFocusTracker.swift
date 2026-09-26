@@ -115,22 +115,34 @@ nonisolated struct ObjectFocusTracker {
             }
             return (object, hypot(rect.midX - 0.5, rect.midY - 0.5))
         }
-        guard let best = inView.min(by: { $0.offCenter < $1.offCenter })?.object else {
+        guard !inView.isEmpty else {
             target = nil
             dwellStart = nil
             return .none
         }
+        // Prefer an object that still needs photos: the most centered one that isn't complete and doesn't
+        // need a new angle from here. Only when every in-view object is complete or needs a new angle do we
+        // fall back to the most-centered overall, so that hint still shows.
+        let minCos = cos(policy.minAngleBetweenShotsDegrees * .pi / 180)
+        let evaluated = inView.map { entry -> (object: LiveObject, offCenter: Double, isComplete: Bool, needsNewAngle: Bool) in
+            let isComplete = shots(for: entry.object.sourceId) >= policy.maxShotsPerObject
+            let direction = Self.direction(from: camera.cameraToWorld, to: entry.object.center)
+            let needsNewAngle = (shotDirections[entry.object.sourceId] ?? []).contains(where: { simd_dot($0, direction) > minCos })
+            return (entry.object, entry.offCenter, isComplete, needsNewAngle)
+        }
+        let needsPhoto = evaluated.filter { !$0.isComplete && !$0.needsNewAngle }
+        let candidates = needsPhoto.isEmpty ? evaluated : needsPhoto
+        let chosen = candidates.min(by: { $0.offCenter < $1.offCenter })!
+        let best = chosen.object
 
         var hint = FocusHint(objectId: best.sourceId, category: best.category, shotsTaken: shots(for: best.sourceId),
                              shotsWanted: policy.maxShotsPerObject, dwellProgress: 0, needsNewAngle: false)
-        if hint.isComplete {
+        if chosen.isComplete {
             target = best.sourceId
             dwellStart = nil
             return .hint(hint)
         }
-        let direction = Self.direction(from: camera.cameraToWorld, to: best.center)
-        let minCos = cos(policy.minAngleBetweenShotsDegrees * .pi / 180)
-        if (shotDirections[best.sourceId] ?? []).contains(where: { simd_dot($0, direction) > minCos }) {
+        if chosen.needsNewAngle {
             target = best.sourceId
             dwellStart = nil
             hint.needsNewAngle = true

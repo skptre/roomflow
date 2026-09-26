@@ -13,7 +13,7 @@ struct RoomEvidenceReviewView: View {
     @State private var labelDrafts: [UUID: String] = [:]
     @State private var saveError: String?
 
-    init(captureID: UUID, room: RoomModel, photos: [RoomPhotoEvidence], associations: [RoomPhotoAssociation] = [],
+    init(captureID: UUID, room: RoomModel, photos: [RoomPhotoEvidence], associations: [RoomPhotoAssociation],
          store: RoomArchiveStore = .shared) {
         self.captureID = captureID
         self.room = room
@@ -140,7 +140,7 @@ struct RoomEvidenceReviewView: View {
                  : "Photos are off: sharing includes the scan only.")
                 .font(.footnote)
                 .foregroundStyle(Color.rfSecondaryText)
-            if !associations.isEmpty, selection.includePhotos,
+            if selection.includePhotos,
                let summary = PhotoCoverage.make(objects: room.objects, associations: associations,
                                                 photoIds: Set(selection.sharedPhotos(from: photos).map(\.id)),
                                                 label: { selection.label(for: $0) }).summary {

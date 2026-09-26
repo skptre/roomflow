@@ -72,7 +72,7 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `RoomNormalizer.swift` | Pure frame math: align to longest wall, floor to 0, stable IDs | `CaptureElement`, `RoomNormalizer.makeRoom(from:floorColor:id:capturedAt:)`, `yaw(of:)` |
 | `RoomColorSampler.swift` | Keeps small frames during scan; median color per wall/object/floor | `RoomColorEstimates`, `RoomColorSampler` (`capture(_:)`, `estimate(for:)`, `reset()`), `ColorFrame.init?(frame:width:)` |
 | `ColorFrame.swift` | ARKit-free projection + color math (testable on Mac) | `ColorFrame.color(at:depthTolerance:)`, `ColorMath.median(_:)`, `clampRGB` |
-| `RoomEvidenceRecorder.swift` | Bounded calibrated photo capture per scan session, plus deliberate per-object focused shots | `PhotoFrameSnapshot`, `PhotoCandidatePolicy` (`isNewView`, `thin(_:)`, `selectFinal` — final pick covers each object first, then spreads ambient photos, then trims by bytes), `PhotoEncoding`, `ImageIOPhotoEncoder`, `RoomEvidenceRecorder` (`start`, `consider(frame:sessionID:)`, `consider(snapshot:…)`, `captureFocused(snapshot:objectId:sessionID:makeImage:)`, `captureFocused(frame:objectId:sessionID:)`, `snapshot(of:)`, `finish`, `cancel`, `removeTemporaryFiles`, `waitUntilIdle`) |
+| `RoomEvidenceRecorder.swift` | Bounded calibrated photo capture per scan session, plus deliberate per-object focused shots | `PhotoFrameSnapshot`, `PhotoCandidatePolicy` (`isNewView`, `thin(_:)`, `selectFinal` — final pick covers each object first, then spreads ambient photos, then trims by bytes), `PhotoEncoding`, `ImageIOPhotoEncoder`, `RoomEvidenceRecorder` (`start`, `consider(frame:sessionID:)`, `consider(snapshot:…)`, `captureFocused(snapshot:objectId:sessionID:makeImage:)`, `captureFocused(frame:objectId:sessionID:)`, `noteTrackingInterrupted(sessionID:)`, `snapshot(of:)`, `finish`, `cancel`, `removeTemporaryFiles`, `waitUntilIdle`) |
 | `RoomEvidenceProjector.swift` | Projects object boxes into photos (candidate regions) | `ProjectableObject`, `NormalizedRect`, `RoomEvidenceProjector` (`projectedBounds(…)`, `associate(objects:photos:)`, `associate(room:photos:)`, `appearance(room:colors:photos:)`) |
 | `RoomPackageExport.swift` | Builds `<capture-id>.roomflow.zip` from allowlisted files | `RoomPackageArchiver`, `CoordinatorZipArchiver`, `RoomPackageExport` (`export(archive:selection:destination:archiver:)`, `Result`, `maxPhotos`, `maxPhotoBytes`) |
 | `FloorPlanGeometry.swift` | Pure plan math: fit-to-view, footprints, hit test, wall outline | `FloorPlanTransform` (`toView`, `toRoom`), `FloorPlanGeometry` (`axes`, `footprint(of:)`, `contains`, `object(at:in:margin:)`, `outline(of:)`) |
@@ -85,12 +85,12 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | --- | --- |
 | `HomeView.swift` | Entry screen; photo opt-in toggle; freezes raw bytes, converts, saves, opens plan; DEBUG room menu |
 | `RoomScanView.swift` | Full-screen RoomPlan UI with Cancel / Done / failure states; shows `ScanFocusHintView` when a furniture object is in focus |
-| `ScanFocusHintView.swift` | Small hint capsule under scan controls showing furniture name, photo count/progress ring, and guidance; appears when furniture is framed and photo capture is on | `ScanFocusHintView`, `message(for:)` |
+| `ScanFocusHintView.swift` | Small hint capsule under scan controls showing furniture name, photo count/progress ring, and guidance; appears when furniture is framed and photo capture is on. Types/functions: `ScanFocusHintView`, `message(for:)` |
 | `RoomEditorView.swift` | Top-down Canvas plan (floor, grid, furniture, walls, openings), tap select, selection card |
 | `ScanSummaryView.swift` | Details and exports: Review room, reference photos (with a `PhotoCoverage` summary footnote), Share RoomPlan JSON, Room package, editable JSON |
 | `SavedRoomsView.swift` | Lists and reopens saved rooms |
 | `RoomPhotosView.swift` | Photo grid/full view; `SensorPhoto` (display-only rotation), `PhotoRegion` overlay |
-| `RoomEvidenceReviewView.swift` | Review room: user labels, photo include/exclude, persisted selection, `PhotoCoverage` summary footnote using shared photos and user labels; `init(...associations:...)` (default `[]`) |
+| `RoomEvidenceReviewView.swift` | Review room: user labels, photo include/exclude, persisted selection, `PhotoCoverage` summary footnote using shared photos and user labels; `init(...associations:...)` (required — the one caller, `ScanSummaryView`, always passes it) |
 | `Theme.swift` | `Color.rfBackground/…`, `Color(hex:)`, `RFButtonStyle`, `PlanPalette` |
 
 ### Tests (`ios/RoomFlowTests/`, Swift Testing)
@@ -99,9 +99,10 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | --- | --- |
 | `RoomFlowTests.swift` | Smoke: sample room builds without LiDAR |
 | `ScanFocusHintTests.swift` | Display names (camelCase splitting, special cases) and message text (copy rules for 0/1+ photos, new angle, complete) |
+| `ObjectFocusTrackerTests.swift` | Dwell timing, movement rejection, edge-clipping, occlusion, angle diversity/cap, tracking loss, most-centered-object selection, preferring an incomplete object over a complete centered one |
 | `RoomPlanFileExportTests.swift` | File name, exact bytes, replace-only-own-file, bad directory |
 | `RoomArchiveStoreTests.swift` | Original bytes survive edits, no overwrite by a different scan, failed write keeps revision, photos + appearance saved, staging leftovers ignored |
-| `RoomEvidenceRecorderTests.swift` | Limits, busy drop, cancel/late completion, stale session, encode failure, tracking interruption, new-view policy |
+| `RoomEvidenceRecorderTests.swift` | Limits, busy drop, cancel/late completion, stale session, encode failure, tracking interruption (including `noteTrackingInterrupted`), new-view policy, focused shots (bypasses motion gate, busy/stale/lost-tracking refusal), thinning (ambient before focused, busiest-object trim), final selection (per-object coverage first, byte trim), old archives decode without `focusObjectId` |
 | `RoomEvidenceProjectorTests.swift` | Center, rotation, non-square, behind camera, near plane, clipping, outside, non-finite, orientation independence, associations |
 | `RoomEvidenceSelectionTests.swift` | Exclusion, geometry-only, label beside geometry, reload |
 | `RoomPackageExportTests.swift` | Byte-identical raw, selection controls photos, geometry-only, hashes vs. independent unzip (`ZipReader`), invalid paths, archive failure, fresh package |
