@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { footprintBounds } from '../domain/geometry'
 import { Room } from '../domain/schema'
 import fixtureText from '../fixtures/synthetic-bedroom.roomplan.json?raw'
-import { MAX_IMPORT_BYTES, MAX_IMPORT_OBJECTS, parseRoomPlanJson } from './roomplan'
+import { MAX_IMPORT_BYTES, MAX_IMPORT_OBJECTS, MAX_IMPORT_WALLS, parseRoomPlanJson } from './roomplan'
 
 const NOW = '2026-09-26T12:00:00.000Z'
 
@@ -220,6 +220,47 @@ describe('parseRoomPlanJson — hostile input', () => {
       raw.objects = Array.from({ length: MAX_IMPORT_OBJECTS + 1 }, (_, i) => ({ ...template, identifier: `O-${i}` }))
     })
     expectFailure(text, /too many objects/i)
+  })
+
+  it('rejects scans with more walls than a room plausibly has', () => {
+    const text = mutate((raw) => {
+      const template = raw.walls[0]
+      raw.walls = Array.from({ length: MAX_IMPORT_WALLS + 1 }, (_, i) => ({ ...template, identifier: `W-${i}` }))
+    })
+    expectFailure(text, /too many walls/i)
+  })
+
+  it('rejects a surface whose local X axis is not horizontal', () => {
+    // Column 0 = (0, 1, 0): the wall's length axis points straight up.
+    const text = mutate((raw) => {
+      const m = raw.walls[1].transform as number[]
+      raw.walls[1].transform = [0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, m[12], m[13], m[14], 1]
+    })
+    expectFailure(text, /walls\[1\]/)
+  })
+
+  it('rejects an object that is not upright', () => {
+    const text = mutate((raw) => {
+      const m = raw.objects[0].transform as number[]
+      raw.objects[0].transform = [0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, m[12], m[13], m[14], 1]
+    })
+    expectFailure(text, /objects\[0\]/)
+  })
+
+  it('rejects a scan whose walls enclose no floor area', () => {
+    expectFailure(
+      mutate((raw) => {
+        raw.walls = [raw.walls[0]]
+      }),
+      /floor/i,
+    )
+    expectFailure(
+      mutate((raw) => {
+        // Two parallel walls on the same line: still no area.
+        raw.walls = [raw.walls[0], { ...raw.walls[0], identifier: 'W-COPY' }]
+      }),
+      /floor/i,
+    )
   })
 
   it('rejects a scan with no walls', () => {
