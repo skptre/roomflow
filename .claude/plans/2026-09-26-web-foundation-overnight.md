@@ -253,9 +253,22 @@ Empty/loading/error states everywhere, mobile-width check, keyboard-only pass, d
 - One PR per group: **PR1** T0–2 · **PR2** T3 · **PR3** T4 · **PR4** T5–6 · **PR5** T7–8 · **PR6** T9 · **PR7** T10 · **PR8** T11 · **PR9** T12–13.
 - Branch names: `feat/web-pr1-foundation`, `feat/web-pr2-import`, … Base = `main` if the previous PR is merged, otherwise the previous PR's branch (stacked; GitHub retargets when the base merges).
 - Before opening: `npm run typecheck && npm run lint && npm test && npm run build` in `web/`; browser screenshots for visual work. Fill the PR template honestly, including what was NOT verified.
-- After opening: comment `@codex review`. CI must be green.
-- **Merge rule:** merge when CI is green AND Codex's review has no unresolved blocking findings. Fix blocking findings on the same branch and re-request review; non-blocking → note in PR / follow-up. Use **merge commits, not squash**, so stacked branches stay clean. If Codex hasn't responded, don't wait — keep stacking; merges catch up later.
-- Never force-push `main`. Never touch `ios/` or the teammate's branch.
+- **Roles:** Claude builds and opens PRs. **Codex owns review, testing and merging** (separate checkout; reviews against spec + surrounding code; runs checks; exercises visual changes; merges in order with merge commits). The human reviews visual/aesthetic items Codex flags. **Claude never merges.**
+- **GitHub labels are the handshake** (no one polls chat; both sides read the PR):
+  | Label | Set by | Meaning |
+  |---|---|---|
+  | `needs-review` | Claude | ready for Codex (new PR, or fixes pushed) |
+  | `changes-requested` | Codex | has blocking findings (review comments prefixed `BLOCKING:`) |
+  | `needs-human` | Codex | aesthetic/subjective call for the human; does not block merge unless Codex says so |
+  | `approved` | Codex | reviewed at the current head SHA; Codex will merge |
+- **Claude's loop — check PRs at every task boundary** (before starting the next task):
+  1. `gh pr list --author @me --state open --json number,title,labels,headRefName`
+  2. For any PR labeled `changes-requested`: read comments (`gh pr view N --comments`, `gh api repos/skptre/roomflow/pulls/N/comments`), check out its branch, fix every `BLOCKING:` item (add a regression test where it's logic), run all checks, push, reply on each thread with what changed, swap label `changes-requested` → `needs-review`. Fixes to open PRs take priority over new tasks.
+  3. If a lower PR in the stack received fixes, merge its branch into the PRs stacked above it (no rebase/force-push) and push those too.
+  4. Then continue the next task.
+- **Opening a PR:** `gh pr create --base <main or previous PR branch> --label needs-review`, body = PR template. Base = `main` if the previous PR is merged, else the previous PR's branch (stacked; GitHub retargets when the base merges — Codex deletes merged branches). CI must be green.
+- **When all tasks are done or Claude is blocked:** enter a wait loop (`/loop` self-paced, ~20–30 min wakeups) that runs step 2 until every PR is merged or only `needs-human` items remain. This loop lives in the session — it stops if the app closes or usage runs out.
+- Never force-push. Never push to `main`. Never touch `ios/` or the teammate's branch.
 
 ## Progress Log
 
