@@ -131,6 +131,23 @@ struct ObjectFocusTrackerTests {
         }
     }
 
+    @Test func prefersIncompleteObjectOverACompleteCenteredOne() {
+        var tracker = ObjectFocusTracker()
+        let centered = sofa(at: [0, 1, -3])
+        let offCenter = sofa(at: [0.7, 1, -3])
+        // Fill the centered object's shots from three well-separated angles so it's complete.
+        tracker.recordShot(objectId: centered.sourceId, cameraToWorld: camera(time: 0).cameraToWorld, objectCenter: centered.center)
+        tracker.recordShot(objectId: centered.sourceId, cameraToWorld: camera(time: 0, position: [1.2, 1, 0]).cameraToWorld,
+                           objectCenter: centered.center)
+        tracker.recordShot(objectId: centered.sourceId, cameraToWorld: camera(time: 0, position: [-1.2, 1, 0]).cameraToWorld,
+                           objectCenter: centered.center)
+        _ = tracker.update(objects: [offCenter, centered], camera: camera(time: 0), depthAt: noDepth)
+        guard case .hint(let hint) = tracker.update(objects: [offCenter, centered], camera: camera(time: 0.25), depthAt: noDepth) else {
+            Issue.record("expected a hint"); return
+        }
+        #expect(hint.objectId == offCenter.sourceId)
+    }
+
     @Test func picksMostCenteredObject() {
         var tracker = ObjectFocusTracker()
         let centered = sofa(at: [0, 1, -3])

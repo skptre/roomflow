@@ -69,7 +69,7 @@ device. Also chose a 0.6 s dwell before signalling a shot, rejected shooting imm
 the live-object spike showed detection often happens while the camera is already resting on the item, but its
 box is still refining, so an immediate shot would frequently frame a stale, inaccurate box.
 
-## Live object spike forwards to the session's existing delegate
+## Live-object feed forwards to the session's existing delegate
 `RoomCaptureSession.delegate` is a single weak slot that `RoomCaptureView` may use for its own preview.
 `LiveRoomObserver` stores the previous delegate and forwards every callback unchanged. Rejected: plainly
 replacing the delegate (could silently break Apple's live preview), and polling visibility of known objects

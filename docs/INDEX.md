@@ -18,6 +18,7 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | iOS — CapturedRoom → RoomModel conversion | `ios/RoomFlow/Services/RoomPlanConverter.swift`, `RoomNormalizer.swift` |
 | iOS — camera-estimated colors | `ios/RoomFlow/Services/RoomColorSampler.swift`, `ColorFrame.swift` |
 | iOS — reference photos (capture, limits, sessions) | `ios/RoomFlow/Services/RoomEvidenceRecorder.swift`, `Models/RoomPhotoEvidence.swift` |
+| iOS — furniture-aware photos (live objects, focus hint, coverage) | `ios/RoomFlow/Services/LiveRoomObserver.swift`, `ObjectFocusTracker.swift`, `ios/RoomFlow/Views/ScanFocusHintView.swift`, `ios/RoomFlow/Models/PhotoCoverage.swift` |
 | iOS — matching photos to scanned objects | `ios/RoomFlow/Services/RoomEvidenceProjector.swift`, `Models/RoomAppearanceEvidence.swift` |
 | iOS — Review room (labels, photo selection) | `ios/RoomFlow/Views/RoomEvidenceReviewView.swift`, `Models/RoomEvidenceSelection.swift` |
 | iOS — `.roomflow.zip` package | `ios/RoomFlow/Services/RoomPackageExport.swift`, `Models/RoomPackageManifest.swift`, `docs/ios-room-package.md` |

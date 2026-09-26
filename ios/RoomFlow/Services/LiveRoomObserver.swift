@@ -70,9 +70,11 @@ nonisolated final class LiveRoomObserver: NSObject, RoomCaptureSessionDelegate {
         let ids = Set(room.objects.map(\.identifier))
         lock.lock()
         updateCount += 1
+        #if DEBUG
         let added = ids.subtracting(current)
         let removed = current.subtracting(ids)
         let removedNames = removed.map { "\(seen[$0] ?? "?") \($0.uuidString.prefix(4))" }
+        #endif
         for object in room.objects { seen[object.identifier] = Self.name(object.category) }
         current = ids
         latest = room.objects.map { object in
@@ -80,14 +82,17 @@ nonisolated final class LiveRoomObserver: NSObject, RoomCaptureSessionDelegate {
             return LiveObject(sourceId: object.identifier, category: Self.name(object.category),
                               transform: object.transform, dimensions: object.dimensions, center: SIMD3(c.x, c.y, c.z))
         }
+        #if DEBUG
         let now = Date()
         // Log every membership change, otherwise at most once a second.
         let shouldLog = !added.isEmpty || !removed.isEmpty || now.timeIntervalSince(lastLoggedAt) >= 1
         if shouldLog { lastLoggedAt = now }
         let elapsed = now.timeIntervalSince(startedAt)
         let updates = updateCount
+        #endif
         lock.unlock()
 
+        #if DEBUG
         guard shouldLog else { return }
         let addedObjects = room.objects.filter { added.contains($0.identifier) }
         var line = String(format: "t=%.1fs update#%d objects=%d", elapsed, updates, ids.count)
@@ -98,11 +103,12 @@ nonisolated final class LiveRoomObserver: NSObject, RoomCaptureSessionDelegate {
         if !removedNames.isEmpty { line += " -[\(removedNames.joined(separator: ", "))]" }
         emit(line)
         for object in addedObjects { emit("  new \(Self.describe(object))") }
+        #endif
     }
 
     private func emit(_ message: String) {
         #if DEBUG
-        log.notice("[spike] \(message, privacy: .public)")
+        log.notice("[live] \(message, privacy: .public)")
         #endif
     }
 

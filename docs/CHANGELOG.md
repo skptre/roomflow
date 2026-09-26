@@ -5,6 +5,38 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### iOS: furniture-aware photos — review fixes
+- `ios/RoomFlow/Services/RoomScanService.swift`: sampling loop now calls `updateFocus(with:)` before the
+  every-third-tick ambient-color/photo block, so an ambient encode starting first can no longer make the same
+  tick's focused shot refuse (busy encoder). In `updateFocus(with:)`'s `.shoot` case, `hint?.dwellProgress = 0`
+  now runs whether or not the shot was accepted; only `shotsTaken += 1` and `recordShot` stay conditional on
+  acceptance.
+- `ios/RoomFlow/Services/ObjectFocusTracker.swift`: `update(objects:camera:depthAt:)` now prefers, among
+  in-view objects, the most-centered one that is neither complete nor due a new angle; only when every
+  in-view object is complete or needs a new angle does it fall back to the most-centered overall (so that
+  hint still shows). New test `ObjectFocusTrackerTests.prefersIncompleteObjectOverACompleteCenteredOne`.
+- `ios/RoomFlow/Services/RoomEvidenceRecorder.swift`: new `noteTrackingInterrupted(sessionID:)` marks a
+  tracking interruption seen outside `consider(...)` (interruptions += 1, all candidates
+  `trackingContinuous = false`; ignores a stale session) — factored out of, and now shared with,
+  `consider(snapshot:sessionID:makeImage:)`'s own tracking-lost branch. `RoomScanService.updateFocus(with:)`
+  calls it when `snapshot.trackingNormal` is false. New test
+  `RoomEvidenceRecorderTests.noteTrackingInterruptedMarksCandidatesUncertain`.
+- `ios/RoomFlow/Views/RoomEvidenceReviewView.swift`: dropped the `!associations.isEmpty` guard on the photo
+  footnote so it behaves like the "Sharing N of M" footnote above it (gated only on `selection.includePhotos`);
+  removed the `= []` default on the `associations` init parameter (the one caller, `ScanSummaryView`, already
+  passes it explicitly).
+- `ios/RoomFlow/Services/LiveRoomObserver.swift`: log prefix `[spike]` → `[live]`; wrapped the log-string
+  building in `record(_:)` (`shouldLog`/`addedObjects`/`removedNames`/`emit` — not the `seen`/`current`/`latest`
+  state updates) in `#if DEBUG` so release builds skip that work.
+- `docs/DECISIONS.md`: renamed the "Live object spike forwards to the session's existing delegate" entry to
+  "Live-object feed forwards to the session's existing delegate" (body unchanged).
+- `docs/INDEX.md`: new row "iOS — furniture-aware photos (live objects, focus hint, coverage)".
+- `docs/ARCHITECTURE.md`: added an `ObjectFocusTrackerTests.swift` Tests-table row; extended the
+  `RoomEvidenceRecorderTests.swift` row with focused shots/thinning/final-selection/old-archive coverage;
+  fixed the `ScanFocusHintView.swift` Views-table row (was 3 cells in a 2-column table); added
+  `noteTrackingInterrupted(sessionID:)` to the recorder's Services-table row; updated the
+  `RoomEvidenceReviewView.swift` row for the now-required `associations` parameter.
+
 ### iOS: show which furniture has photos after a scan
 - New `ios/RoomFlow/Models/PhotoCoverage.swift`: `PhotoCoverage` (`covered`, `total`, `missing`, `summary`) and
   `PhotoCoverage.make(objects:associations:photoIds:label:)` compute, from scanned objects (only those with a

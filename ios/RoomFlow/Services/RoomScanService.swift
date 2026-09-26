@@ -177,13 +177,13 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
             while !Task.isCancelled {
                 guard let self else { return }
                 if let frame = self.captureView.captureSession.arSession.currentFrame {
+                    if self.capturePhotos { self.updateFocus(with: frame) }
                     if self.sampleTick.isMultiple(of: 3) {
                         self.colorSampler.capture(frame)
                         if self.capturePhotos {
                             self.evidenceRecorder.consider(frame: frame, sessionID: self.sessionID)
                         }
                     }
-                    if self.capturePhotos { self.updateFocus(with: frame) }
                     self.sampleTick += 1
                 }
                 try? await Task.sleep(for: .milliseconds(250))
@@ -194,6 +194,9 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
     /// Runs the focus tracker on `frame`, takes a focused photo when one is due, and publishes the hint.
     private func updateFocus(with frame: ARFrame) {
         let snapshot = RoomEvidenceRecorder.snapshot(of: frame)
+        if !snapshot.trackingNormal {
+            evidenceRecorder.noteTrackingInterrupted(sessionID: sessionID)
+        }
         let depthMap = (frame.sceneDepth ?? frame.smoothedSceneDepth)?.depthMap
         let objects = liveObserver.latestObjects()
         var hint: FocusHint?
@@ -210,8 +213,8 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
                 focusTracker.recordShot(objectId: current.objectId, cameraToWorld: snapshot.cameraToWorld,
                                         objectCenter: object.center)
                 hint?.shotsTaken += 1
-                hint?.dwellProgress = 0
             }
+            hint?.dwellProgress = 0
         }
         // Publish only real changes so SwiftUI isn't redrawn every tick for nothing.
         if hint != focusHint { focusHint = hint }
