@@ -51,13 +51,14 @@ final class RoomColorSampler {
 
     // MARK: - Sample points (RoomPlan world frame)
 
-    /// A 3×2 grid across the middle of the wall, away from edges and corners.
+    /// A 3×2 grid across the upper part of the wall (about 55–80% of its height), away from
+    /// corners. Lower down, furniture, skirting, and lower panels would tint the result.
     private func wallPoints(_ wall: CapturedRoom.Surface) -> [SIMD3<Float>] {
         let center = position(wall.transform)
         let along = axis(wall.transform, 0)
         var points: [SIMD3<Float>] = []
         for a in [-0.3, 0, 0.3] as [Float] {
-            for b in [-0.15, 0.15] as [Float] {
+            for b in [0.05, 0.3] as [Float] {
                 points.append(center + along * (a * wall.dimensions.x) + SIMD3<Float>(0, b * wall.dimensions.y, 0))
             }
         }
@@ -65,11 +66,16 @@ final class RoomColorSampler {
     }
 
     /// Points on the top face and the middle of each side face.
+    /// Tables use a 3×3 grid on the top only: their sides are mostly open space where
+    /// tucked-in chairs would be sampled, and a denser top grid outvotes items left on it.
     private func objectPoints(_ object: CapturedRoom.Object) -> [SIMD3<Float>] {
         let center = position(object.transform)
         let x = axis(object.transform, 0) * (object.dimensions.x / 2)
         let z = axis(object.transform, 2) * (object.dimensions.z / 2)
         let top = center + SIMD3<Float>(0, object.dimensions.y / 2, 0)
+        if object.category == .table {
+            return [-0.6, 0, 0.6].flatMap { a in [-0.6, 0, 0.6].map { b in top + x * Float(a) + z * Float(b) } }
+        }
         return [
             top, top + x * 0.5, top - x * 0.5, top + z * 0.5, top - z * 0.5,
             center + x, center - x, center + z, center - z,
