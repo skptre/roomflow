@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useStore } from 'zustand'
 import { designStore } from './domain/designStore'
 import sampleScan from './fixtures/synthetic-bedroom.roomplan.json?raw'
@@ -7,7 +7,23 @@ import { Backdrop } from './scene/Backdrop'
 import { RoomScene } from './scene/RoomScene'
 import { StartScreen } from './ui/StartScreen'
 
+const AssetLineup = lazy(() => import('./scene/dev/AssetLineup').then((m) => ({ default: m.AssetLineup })))
+const showLineup = new URLSearchParams(window.location.search).has('lineup')
+
 export default function App() {
+  if (showLineup) {
+    return (
+      <main className="relative h-full w-full overflow-hidden">
+        <Suspense fallback={null}>
+          <AssetLineup />
+        </Suspense>
+      </main>
+    )
+  }
+  return <Workspace />
+}
+
+function Workspace() {
   const room = useStore(designStore, (state) => state.committed?.room ?? null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)

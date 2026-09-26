@@ -13,17 +13,6 @@ import { roomSphere } from './roomBounds'
  * and a local RoomEnvironment for gentle reflections (no remote HDR).
  */
 export function Lighting({ room }: { room: Room }) {
-  const gl = useThree((state) => state.gl)
-  const environment = useMemo(() => {
-    const pmrem = new PMREMGenerator(gl)
-    const source = new RoomEnvironment()
-    const texture = pmrem.fromScene(source, 0.04).texture
-    source.dispose()
-    pmrem.dispose()
-    return texture
-  }, [gl])
-  useEffect(() => () => environment.dispose(), [environment])
-
   const { center, radius } = roomSphere(room)
   const keyPosition = useMemo((): [number, number, number] => {
     const window = room.openings.find((opening) => opening.kind === 'window')
@@ -45,8 +34,7 @@ export function Lighting({ room }: { room: Room }) {
 
   return (
     <>
-      {/* Attaches to the scene (this component's parent) and detaches on unmount. */}
-      <primitive object={environment} attach="environment" />
+      <SceneEnvironment />
       <hemisphereLight args={[palette.lightSky, palette.lightGround, 0.9]} />
       <primitive object={target} />
       <directionalLight
@@ -67,4 +55,20 @@ export function Lighting({ room }: { room: Room }) {
       />
     </>
   )
+}
+
+/** Local RoomEnvironment reflections, attached to the scene and disposed on unmount. */
+export function SceneEnvironment() {
+  const gl = useThree((state) => state.gl)
+  const environment = useMemo(() => {
+    const pmrem = new PMREMGenerator(gl)
+    const source = new RoomEnvironment()
+    const texture = pmrem.fromScene(source, 0.04).texture
+    source.dispose()
+    pmrem.dispose()
+    return texture
+  }, [gl])
+  useEffect(() => () => environment.dispose(), [environment])
+  // Attaches to the scene (this component's parent) and detaches on unmount.
+  return <primitive object={environment} attach="environment" />
 }
