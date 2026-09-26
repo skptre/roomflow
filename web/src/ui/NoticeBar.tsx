@@ -13,10 +13,18 @@ const tones: Record<NoticeTone, string> = {
 export function NoticeBar() {
   const notice = useStore(noticeStore, (state) => state.notice)
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-18 flex justify-center px-4" role="status" aria-live="polite">
+    <div
+      className="pointer-events-none absolute inset-x-0 bottom-20 flex justify-center px-4"
+      role="status"
+      aria-live="polite"
+    >
       <AnimatePresence>
         {notice ? (
-          <motion.p key={notice.id} {...floatIn} className={`rounded-pill px-4 py-2 text-sm font-medium shadow-float ${tones[notice.tone]}`}>
+          <motion.p
+            key={notice.id}
+            {...floatIn}
+            className={`rounded-pill px-4 py-2 text-sm font-medium shadow-float ${tones[notice.tone]}`}
+          >
             {notice.text}
           </motion.p>
         ) : null}

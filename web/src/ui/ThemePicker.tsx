@@ -37,7 +37,7 @@ export function ThemePicker({ catalog, sources, onClose }: ThemePickerProps) {
   useEffect(() => () => THEMES.forEach((theme) => endLookPreview(theme.id)), [])
 
   return (
-    <FloatingPanel label="Try a look" className="w-full max-w-[52rem] p-4">
+    <FloatingPanel label="Try a look" className="max-h-full w-full max-w-[52rem] overflow-y-auto p-4">
       <div className="flex items-start justify-between gap-2">
         <div>
           <h2 className="text-base font-semibold text-ink">Try a look</h2>
