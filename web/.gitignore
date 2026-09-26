@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local server data: AI ledger, recipe cache, raw store feeds
+.data/
