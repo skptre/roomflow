@@ -122,6 +122,8 @@ export const Room = z
       importedAt: IsoTimestamp,
       /** Original capture payload, kept untouched for recovery. */
       raw: z.unknown(),
+      /** Translation applied to native capture coordinates: app = native + nativeToApp. */
+      nativeToApp: Vec3.optional(),
     }),
   })
   .superRefine((room, ctx) => {

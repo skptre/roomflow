@@ -160,12 +160,12 @@ FoundItem = { id; name; category; photoRef?; dimensions; price: Money|null; stor
 ## Task 3: RoomPlan import + contract + synthetic fixture
 
 **Produces:** `parseRoomPlanJson(text, opts?) → { ok:true; room; warnings } | { ok:false; error }`.
-- [ ] `docs/contracts/room-import.md`: expected file (raw `CapturedRoom` JSON), fields we read (`walls/doors/windows/openings/objects/floors`, `identifier`, `dimensions[3]`, `transform[16]` column-major, `category`, `confidence`, `parentIdentifier`, `polygonCorners`), normalization we apply, limits, open questions for the iOS side.
-- [ ] Synthetic fixture: 4×3.5 m bedroom, 4 walls, 1 door (with `parentIdentifier`), 1 window (without, to test geometric attach), bed/desk/chair/storage. `"_synthetic": true` → `source.kind='synthetic'`.
-- [ ] Tests: 4 walls, lengths 4.0/3.5 ±1 mm; door on correct wall; window attached geometrically; objects base on floor (y≈0); recentered, `source.raw` equals input; exterior flags correct; NaN → fail; >20 MB → fail; >500 objects → fail; not JSON → readable fail (**RF5**); unknown category → `'unknown'` + warning; accept flat-16 and nested-4×4 transforms.
-- [ ] Captured objects: `sourceKind:'captured'`, `dimensions.source:'captured'`, asset = best matching parametric template by category (else placeholder), `fidelity:'approximate'`, `keep:true`.
+- [x] `docs/contracts/room-import.md`: expected file (raw `CapturedRoom` JSON), fields we read (`walls/doors/windows/openings/objects/floors`, `identifier`, `dimensions[3]`, `transform[16]` column-major, `category`, `confidence`, `parentIdentifier`, `polygonCorners`), normalization we apply, limits, open questions for the iOS side.
+- [x] Synthetic fixture: 4×3.5 m bedroom, 4 walls, 1 door (with `parentIdentifier`), 1 window (without, to test geometric attach), bed/desk/chair/storage. `"_synthetic": true` → `source.kind='synthetic'`.
+- [x] Tests: 4 walls, lengths 4.0/3.5 ±1 mm; door on correct wall; window attached geometrically; objects base on floor (y≈0); recentered, `source.raw` equals input; exterior flags correct; NaN → fail; >20 MB → fail; >500 objects → fail; not JSON → readable fail (**RF5**); unknown category → `'unknown'` + warning; accept flat-16 and nested-4×4 transforms.
+- [x] Captured objects: `sourceKind:'captured'`, `dimensions.source:'captured'`, asset = best matching parametric template by category (else placeholder), `fidelity:'approximate'`, `keep:true`.
 - [ ] When a real scan appears in `fixtures/scans/` (teammate's branch/merge), add a test on it: loads, wall count sane, tape-measured wall matches ±3 cm.
-- [ ] Commit `feat(import): RoomPlan JSON adapter, contract doc, synthetic fixture`.
+- [x] Commit `feat(import): RoomPlan JSON adapter, contract doc, synthetic fixture`.
 
 ## Task 4: Design store + command pipeline
 
@@ -276,3 +276,4 @@ Empty/loading/error states everywhere, mobile-width check, keyboard-only pass, d
 - 2026-09-26 · T0 scaffold · branch feat/web-pr1-foundation · Vite 8/React 19/TS 6 template; template ships oxlint (kept instead of eslint, `--deny-warnings`). Browser: start screen renders, keyboard + focus ring OK, no console errors. CI not yet run on GitHub.
 - 2026-09-26 · T1 units + schemas · feat/web-pr1-foundation · 13 tests. Money schema lives in schema.ts (Offer/FoundItem need it); opening offset = wall start → opening center.
 - 2026-09-26 · T2 geometry + money · feat/web-pr1-foundation · 41 tests total. budgetStatus is 'unknown' whenever any price is unknown (review fix). insideRoom and clampIntoRoom handle concave rooms (nearest-fit grid fallback, review fix).
+- 2026-09-26 · T3 RoomPlan import · feat/web-pr2-import · 21 import tests; added Room.source.nativeToApp (capture→app mapping). No real scan in fixtures/scans/ yet — real-scan test still open. Open questions for iOS in docs/contracts/room-import.md.
