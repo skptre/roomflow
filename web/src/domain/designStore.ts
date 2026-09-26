@@ -28,7 +28,11 @@ export type Preview = {
   warnings: string[]
 }
 
-export type ApplyOptions = { actor: Actor; baseRevision?: number }
+/**
+ * Direct user edits apply to the current room. Automated edits (themes, AI,
+ * background jobs) must say which revision they were computed from.
+ */
+export type ApplyOptions = { actor: 'user'; baseRevision?: number } | { actor: 'auto'; baseRevision: number }
 
 export type ApplyResult =
   | { ok: true; revision: number; warnings: string[] }
@@ -45,7 +49,7 @@ export type DesignState = {
   loadRoom: (room: Room, budget?: Money | null) => void
   apply: (commands: Command[], options: ApplyOptions) => ApplyResult
   setBudget: (budget: Money | null) => ApplyResult
-  startPreview: (commands: Command[], options?: Partial<ApplyOptions>) => ApplyResult
+  startPreview: (commands: Command[], options?: ApplyOptions) => ApplyResult
   cancelPreview: () => void
   commitPreview: () => ApplyResult
   undo: () => boolean
@@ -78,7 +82,9 @@ export function purchaseLines(room: Room, sources: PurchaseSources): PurchaseLin
         return { id: object.id, unitPrice: null, quantity: object.quantity, owned: true }
       case 'product': {
         const offer = object.offerId ? sources.offers.get(object.offerId) : undefined
-        return { id: object.id, unitPrice: offer?.price ?? null, quantity: object.quantity, owned: false }
+        // An offer for a different variant says nothing about this item's price.
+        const price = offer && offer.variantId === object.variantId ? offer.price : null
+        return { id: object.id, unitPrice: price, quantity: object.quantity, owned: false }
       }
       case 'found': {
         const item = object.foundItemId ? sources.foundItems?.get(object.foundItemId) : undefined
@@ -113,9 +119,12 @@ export function createDesignStore(): DesignStore {
       return { room: committed.room, budget: committed.budget }
     }
 
-    function staleCheck(baseRevision: number | undefined): ApplyResult | null {
+    function staleCheck(actor: Actor, baseRevision: number | undefined): ApplyResult | null {
       const { committed } = get()
       if (!committed) return { ok: false, error: 'No room is open.' }
+      if (actor === 'auto' && baseRevision === undefined) {
+        return { ok: false, error: 'Automated changes must name the room revision they were made for.' }
+      }
       if (baseRevision !== undefined && baseRevision !== committed.revision) {
         return { ok: false, error: 'The room changed since this was prepared.', stale: true }
       }
@@ -143,7 +152,7 @@ export function createDesignStore(): DesignStore {
       },
 
       apply(commands, { actor, baseRevision }) {
-        const rejected = staleCheck(baseRevision)
+        const rejected = staleCheck(actor, baseRevision)
         if (rejected) return rejected
         const committed = get().committed!
         const result = applyCommands(committed.room, commands, actor)
@@ -156,7 +165,7 @@ export function createDesignStore(): DesignStore {
       },
 
       setBudget(budget) {
-        const rejected = staleCheck(undefined)
+        const rejected = staleCheck('user', undefined)
         if (rejected) return rejected
         if (budget !== null && !Money.safeParse(budget).success) return { ok: false, error: 'Invalid budget.' }
         const committed = get().committed!
@@ -167,11 +176,11 @@ export function createDesignStore(): DesignStore {
         return { ok: true, revision, warnings: [] }
       },
 
-      startPreview(commands, options = {}) {
-        const rejected = staleCheck(options.baseRevision)
+      startPreview(commands, options = { actor: 'user' }) {
+        const { actor, baseRevision } = options
+        const rejected = staleCheck(actor, baseRevision)
         if (rejected) return rejected
         const committed = get().committed!
-        const actor = options.actor ?? 'user'
         const result = applyCommands(committed.room, commands, actor)
         if (!result.ok) return { ok: false, error: result.error }
         set({
@@ -181,7 +190,11 @@ export function createDesignStore(): DesignStore {
       },
 
       cancelPreview() {
-        if (get().preview) set({ preview: null })
+        const { preview, committed, selectedId, hoveredId } = get()
+        if (!preview) return
+        // Objects that only existed in the preview can no longer be selected or hovered.
+        const room = committed?.room ?? null
+        set({ preview: null, selectedId: existing(room, selectedId), hoveredId: existing(room, hoveredId) })
       },
 
       commitPreview() {
