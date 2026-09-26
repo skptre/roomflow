@@ -51,3 +51,9 @@ Rejected: a project generator (XcodeGen), an extra tool for everyone.
 ## Native move/rotate/delete not built on iOS
 The web app already edits furniture (keep/lock/undo). iOS focuses on accurate capture and evidence.
 `RoomEditorState` keeps selection only; `RoomArchiveStore.saveEdits` exists for when editing is added.
+
+## Live object spike forwards to the session's existing delegate
+`RoomCaptureSession.delegate` is a single weak slot that `RoomCaptureView` may use for its own preview.
+`LiveRoomObserver` stores the previous delegate and forwards every callback unchanged. Rejected: plainly
+replacing the delegate (could silently break Apple's live preview), and polling visibility of known objects
+every few frames (fallback if forwarding proves unreliable on device).

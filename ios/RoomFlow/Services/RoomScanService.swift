@@ -53,6 +53,10 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
     @ObservationIgnored private let evidenceRecorder = RoomEvidenceRecorder()
     /// Identifies this scan's photos so late work from an older session is never attached.
     @ObservationIgnored private var sessionID = UUID()
+    #if DEBUG
+    /// SPIKE: logs live detected objects; see `LiveRoomObserver`.
+    @ObservationIgnored private let liveObserver = LiveRoomObserver()
+    #endif
 
     // Built lazily so unsupported devices never create an AR view.
     // RoomCaptureView bundles the camera feed, coaching UI, and its own RoomCaptureSession.
@@ -93,6 +97,9 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         sessionID = UUID()
         if capturePhotos { evidenceRecorder.start(sessionID: sessionID) }
         state = .scanning
+        #if DEBUG
+        liveObserver.install(on: captureView.captureSession)
+        #endif
         captureView.captureSession.run(configuration: RoomCaptureSession.Configuration())
         startColorSampling()
     }
@@ -143,6 +150,9 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         colorEstimates = colorSampler.estimate(for: processedResult)
         colorSampler.reset()
         capturedRoom = processedResult
+        #if DEBUG
+        liveObserver.logFinalOverlap(with: processedResult)
+        #endif
         // Photos are optional: any problem finishing them leaves an empty list, never a failed scan.
         let session = sessionID
         Task {
