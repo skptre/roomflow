@@ -10,6 +10,7 @@ struct RoomScanView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var scanner = RoomScanService()
 
     var body: some View {
@@ -41,7 +42,7 @@ struct RoomScanView: View {
                 bottomPanel
             }
             .padding(20)
-            .animation(.easeOut(duration: 0.2), value: scanner.focusHint?.objectId)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: scanner.focusHint?.objectId)
         }
         .task {
             scanner.capturePhotos = capturePhotos
