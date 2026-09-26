@@ -66,6 +66,27 @@ struct RoomArchiveStoreTests {
         #expect(archive.rawData == rawBytes)
     }
 
+    @Test func photosAreSavedWithTheCaptureAndReloaded() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let tempPhoto = root.appendingPathComponent("temp.jpg")
+        try Data("jpeg-bytes".utf8).write(to: tempPhoto)
+        let photo = RoomPhotoEvidence(
+            id: UUID(), sessionID: UUID(), timestamp: 12.5, pixelWidth: 1280, pixelHeight: 960,
+            cameraToWorld: Array(repeating: 0, count: 16), intrinsics: Array(repeating: 0, count: 9),
+            trackingContinuous: true, byteCount: 10, fileURL: tempPhoto)
+
+        let store = RoomArchiveStore(root: root)
+        try await store.saveCapture(id: roomID, rawData: rawBytes, editableData: editable(revision: 0), photos: [photo])
+
+        let archive = try await RoomArchiveStore(root: root).load(id: roomID)
+        #expect(archive.record.evidenceStatus == .photos)
+        #expect(archive.photos.map(\.id) == [photo.id])
+        #expect(archive.photos[0].fileURL?.path.contains("/rooms/") == true)
+        #expect(try Data(contentsOf: archive.photos[0].fileURL!) == Data("jpeg-bytes".utf8))
+        #expect(archive.rawData == rawBytes)
+    }
+
     @Test func incompleteStagingDirectoryIsNotListed() async throws {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
