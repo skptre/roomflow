@@ -200,10 +200,10 @@ FoundItem = { id; name; category; photoRef?; dimensions; price: Money|null; stor
 
 ## Task 8: Direct manipulation
 
-- [ ] Drag on floor (live pose in a ref, no per-frame store writes; commit on pointer-up through `move`). Red tint while overlapping/outside; invalid release snaps back.
-- [ ] Rotate: `R`/`Shift+R` ±15°, inspector buttons, ring handle. Remove: Delete + button. Inspector: name, dims with provenance dot ("measured" / "listed" / "you measured" / "estimated"), "Keep in new designs", "Lock position" + one-line explanation. Locked → drag refused, lock badge.
-- [ ] Undo/redo: `Ctrl+Z` / `Ctrl+Shift+Z` + TopBar buttons. Camera never moves on undo.
-- [ ] Browser check: move, rotate 90°, undo ×2 → original; lock bed → can't drag. Commit `feat(scene): select, drag, rotate, remove, keep/lock, undo`.
+- [x] Drag on floor (live pose in a ref, no per-frame store writes; commit on pointer-up through `move`). Red tint while overlapping/outside; invalid release snaps back.
+- [x] Rotate: `R`/`Shift+R` ±15°, inspector buttons, ring handle. Remove: Delete + button. Inspector: name, dims with provenance dot ("measured" / "listed" / "you measured" / "estimated"), "Keep in new designs", "Lock position" + one-line explanation. Locked → drag refused, lock badge.
+- [x] Undo/redo: `Ctrl+Z` / `Ctrl+Shift+Z` + TopBar buttons. Camera never moves on undo.
+- [x] Browser check: move, rotate 90°, undo ×2 → original; lock bed → can't drag. Commit `feat(scene): select, drag, rotate, remove, keep/lock, undo`.
 
 ## Task 9: Catalog, hover-preview, subtotal, progressive retrieval shape
 
@@ -281,3 +281,4 @@ Empty/loading/error states everywhere, mobile-width check, keyboard-only pass, d
 - 2026-09-26 · T5 dollhouse architecture · feat/web-pr4-scene · wall profiles via polygon-clipping (RF1 pinned), exterior cutaway w/ hysteresis, camera fit once per room, key light through first window, N8AO+SMAA+AgX. Browser: sample room opens, orbit 4 angles, door gap + window visible, cut walls follow camera. Furniture still sized boxes (T6). Visual polish pending T7.
 - 2026-09-26 · T6 assets · feat/web-pr4-scene · Assembly schema + validator (≤64 parts, rotated bounds, 1% tol), 16 composed assemblies, meter-UV part geometry cache, shared materials, AssetView (parametric|glb|placeholder w/ error+suspense fallback), dev lineup at ?lineup, test GLB generator. Convention added: object front faces local +Z; fixture bed/desk/chair yaws updated. Browser (Chrome DevTools, since pane hidden): lineup + room screenshots OK. Dev-only console noise: drei Html unmount warning under StrictMode.
 - 2026-09-26 · T7 look & feel · feat/web-pr5-interact · weave/knit textures, wall section tone, shadow-catcher ground, Neutral tone mapping, stronger AO; palettes warm (default) / stone / clay via ?palette= (CSS + scene); Button/Chip/FloatingPanel/Tooltip + motion tokens + MotionConfig reducedMotion=user; HoverTag (name · Yours/price · W×D×H) anchored above projected silhouette; click selects with lift + outline; click empty clears. Browser (Chrome DevTools): overview, hover, selected, 2 alt palettes.
+- 2026-09-26 · T8 direct manipulation · feat/web-pr5-interact · drag on floor (live pose in refs, one move command on release; red footprint + snap back when outside/overlapping), rotate ring (5°/15° snap), R/Shift+R, Delete, Ctrl+Z/Ctrl+Shift+Z/Ctrl+Y, Esc; Inspector (sizes + provenance, Keep/Lock switches with one-line explanations, turn/remove); TopBar undo/redo; NoticeBar. Browser (Chrome DevTools, real input): select, R, undo, lock → drag refused w/ notice, outside drop snaps back, valid drag commits, move+rotate+undo×2 = original, Delete + undo. Camera never moved on undo.

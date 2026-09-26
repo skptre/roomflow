@@ -42,8 +42,9 @@ export function HoverTag({ object, sources }: { object: RoomObject; sources: Pur
   const calculatePosition = useMemo(() => aboveSilhouette({ width, height, depth }), [width, height, depth])
   return (
     <Html calculatePosition={calculatePosition} zIndexRange={[30, 10]}>
+      {/* Visual only: the same facts are in the inspector, so screen readers aren't interrupted on hover. */}
       <div
-        role="status"
+        aria-hidden="true"
         className="pointer-events-none flex -translate-x-1/2 -translate-y-[calc(100%+10px)] flex-col items-center gap-0.5 rounded-lg bg-surface/95 px-2.5 py-1.5 text-center shadow-float backdrop-blur"
       >
         <span className="text-xs font-semibold whitespace-nowrap text-ink">{object.name}</span>

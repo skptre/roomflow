@@ -1,15 +1,33 @@
 /** Short, honest labels for objects shown in tags and panels. */
 import { purchaseLine, type PurchaseSources } from './designStore'
 import { formatMoney } from './money'
-import type { Dimensions, RoomObject } from './schema'
+import type { Dimensions, MeasurementSource, RoomObject } from './schema'
 
 function centimeters(meters: number): string {
   return String(Math.round(meters * 1000) / 10)
 }
 
+/** A single length for display: "95 cm". */
+export function formatLength(meters: number): string {
+  return `${centimeters(meters)} cm`
+}
+
 /** Footprint first, then height: "160 × 210 × 95 cm" (width × depth × height). */
 export function formatDimensions(dimensions: Pick<Dimensions, 'width' | 'height' | 'depth'>): string {
   return `${centimeters(dimensions.width)} × ${centimeters(dimensions.depth)} × ${centimeters(dimensions.height)} cm`
+}
+
+const PROVENANCE: Record<MeasurementSource, string> = {
+  captured: 'measured',
+  merchant: 'listed',
+  user: 'you measured',
+  estimated: 'estimated',
+  unknown: 'unknown',
+}
+
+/** Where a size came from, in words a person would use. */
+export function provenanceLabel(source: MeasurementSource): string {
+  return PROVENANCE[source]
 }
 
 export type PriceLabel = { kind: 'owned' | 'price' | 'unknown'; text: string }
