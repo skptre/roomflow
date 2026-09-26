@@ -3,8 +3,8 @@
  * manipulation, the catalog, themes, or (later) AI proposals — is a list of
  * commands applied atomically: all succeed or the room is left unchanged.
  */
-import { clampIntoRoom, footprintsOverlap, insideRoom } from './geometry'
 import { z } from 'zod'
+import { blocksFloor, clampIntoRoom, footprintsOverlap, insideRoom, verticalOverlap } from './geometry'
 import { Finishes, RoomObject, Vec2, type Room } from './schema'
 import { normalizeYaw } from './units'
 
@@ -43,8 +43,19 @@ function objectIndex(room: Room, id: string): number {
   return index
 }
 
+/**
+ * Objects that occupy the same space: overlapping footprints at overlapping
+ * heights (a vase on a desk or art above a bed is fine). Floor coverings never collide.
+ */
+export function collisions(room: Room, object: RoomObject): RoomObject[] {
+  if (!blocksFloor(object)) return []
+  return room.objects.filter(
+    (other) => other.id !== object.id && blocksFloor(other) && verticalOverlap(object, other) && footprintsOverlap(object, other),
+  )
+}
+
 function overlapWarning(room: Room, object: RoomObject): string | null {
-  const others = room.objects.filter((other) => other.id !== object.id && footprintsOverlap(object, other))
+  const others = collisions(room, object)
   if (others.length === 0) return null
   return `${object.name} overlaps ${others.map((other) => other.name).join(', ')}.`
 }
@@ -168,7 +179,7 @@ export function checkPlacement(room: Room, id: string, position: Vec2, yaw: numb
   if (!object) throw new Error(`No object with id ${id} in this room.`)
   const moved = { ...object, pose: { position: { x: position.x, y: object.pose.position.y, z: position.z }, yaw } }
   if (!insideRoom(moved, room.floorPolygon)) return { status: 'outside', overlaps: [] }
-  const overlaps = room.objects.filter((other) => other.id !== id && footprintsOverlap(moved, other)).map((other) => other.id)
+  const overlaps = collisions(room, moved).map((other) => other.id)
   return { status: overlaps.length > 0 ? 'overlap' : 'ok', overlaps }
 }
 

@@ -25,7 +25,7 @@ export function AssetView({ asset, dimensions, recolor }: AssetViewProps) {
     case 'parametric': {
       const assembly = getAssembly(asset.assemblyId)
       return assembly ? (
-        <AssemblyMesh assembly={assembly} dimensions={dimensions} recolor={recolor} />
+        <AssemblyMesh assembly={assembly} dimensions={dimensions} recolor={recolor ?? asset.recolor} />
       ) : (
         <Placeholder dimensions={dimensions} />
       )

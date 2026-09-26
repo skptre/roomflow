@@ -68,7 +68,12 @@ export const Opening = z.object({
 export type Opening = z.infer<typeof Opening>
 
 export const AssetRef = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('parametric'), assemblyId: Id }),
+  z.object({
+    kind: z.literal('parametric'),
+    assemblyId: Id,
+    /** Color swaps for a finish variant or a photographed item's tint: { '#authored': '#shown' } (lowercase). */
+    recolor: z.record(HexColor, HexColor).optional(),
+  }),
   z.object({ kind: z.literal('glb'), url: z.string().min(1), attribution: z.string().optional() }),
   z.object({ kind: z.literal('placeholder') }),
 ])
