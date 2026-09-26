@@ -37,6 +37,18 @@ struct ScanSummaryView: View {
                 LabeledContent("Height", value: meters(room.dimensions.height))
             }
 
+            if let rawCapture {
+                Section {
+                    NavigationLink {
+                        RoomEvidenceReviewView(captureID: rawCapture.id, room: room, photos: photos)
+                    } label: {
+                        Label("Review room", systemImage: "checklist")
+                    }
+                } footer: {
+                    Text("Rename items the scan got wrong and choose which photos to share.")
+                }
+            }
+
             if !photos.isEmpty {
                 Section {
                     NavigationLink {

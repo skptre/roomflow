@@ -36,4 +36,6 @@ nonisolated struct RoomArchive: Sendable {
     var photos: [RoomPhotoEvidence] = []
     /// Approximate colors and photo regions; nil for rooms saved before this existed.
     var appearance: RoomAppearanceEvidence? = nil
+    /// What the user chose to share, and their labels; defaults to sharing every saved photo.
+    var selection = RoomEvidenceSelection.initial(for: [])
 }

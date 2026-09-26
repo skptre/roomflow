@@ -9,6 +9,7 @@ import Foundation
 /// rooms/<capture-id>/record.json             name, date, evidence status
 /// rooms/<capture-id>/photos.json, photos/     optional reference photos and their calibration
 /// rooms/<capture-id>/appearance.json          optional approximate colors and photo regions
+/// rooms/<capture-id>/selection.json           the user's sharing choices and labels (Review room)
 /// staging/…                                  in-progress saves; never listed
 /// ```
 /// A new room is assembled in `staging/` and published with a single directory rename,
@@ -46,6 +47,7 @@ actor RoomArchiveStore {
     private static let photosName = "photos.json"
     private static let photosFolder = "photos"
     private static let appearanceName = "appearance.json"
+    private static let selectionName = "selection.json"
 
     private let root: URL
     private let writeData: DataWriter
@@ -119,6 +121,15 @@ actor RoomArchiveStore {
         try writeData(editableData, directory.appendingPathComponent(Self.editableName))
     }
 
+    /// Replaces the user's sharing choices (one atomic write; a failure keeps the previous choices).
+    func saveSelection(id: UUID, selection: RoomEvidenceSelection) throws {
+        let directory = roomDirectory(id)
+        guard fileManager.fileExists(atPath: directory.appendingPathComponent(Self.recordName).path) else {
+            throw ArchiveError.notFound
+        }
+        try writeData(Self.encoder.encode(selection), directory.appendingPathComponent(Self.selectionName))
+    }
+
     // MARK: - Reading
 
     func load(id: UUID) throws -> RoomArchive {
@@ -132,13 +143,17 @@ actor RoomArchiveStore {
                 return photo
             }
         }
+        let selection = (try? Data(contentsOf: directory.appendingPathComponent(Self.selectionName)))
+            .flatMap { try? Self.decoder.decode(RoomEvidenceSelection.self, from: $0) }
+            ?? RoomEvidenceSelection.initial(for: photos)
         return RoomArchive(
             record: record,
             rawData: try Data(contentsOf: directory.appendingPathComponent(Self.rawName)),
             editableData: try Data(contentsOf: directory.appendingPathComponent(Self.editableName)),
             photos: photos,
             appearance: (try? Data(contentsOf: directory.appendingPathComponent(Self.appearanceName)))
-                .flatMap { try? Self.decoder.decode(RoomAppearanceEvidence.self, from: $0) }
+                .flatMap { try? Self.decoder.decode(RoomAppearanceEvidence.self, from: $0) },
+            selection: selection
         )
     }
 
