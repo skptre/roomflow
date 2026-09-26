@@ -153,9 +153,9 @@ FoundItem = { id; name; category; photoRef?; dimensions; price: Money|null; stor
 ## Task 2: Geometry + money
 
 **Produces:** `footprint`, `footprintsOverlap` (SAT, touching ≠ overlap), `insideRoom`, `clampIntoRoom` (same yaw/dims); `Money`, `Subtotal` (`complete | incomplete | mixed-currency`), `subtotal(lines)`, `budgetStatus` (`under|over|unknown|no-budget`), `formatMoney`.
-- [ ] Geometry tests: 2×1 desk yaw 0 → x-extent 2; yaw π/2 → 1 (**RF2**); shared edge → no overlap; 45° square SAT; half-outside object clamped fully inside, yaw/dims unchanged.
-- [ ] Money tests: `$10×2 + $5.99` → 2599 complete; owned excluded; null price → incomplete, unpricedCount 1 (**RF4**); `budgetStatus(incomplete)` → unknown even if known < budget; USD+EUR → mixed; non-integer throws; qty 0 → nothing.
-- [ ] Commit `feat(domain): footprint geometry and honest subtotal math`.
+- [x] Geometry tests: 2×1 desk yaw 0 → x-extent 2; yaw π/2 → 1 (**RF2**); shared edge → no overlap; 45° square SAT; half-outside object clamped fully inside, yaw/dims unchanged.
+- [x] Money tests: `$10×2 + $5.99` → 2599 complete; owned excluded; null price → incomplete, unpricedCount 1 (**RF4**); `budgetStatus(incomplete)` → unknown even if known < budget; USD+EUR → mixed; non-integer throws; qty 0 → nothing.
+- [x] Commit `feat(domain): footprint geometry and honest subtotal math`.
 
 ## Task 3: RoomPlan import + contract + synthetic fixture
 
@@ -275,3 +275,4 @@ Empty/loading/error states everywhere, mobile-width check, keyboard-only pass, d
 <!-- One line per finished task: time · task · commit/PR · notes (what's unverified). -->
 - 2026-09-26 · T0 scaffold · branch feat/web-pr1-foundation · Vite 8/React 19/TS 6 template; template ships oxlint (kept instead of eslint, `--deny-warnings`). Browser: start screen renders, keyboard + focus ring OK, no console errors. CI not yet run on GitHub.
 - 2026-09-26 · T1 units + schemas · feat/web-pr1-foundation · 13 tests. Money schema lives in schema.ts (Offer/FoundItem need it); opening offset = wall start → opening center.
+- 2026-09-26 · T2 geometry + money · feat/web-pr1-foundation · 41 tests total. budgetStatus returns 'over' (not 'unknown') when known prices alone exceed budget — a supported claim since prices are non-negative. insideRoom handles concave rooms.
