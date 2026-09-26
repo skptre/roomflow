@@ -275,5 +275,5 @@ Empty/loading/error states everywhere, mobile-width check, keyboard-only pass, d
 <!-- One line per finished task: time · task · commit/PR · notes (what's unverified). -->
 - 2026-09-26 · T0 scaffold · branch feat/web-pr1-foundation · Vite 8/React 19/TS 6 template; template ships oxlint (kept instead of eslint, `--deny-warnings`). Browser: start screen renders, keyboard + focus ring OK, no console errors. CI not yet run on GitHub.
 - 2026-09-26 · T1 units + schemas · feat/web-pr1-foundation · 13 tests. Money schema lives in schema.ts (Offer/FoundItem need it); opening offset = wall start → opening center.
-- 2026-09-26 · T2 geometry + money · feat/web-pr1-foundation · 41 tests total. budgetStatus returns 'over' (not 'unknown') when known prices alone exceed budget — a supported claim since prices are non-negative. insideRoom handles concave rooms.
+- 2026-09-26 · T2 geometry + money · feat/web-pr1-foundation · 41 tests total. budgetStatus is 'unknown' whenever any price is unknown (review fix). insideRoom and clampIntoRoom handle concave rooms (nearest-fit grid fallback, review fix).
 - 2026-09-26 · T3 RoomPlan import · feat/web-pr2-import · 21 import tests; added Room.source.nativeToApp (capture→app mapping). No real scan in fixtures/scans/ yet — real-scan test still open. Open questions for iOS in docs/contracts/room-import.md.

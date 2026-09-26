@@ -63,8 +63,8 @@ describe('budgetStatus', () => {
     expect(budgetStatus(subtotal([line('a', usd(100)), line('b', null)]), budget)).toBe('unknown')
   })
 
-  it('is over when the known part alone already exceeds the budget', () => {
-    expect(budgetStatus(subtotal([line('a', usd(70000)), line('b', null)]), budget)).toBe('over')
+  it('stays unknown while any price is unknown, even when the known part already exceeds the budget', () => {
+    expect(budgetStatus(subtotal([line('a', usd(70000)), line('b', null)]), budget)).toBe('unknown')
   })
 
   it('is unknown for mixed currencies or a budget in another currency', () => {
