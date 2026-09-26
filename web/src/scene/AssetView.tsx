@@ -32,7 +32,8 @@ export function AssetView({ asset, dimensions, recolor }: AssetViewProps) {
     }
     case 'glb':
       return (
-        <AssetErrorBoundary fallback={<Placeholder dimensions={dimensions} label="Model unavailable" />}>
+        // Keyed by URL so a different model gets a fresh attempt after an earlier failure.
+        <AssetErrorBoundary key={asset.url} fallback={<Placeholder dimensions={dimensions} label="Model unavailable" />}>
           <Suspense fallback={<Placeholder dimensions={dimensions} label="Preparing model" />}>
             <GlbModel url={asset.url} dimensions={dimensions} />
           </Suspense>

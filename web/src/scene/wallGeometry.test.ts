@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Opening, Wall } from '../domain/schema'
-import { DEFAULT_WALL_THICKNESS, wallProfile, wallShapes, wallThickness, type ProfilePolygon } from './wallGeometry'
+import { DEFAULT_WALL_THICKNESS, slabWallProfile, wallProfile, wallShapes, wallThickness, type ProfilePolygon } from './wallGeometry'
 
 const wall: Wall = { id: 'w', start: { x: 0, z: 0 }, end: { x: 4, z: 0 }, height: 2.5, thickness: 0, exterior: true }
 
@@ -93,6 +93,27 @@ describe('wallProfile', () => {
     expect(solidAt(polygons, 3, 0.2)).toBe(true)
     expect(solidAt(polygons, 1, 0.2)).toBe(false)
     expect(solidArea(polygons)).toBeCloseTo((4 - 0.9) * 0.3)
+  })
+})
+
+describe('slabWallProfile (the profile actually rendered)', () => {
+  const door = opening({ kind: 'door', offsetAlongWall: 1, bottom: 0, width: 0.9, height: 2.05 })
+  const SLAB = 0.08
+
+  it('keeps a floor-level door open from the floor up, with the wall reaching down through the slab (RF1)', () => {
+    const polygons = slabWallProfile(wall, [door], { slab: SLAB })
+    for (const v of [0.001, 0.5, 1, 2]) expect(solidAt(polygons, 1, v)).toBe(false)
+    // Below the floor surface the wall meets the slab edge, including under the doorway.
+    expect(solidAt(polygons, 1, -0.04)).toBe(true)
+    expect(solidAt(polygons, 3, -0.04)).toBe(true)
+    expect(solidAt(polygons, 1, 2.2)).toBe(true)
+  })
+
+  it('keeps the door gap in a cut-down stub', () => {
+    const polygons = slabWallProfile(wall, [door], { slab: SLAB, maxHeight: 0.3 })
+    expect(solidAt(polygons, 1, 0.1)).toBe(false)
+    expect(solidAt(polygons, 3, 0.2)).toBe(true)
+    expect(solidAt(polygons, 3, 0.35)).toBe(false)
   })
 })
 
