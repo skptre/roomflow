@@ -9,6 +9,13 @@ import type { Pose } from './units'
 /** Anything with a pose and a footprint size. */
 export type Placed = { pose: Pose; dimensions: Pick<Dimensions, 'width' | 'depth'> }
 
+/** Items this low (rugs, mats) lie on the floor: furniture may stand on them without overlapping. */
+export const FLOOR_COVERING_MAX_HEIGHT = 0.03
+
+export function blocksFloor(object: { dimensions: Pick<Dimensions, 'height'> }): boolean {
+  return object.dimensions.height > FLOOR_COVERING_MAX_HEIGHT
+}
+
 export type Bounds = { minX: number; maxX: number; minZ: number; maxZ: number }
 
 /** Tolerance in meters: touching within this distance is not overlap or escape. */

@@ -37,6 +37,20 @@ export const CATEGORIES: Readonly<Record<string, CategoryInfo>> = {
   vase: { label: 'Vase', assemblyId: 'vase', typical: { width: 0.18, height: 0.3, depth: 0.18 }, mount: 'surface' },
 }
 
+/** Captured (RoomPlan) categories and the catalog categories that can stand in for them. */
+const STAND_INS: Readonly<Record<string, string[]>> = {
+  table: ['desk', 'coffee-table'],
+  chair: ['desk-chair', 'lounge-chair'],
+  storage: ['dresser', 'nightstand', 'bookshelf'],
+}
+
+/** Catalog categories offered as alternatives for an object of this category. */
+export function alternativeCategories(category: string): string[] {
+  const standIns = STAND_INS[category]
+  if (standIns) return standIns
+  return CATEGORIES[category] ? [category] : []
+}
+
 export function categoryInfo(category: string): CategoryInfo | undefined {
   return CATEGORIES[category]
 }

@@ -1,19 +1,25 @@
 import { AnimatePresence } from 'motion/react'
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { useStore } from 'zustand'
-import { designStore, viewRoom, type PurchaseSources } from './domain/designStore'
+import { designStore, viewRoom } from './domain/designStore'
+import { purchaseSummary, remainingBudget, type SummarySources } from './domain/purchases'
+import { sampleOffers, sampleVariantLabels } from './fixtures/sample-catalog'
+import { SampleCatalogSource } from './fixtures/sample-catalog-source'
 import sampleScan from './fixtures/synthetic-bedroom.roomplan.json?raw'
 import { MAX_IMPORT_BYTES, parseRoomPlanJson } from './import/roomplan'
 import { Backdrop } from './scene/Backdrop'
 import { RoomScene } from './scene/RoomScene'
+import { CatalogPanel } from './ui/CatalogPanel'
 import { Inspector } from './ui/Inspector'
 import { NoticeBar } from './ui/NoticeBar'
 import { StartScreen } from './ui/StartScreen'
+import { SubtotalBar } from './ui/SubtotalBar'
 import { TopBar } from './ui/TopBar'
 import { useEditorShortcuts } from './ui/useEditorShortcuts'
 
-/** No catalog is connected yet; prices come in with the sample catalog. */
-const NO_SOURCES: PurchaseSources = { offers: new Map() }
+/** Prices and labels for placed products. Only the SAMPLE catalog is connected so far. */
+const SOURCES: SummarySources = { offers: sampleOffers, variantLabels: sampleVariantLabels }
+const catalogSource = new SampleCatalogSource()
 
 const AssetLineup = lazy(() => import('./scene/dev/AssetLineup').then((m) => ({ default: m.AssetLineup })))
 const showLineup = new URLSearchParams(window.location.search).has('lineup')
@@ -34,10 +40,14 @@ export default function App() {
 function Workspace() {
   // The scene shows the preview when one is active, otherwise the committed room.
   const room = useStore(designStore, viewRoom)
-  const selected = useStore(designStore, (state) => {
-    const shown = viewRoom(state)
-    return shown?.objects.find((object) => object.id === state.selectedId) ?? null
-  })
+  // Panels describe the committed object, not a hovered preview of its replacement.
+  const selected = useStore(designStore, (state) => state.committed?.room.objects.find((object) => object.id === state.selectedId) ?? null)
+  const committed = useStore(designStore, (state) => state.committed)
+  const [catalogOpen, setCatalogOpen] = useState(false)
+  const budgetLeft = useMemo(
+    () => (committed ? remainingBudget(purchaseSummary(committed.room, SOURCES, committed.budget), committed.budget) : null),
+    [committed],
+  )
   useEditorShortcuts()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -71,11 +81,22 @@ function Workspace() {
     <main className="relative h-full w-full overflow-hidden">
       {room ? (
         <>
-          <RoomScene room={room} sources={NO_SOURCES} />
-          <TopBar room={room} />
+          <RoomScene room={room} sources={SOURCES} />
+          <TopBar room={room} catalogOpen={catalogOpen} onToggleCatalog={() => setCatalogOpen(!catalogOpen)} />
+          {/* Left column: catalog above, purchases pinned below; the catalog shrinks so they never overlap. */}
+          <div className="pointer-events-none absolute top-18 bottom-4 left-4 flex w-80 flex-col gap-3">
+            <div className="flex min-h-0 flex-1 flex-col">
+              <AnimatePresence>
+                {catalogOpen ? (
+                  <CatalogPanel source={catalogSource} selected={selected} budgetRemaining={budgetLeft} onClose={() => setCatalogOpen(false)} />
+                ) : null}
+              </AnimatePresence>
+            </div>
+            <SubtotalBar sources={SOURCES} />
+          </div>
           <div className="pointer-events-none absolute top-18 right-4 flex flex-col items-end gap-3">
             <AnimatePresence>
-              {selected ? <Inspector key={selected.id} object={selected} sources={NO_SOURCES} /> : null}
+              {selected ? <Inspector key={selected.id} object={selected} sources={SOURCES} onBrowseAlternatives={() => setCatalogOpen(true)} /> : null}
             </AnimatePresence>
           </div>
           <NoticeBar />
