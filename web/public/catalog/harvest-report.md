@@ -60,7 +60,7 @@ Loloi's feed lists placeholder prices (99999.00), so its offers are unknown-pric
 | Mirror | 11 | 39 | 0% | 100% | 77% |
 | Desk | 11 | 15 | 0% | 100% | 100% |
 
-Variants beyond 100 per product were left out: 2977.
+Variants beyond 100 per product were left out of the kept products: 914.
 
 ## Excluded listings
 
