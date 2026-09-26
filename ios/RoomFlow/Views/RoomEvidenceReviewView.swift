@@ -6,16 +6,19 @@ struct RoomEvidenceReviewView: View {
     let captureID: UUID
     let room: RoomModel
     let photos: [RoomPhotoEvidence]
+    let associations: [RoomPhotoAssociation]
     var store: RoomArchiveStore = .shared
 
     @State private var selection: RoomEvidenceSelection
     @State private var labelDrafts: [UUID: String] = [:]
     @State private var saveError: String?
 
-    init(captureID: UUID, room: RoomModel, photos: [RoomPhotoEvidence], store: RoomArchiveStore = .shared) {
+    init(captureID: UUID, room: RoomModel, photos: [RoomPhotoEvidence], associations: [RoomPhotoAssociation] = [],
+         store: RoomArchiveStore = .shared) {
         self.captureID = captureID
         self.room = room
         self.photos = photos
+        self.associations = associations
         self.store = store
         _selection = State(initialValue: .initial(for: photos))
     }
@@ -137,6 +140,14 @@ struct RoomEvidenceReviewView: View {
                  : "Photos are off: sharing includes the scan only.")
                 .font(.footnote)
                 .foregroundStyle(Color.rfSecondaryText)
+            if !associations.isEmpty, selection.includePhotos,
+               let summary = PhotoCoverage.make(objects: room.objects, associations: associations,
+                                                photoIds: Set(selection.sharedPhotos(from: photos).map(\.id)),
+                                                label: { selection.label(for: $0) }).summary {
+                Text(summary)
+                    .font(.footnote)
+                    .foregroundStyle(Color.rfSecondaryText)
+            }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 8)], spacing: 8) {
                 ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
                     let isIncluded = selection.includePhotos && selection.isSelected(photo.id)

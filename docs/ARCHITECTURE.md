@@ -51,6 +51,7 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `RoomModel.swift` | Native editable room in RoomFlow's frame (longest wall on +X, corner at origin, floor y=0) | `RoomModel` (`jsonData()`, `jsonEncoder/Decoder`), `RoomDimensions`, `Vector3`, `FloorPoint`, `Wall`, `WallOpening`, `EstimatedColor` (`hex`, `sampleCount`; 0 = illustrative), `CaptureAlignment` |
 | `RoomObject.swift` | Furniture/fixture in the room frame | `RoomObject` (`isMovable(category:)`, `fixtureCategories`), `ObjectDimensions` |
 | `ObjectNames.swift` | Display-friendly names for furniture categories in UI text (stored data keeps the category) | `ObjectNames` (`display(category:)`) |
+| `PhotoCoverage.swift` | How many scanned objects (with a `sourceId`) appear in the counted photos, and which are missing, for a footnote summary; presentation only | `PhotoCoverage` (`covered`, `total`, `missing`, `summary`), `make(objects:associations:photoIds:label:)` |
 | `SampleRoom.swift` | DEBUG-only synthetic 4.2×3.8 m room with illustrative colors | `SampleRoom.make()` |
 | `SavedRoomRecord.swift` | Saved-room list entry and loaded archive | `SavedRoomRecord` (`EvidenceStatus`), `RawCapture` (frozen bytes), `RoomArchive` (raw, editable, photos, appearance, selection) |
 | `ScanCaptureResult.swift` | Everything one finished scan produced | `ScanCaptureResult` (room, colors, photos) |
@@ -86,10 +87,10 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `RoomScanView.swift` | Full-screen RoomPlan UI with Cancel / Done / failure states; shows `ScanFocusHintView` when a furniture object is in focus |
 | `ScanFocusHintView.swift` | Small hint capsule under scan controls showing furniture name, photo count/progress ring, and guidance; appears when furniture is framed and photo capture is on | `ScanFocusHintView`, `message(for:)` |
 | `RoomEditorView.swift` | Top-down Canvas plan (floor, grid, furniture, walls, openings), tap select, selection card |
-| `ScanSummaryView.swift` | Details and exports: Review room, reference photos, Share RoomPlan JSON, Room package, editable JSON |
+| `ScanSummaryView.swift` | Details and exports: Review room, reference photos (with a `PhotoCoverage` summary footnote), Share RoomPlan JSON, Room package, editable JSON |
 | `SavedRoomsView.swift` | Lists and reopens saved rooms |
 | `RoomPhotosView.swift` | Photo grid/full view; `SensorPhoto` (display-only rotation), `PhotoRegion` overlay |
-| `RoomEvidenceReviewView.swift` | Review room: user labels, photo include/exclude, persisted selection |
+| `RoomEvidenceReviewView.swift` | Review room: user labels, photo include/exclude, persisted selection, `PhotoCoverage` summary footnote using shared photos and user labels; `init(...associations:...)` (default `[]`) |
 | `Theme.swift` | `Color.rfBackground/…`, `Color(hex:)`, `RFButtonStyle`, `PlanPalette` |
 
 ### Tests (`ios/RoomFlowTests/`, Swift Testing)
@@ -104,6 +105,7 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `RoomEvidenceProjectorTests.swift` | Center, rotation, non-square, behind camera, near plane, clipping, outside, non-finite, orientation independence, associations |
 | `RoomEvidenceSelectionTests.swift` | Exclusion, geometry-only, label beside geometry, reload |
 | `RoomPackageExportTests.swift` | Byte-identical raw, selection controls photos, geometry-only, hashes vs. independent unzip (`ZipReader`), invalid paths, archive failure, fresh package |
+| `PhotoCoverageTests.swift` | Covered/missing counts, excluded photos don't count, user labels name missing items, objects without a `sourceId` are ignored, one-item and all-covered summaries |
 
 ## Web (`web/`, owned by Yash)
 

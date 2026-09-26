@@ -5,6 +5,24 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### iOS: show which furniture has photos after a scan
+- New `ios/RoomFlow/Models/PhotoCoverage.swift`: `PhotoCoverage` (`covered`, `total`, `missing`, `summary`) and
+  `PhotoCoverage.make(objects:associations:photoIds:label:)` compute, from scanned objects (only those with a
+  `sourceId`) and their photo associations, how many have a counted photo and the display names of those that
+  don't (repeats collapsed, e.g. "Chair ×2"). Presentation only — never changes measurements or which photos
+  are shared.
+- `ScanSummaryView.swift`: below the "Reference photos (N)" link, a footnote from `PhotoCoverage.make(...)`
+  (scan names only, all photos counted) when `appearance` is available. Passes `appearance?.associations` into
+  `RoomEvidenceReviewView`.
+- `RoomEvidenceReviewView.swift`: new `let associations: [RoomPhotoAssociation]` and
+  `init(captureID:room:photos:associations:store:)` (`associations` defaults to `[]`, so the one existing
+  caller in `ScanSummaryView.swift` — now updated — is the only call site). `photoSection` shows the same
+  footnote, scoped to the currently shared photos and using the person's own object labels
+  (`selection.label(for:)`), only when photos are included and associations exist.
+- New `ios/RoomFlowTests/PhotoCoverageTests.swift`: covered/missing counts and names, excluded photos don't
+  count, user labels override scan names in `missing`, objects without a `sourceId` are ignored, "only item"
+  and "all N items" summaries.
+
 ### iOS: hint overlay on the scan screen
 - New `ios/RoomFlow/Models/ObjectNames.swift`: `ObjectNames.display(category:)` turns category strings
   ("television", "washerDryer") into display names ("TV", "Washer"), splitting camelCase and handling special
