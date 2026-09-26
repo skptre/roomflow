@@ -1,11 +1,11 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ExtrudeGeometry, Shape, Vector2, type Mesh } from 'three'
+import { ExtrudeGeometry, MeshStandardMaterial, Shape, Vector2, type Mesh } from 'three'
 import type { Opening, Room, Vec2, Wall } from '../domain/schema'
 import { outwardNormal } from './cutaway'
 import { proceduralTexture } from './materials'
 import { palette } from './palette'
-import { wallLength, wallProfile, wallShapes, wallThickness } from './wallGeometry'
+import { slabWallProfile, wallLength, wallShapes, wallThickness } from './wallGeometry'
 
 /** Thickness of the floor slab under the room (reads as an architectural model base). */
 export const SLAB = 0.08
@@ -47,16 +47,19 @@ function Floor({ polygon, color }: { polygon: readonly Vec2[]; color: string }) 
     extruded.translate(0, 0, -SLAB)
     return extruded
   }, [polygon])
-  useEffect(() => () => geometry.dispose(), [geometry])
-  const wood = proceduralTexture('woodgrain')
-
-  return (
-    <mesh geometry={geometry} rotation-x={-Math.PI / 2} receiveShadow>
-      {/* ExtrudeGeometry groups: 0 = top/bottom caps, 1 = sides. */}
-      <meshStandardMaterial attach="material-0" color={color} map={wood} roughness={0.72} />
-      <meshStandardMaterial attach="material-1" color={palette.trim} roughness={0.9} />
-    </mesh>
+  // Materials are owned here (not by JSX) so unmounting never disposes the shared wood texture.
+  const materials = useMemo(
+    () => [
+      new MeshStandardMaterial({ color, map: proceduralTexture('woodgrain'), roughness: 0.72 }),
+      new MeshStandardMaterial({ color: palette.trim, roughness: 0.9 }),
+    ],
+    [color],
   )
+  useEffect(() => () => geometry.dispose(), [geometry])
+  useEffect(() => () => materials.forEach((material) => material.dispose()), [materials])
+
+  // ExtrudeGeometry groups: 0 = top/bottom caps, 1 = sides.
+  return <mesh geometry={geometry} material={materials} rotation-x={-Math.PI / 2} receiveShadow dispose={null} />
 }
 
 type Placement = {
@@ -86,15 +89,9 @@ function placementOf(wall: Wall, floorPolygon: readonly Vec2[]): Placement {
 }
 
 function extrudeProfile(wall: Wall, openings: readonly Opening[], placement: Placement, maxHeight?: number) {
-  // Profiles start at the slab bottom so walls meet the base; openings shift up to match.
-  const shifted = { ...wall, height: wall.height + SLAB }
-  const shiftedOpenings = openings.map((o) => ({ ...o, bottom: o.bottom + SLAB }))
-  const polygons = wallProfile(shifted, shiftedOpenings, {
-    extend: placement.extend,
-    maxHeight: maxHeight === undefined ? undefined : maxHeight + SLAB,
-  })
+  const polygons = slabWallProfile(wall, openings, { slab: SLAB, extend: placement.extend, maxHeight })
   const geometry = new ExtrudeGeometry(wallShapes(polygons), { depth: placement.thickness, bevelEnabled: false })
-  geometry.translate(0, -SLAB, placement.zOffset)
+  geometry.translate(0, 0, placement.zOffset)
   return geometry
 }
 
@@ -144,15 +141,25 @@ function WallMesh({ wall, openings, floorPolygon, color, cut, reducedMotion }: W
     mesh.position.y = SLAB * (scale - 1)
   })
 
-  const plaster = proceduralTexture('plaster')
+  // Owned here (not by JSX) so unmounting never disposes the shared plaster texture.
+  const material = useMemo(
+    () => new MeshStandardMaterial({ color, map: proceduralTexture('plaster'), roughness: 0.92 }),
+    [color],
+  )
+  useEffect(() => () => material.dispose(), [material])
   const showStub = settled && cut
   const standing = settled && !cut
 
   return (
     <group position={[wall.start.x, 0, wall.start.z]} rotation-y={placement.yaw}>
-      <mesh ref={meshRef} geometry={showStub ? stub : full} castShadow receiveShadow>
-        <meshStandardMaterial color={color} map={plaster} roughness={0.92} />
-      </mesh>
+      <mesh
+        ref={meshRef}
+        geometry={showStub ? stub : full}
+        material={material}
+        castShadow
+        receiveShadow
+        dispose={null}
+      />
       {standing
         ? own.map((opening) => <OpeningFrame key={opening.id} opening={opening} placement={placement} wall={wall} />)
         : null}
@@ -167,9 +174,10 @@ function OpeningFrame({ opening, placement, wall }: { opening: Opening; placemen
   const length = wallLength(wall)
   const u0 = Math.max(0, opening.offsetAlongWall - opening.width / 2)
   const u1 = Math.min(length, opening.offsetAlongWall + opening.width / 2)
-  if (u1 <= u0) return null
   const top = Math.min(wall.height, opening.bottom + opening.height)
   const bottom = opening.bottom
+  // Nothing visible to frame (e.g. an opening entirely above the wall top).
+  if (u1 <= u0 || top <= bottom) return null
   const width = u1 - u0
   const height = top - bottom
   const depth = placement.thickness + 0.02

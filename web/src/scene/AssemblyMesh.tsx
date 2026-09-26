@@ -32,6 +32,8 @@ export const AssemblyMesh = memo(function AssemblyMesh({ assembly, dimensions, r
             rotation={part.rotation ?? [0, 0, 0]}
             castShadow={part.material !== 'glass'}
             receiveShadow
+            // Geometry and material are shared caches, released by RoomScene; never auto-dispose them here.
+            dispose={null}
           />
         )
       })}
