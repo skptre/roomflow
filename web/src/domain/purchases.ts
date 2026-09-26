@@ -12,6 +12,11 @@ export type PurchaseRow = {
   unitPrice: Money | null
   lineTotal: Money | null
   isSample: boolean
+  /** The chosen offer, where it came from, and when its price was read. */
+  offerId: string | null
+  store: string | null
+  url: string | null
+  retrievedAt: string | null
 }
 
 export type PurchaseSummary = {
@@ -39,6 +44,10 @@ export function purchaseSummary(room: Room, sources: SummarySources, budget: Mon
         unitPrice: line.unitPrice,
         lineTotal: line.unitPrice ? { amountMinor: line.unitPrice.amountMinor * line.quantity, currency: line.unitPrice.currency } : null,
         isSample: offer?.isSample ?? false,
+        offerId: offer?.id ?? null,
+        store: offer?.merchant ?? null,
+        url: offer?.url ?? null,
+        retrievedAt: offer?.retrievedAt ?? null,
       }
     })
   const sub = subtotal(lines.map(({ line }) => line))
