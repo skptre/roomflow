@@ -1,15 +1,23 @@
+import RoomPlan
 import SwiftUI
 import UIKit
 
-/// What the scan produced, plus the exact JSON the backend will receive.
-/// Replaced by RoomEditorView in Milestone 3.
+/// Room details and the files RoomFlow can hand off.
+/// The raw RoomPlan file (for the web importer) and RoomFlow's editable JSON are different artifacts.
 struct ScanSummaryView: View {
     let room: RoomModel
     /// True for the debug sample room, which must never look like a real scan.
     var isSample = false
+    /// The untouched scan; nil for debug/sample rooms, which have no raw file to export.
+    var capture: CapturedRoom? = nil
+    /// Camera colors for `capture`; exported separately in a later step, never inside the raw file.
+    var colors: RoomColorEstimates? = nil
 
     @State private var json = ""
     @State private var didCopy = false
+    @State private var rawExportURL: URL?
+    @State private var rawExportError: String?
+    @State private var isShowingRawExportAlert = false
 
     var body: some View {
         List {
@@ -54,18 +62,36 @@ struct ScanSummaryView: View {
                 }
             }
 
+            if capture != nil {
+                Section {
+                    if let rawExportURL {
+                        ShareLink(item: rawExportURL) {
+                            Label("Share RoomPlan JSON", systemImage: "square.and.arrow.up")
+                        }
+                    } else if rawExportError == nil {
+                        ProgressView()
+                    } else {
+                        Button("Retry RoomPlan export", systemImage: "arrow.clockwise", action: makeRawExport)
+                    }
+                } header: {
+                    Text("For the web importer")
+                } footer: {
+                    Text("Original scan for the web importer: the unmodified RoomPlan file (\(rawExportURL?.lastPathComponent ?? "<room>.roomplan.json")).")
+                }
+            }
+
             Section {
-                Button(didCopy ? "Copied" : "Copy JSON", systemImage: didCopy ? "checkmark" : "doc.on.doc") {
+                Button(didCopy ? "Copied" : "Copy Editable Room JSON", systemImage: didCopy ? "checkmark" : "doc.on.doc") {
                     UIPasteboard.general.string = json
                     didCopy = true
                 }
                 .disabled(json.isEmpty)
-                ShareLink("Share JSON", item: json)
+                ShareLink("Share Editable Room JSON", item: json)
                     .disabled(json.isEmpty)
             } header: {
-                Text("Room JSON")
+                Text("RoomFlow editable room")
             } footer: {
-                Text("\(json.utf8.count.formatted()) bytes · format in docs/room-json.md")
+                Text("RoomFlow's current floor plan, not the web import file. \(json.utf8.count.formatted()) bytes · format in docs/room-json.md")
             }
         }
         .scrollContentBackground(.hidden)
@@ -75,6 +101,27 @@ struct ScanSummaryView: View {
         .task(id: room) {
             didCopy = false
             json = (try? room.jsonData()).map { String(decoding: $0, as: UTF8.self) } ?? ""
+        }
+        .onAppear {
+            if rawExportURL == nil { makeRawExport() }
+        }
+        .alert("Couldn't create the RoomPlan file", isPresented: $isShowingRawExportAlert) {
+            Button("Retry", action: makeRawExport)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(rawExportError ?? "")
+        }
+    }
+
+    /// Writes the raw file once for this screen. A failure leaves the room and editor untouched.
+    private func makeRawExport() {
+        guard let capture else { return }
+        rawExportError = nil
+        do {
+            rawExportURL = try RoomPlanFileExport.export(capture)
+        } catch {
+            rawExportError = error.localizedDescription
+            isShowingRawExportAlert = true
         }
     }
 
