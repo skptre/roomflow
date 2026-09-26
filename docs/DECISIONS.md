@@ -51,3 +51,21 @@ Rejected: a project generator (XcodeGen), an extra tool for everyone.
 ## Native move/rotate/delete not built on iOS
 The web app already edits furniture (keep/lock/undo). iOS focuses on accurate capture and evidence.
 `RoomEditorState` keeps selection only; `RoomArchiveStore.saveEdits` exists for when editing is added.
+
+## Floor outline: wall loop, then RoomPlan's floor, then a wall-aligned rectangle
+A closed wall loop stays first (unchanged, tested behavior). When walls don't close (open-ended rooms), RoomPlan's own
+`floors[].polygonCorners` are used — verified on two real scans to land exactly on wall ends. Rejected: the world-axis
+bounding box, which turned a 45 m² room at 52.5° into a ~136 m² diamond; and preferring the floor polygon even when
+walls close, which would change results Yash's tests already pin down.
+
+## Package checksums are enforced, not advisory
+A file whose SHA-256 or size doesn't match the manifest rejects the whole package. Rejected: warning and continuing,
+which would let a damaged or edited raw scan through as if it were the phone's original.
+
+## Web zip reading has no dependency
+A ~150-line reader on the platform `DecompressionStream`, limited to what packages contain (stored/deflate, no ZIP64,
+no encryption), with CRC and size checks. Rejected: JSZip/fflate — a new dependency for a narrow, well-specified format.
+
+## User names become display names, never categories
+An annotation sets the object's `name`; `category`, dimensions and provenance stay as scanned, so ranking and
+furniture templates keep using RoomPlan's classification. Rejected: overwriting `category` from free text.

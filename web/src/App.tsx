@@ -6,14 +6,17 @@ import { budgetForChoice, type SummarySources } from './domain/purchases'
 import { sampleCatalog, sampleOffers, sampleVariantLabels } from './fixtures/sample-catalog'
 import { SampleCatalogSource } from './fixtures/sample-catalog-source'
 import sampleScan from './fixtures/synthetic-bedroom.roomplan.json?raw'
-import { MAX_IMPORT_BYTES, parseRoomPlanJson } from './import/roomplan'
+import { MAX_IMPORT_BYTES, parseRoomPlanJson, type ImportResult } from './import/roomplan'
+import { isZipArchive, MAX_PACKAGE_BYTES, parseRoomflowPackage, type PackageImportResult } from './import/roomflowPackage'
 import { RoomScene } from './scene/RoomScene'
 import type { ViewRequest } from './scene/CameraRig'
 import { CatalogPanel } from './ui/CatalogPanel'
+import { evidenceStore } from './ui/evidenceStore'
 import { cancelCatalogPreview } from './ui/catalogActions'
 import { HelpDialog } from './ui/HelpDialog'
 import { Inspector } from './ui/Inspector'
 import { NoticeBar } from './ui/NoticeBar'
+import { noticeStore } from './ui/noticeStore'
 import { RoomPanel } from './ui/RoomPanel'
 import { StartScreen } from './ui/StartScreen'
 import { StudioIcon } from './ui/StudioIcon'
@@ -70,8 +73,7 @@ function Workspace() {
     setSwapId(null)
     setPanel(next)
   }
-  function open(text: string) {
-    const result = parseRoomPlanJson(text)
+  function open(result: ImportResult | PackageImportResult) {
     if (!result.ok) {
       setError(result.error)
       return
@@ -79,18 +81,40 @@ function Workspace() {
     setError(null)
     cancelCatalogPreview()
     designStore.getState().loadRoom(result.room)
+    evidenceStore.getState().set(result.room.id, 'evidence' in result ? result.evidence : null)
     setWelcome(false)
     setPanel('room')
     setSwapId(null)
+    announceImport(result)
+  }
+  /** Tells the user what came in with the room and anything the importer had to estimate or skip. */
+  function announceImport(result: Extract<ImportResult | PackageImportResult, { ok: true }>) {
+    const parts: string[] = []
+    if ('evidence' in result) {
+      const { photos, annotations } = result.evidence
+      parts.push(`Room package opened with ${photos.length} reference photo${photos.length === 1 ? '' : 's'}` +
+        (annotations.length > 0 ? ` and ${annotations.length} name${annotations.length === 1 ? '' : 's'} from your phone.` : '.'))
+    }
+    if (result.warnings.length > 0) {
+      parts.push(result.warnings[0]! + (result.warnings.length > 1 ? ` (+${result.warnings.length - 1} more)` : ''))
+    }
+    if (parts.length > 0) noticeStore.getState().show(parts.join(' '), result.warnings.length > 0 ? 'warning' : 'info')
   }
   async function importFile(file: File) {
-    if (file.size > MAX_IMPORT_BYTES) {
-      setError(`This file is too large. Choose a scan smaller than ${MAX_IMPORT_BYTES / (1024 * 1024)} MB.`)
+    if (file.size > MAX_PACKAGE_BYTES) {
+      setError(`This file is too large. Choose a scan smaller than ${MAX_PACKAGE_BYTES / (1024 * 1024)} MB.`)
       return
     }
     setBusy(true)
     try {
-      open(await file.text())
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      if (isZipArchive(bytes)) {
+        open(await parseRoomflowPackage(bytes))
+      } else if (bytes.length > MAX_IMPORT_BYTES) {
+        setError(`This file is too large. Choose a scan smaller than ${MAX_IMPORT_BYTES / (1024 * 1024)} MB.`)
+      } else {
+        open(parseRoomPlanJson(new TextDecoder().decode(bytes)))
+      }
     } catch {
       setError('We couldn’t read that file. Try choosing your room scan again.')
     } finally {
@@ -107,7 +131,7 @@ function Workspace() {
           error={error}
           busy={busy}
           onImportFile={importFile}
-          onOpenSample={() => open(sampleScan)}
+          onOpenSample={() => open(parseRoomPlanJson(sampleScan))}
           onResume={committed ? () => setWelcome(false) : undefined}
         >
           {sampleRoom && <RoomScene room={sampleRoom} sources={SOURCES} decorative />}

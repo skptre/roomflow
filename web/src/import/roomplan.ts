@@ -29,6 +29,8 @@ const PARALLEL_TOLERANCE = 0.1
 const MIN_HORIZONTAL_AXIS = 0.5
 /** Smallest floor area (m²) accepted as a room. */
 const MIN_FLOOR_AREA = 0.5
+/** Upper bound on corners per RoomPlan floor polygon; real floors have a handful. */
+const MAX_FLOOR_CORNERS = 1000
 
 const DEFAULT_FINISHES = { wall: '#f4efe8', floor: '#c9a882' } as const
 
@@ -100,6 +102,16 @@ const RawSurface = z
 type RawSurface = z.infer<typeof RawSurface>
 
 const SurfaceList = z.array(RawSurface).max(MAX_SURFACES_PER_LIST)
+
+/**
+ * RoomPlan floor surface (iOS 17+). `polygonCorners` are in the surface's local frame:
+ * native = transform · (x, y, z, 1). Verified against real scans: corners land on wall ends.
+ */
+const RawFloor = z.object({
+  transform: Transform,
+  polygonCorners: z.array(z.array(Finite).length(3)).min(3).max(MAX_FLOOR_CORNERS),
+})
+const FloorList = z.array(RawFloor).max(MAX_SURFACES_PER_LIST)
 
 const RawScan = z.object({
   identifier: z.string().optional(),
@@ -234,19 +246,49 @@ function outlineFromWalls(segments: readonly Segment[]): Vec2[] | null {
   return best
 }
 
-function boundsOutline(segments: readonly Segment[]): Vec2[] {
-  const xs = segments.flatMap((s) => [s.start.x, s.end.x])
-  const zs = segments.flatMap((s) => [s.start.z, s.end.z])
-  const minX = Math.min(...xs)
-  const maxX = Math.max(...xs)
-  const minZ = Math.min(...zs)
-  const maxZ = Math.max(...zs)
-  return [
-    { x: minX, z: minZ },
-    { x: maxX, z: minZ },
-    { x: maxX, z: maxZ },
-    { x: minX, z: maxZ },
-  ]
+/**
+ * RoomPlan's own floor outline in native coordinates: the largest valid floor polygon, or null.
+ * Floors are optional evidence, so a malformed list is reported and ignored rather than failing the import.
+ */
+function outlineFromFloors(floors: unknown, warnings: string[]): Vec2[] | null {
+  if (floors === undefined) return null
+  const parsed = FloorList.safeParse(floors)
+  if (!parsed.success) {
+    warnings.push("The scan's floor outline couldn't be read, so it was ignored.")
+    return null
+  }
+  let best: Vec2[] | null = null
+  let bestArea = MIN_FLOOR_AREA
+  for (const floor of parsed.data) {
+    const m = flatten(floor.transform)
+    const corners = floor.polygonCorners.map(([x, y, z]) => ({
+      x: m[0]! * x! + m[4]! * y! + m[8]! * z! + m[12]!,
+      z: m[2]! * x! + m[6]! * y! + m[10]! * z! + m[14]!,
+    }))
+    const area = polygonArea(corners)
+    if (area >= bestArea) {
+      best = corners
+      bestArea = area
+    }
+  }
+  return best
+}
+
+/**
+ * Last-resort floor: the smallest rectangle aligned with the longest wall that contains every wall.
+ * Aligning to the walls (not the world axes) keeps a turned room from growing a much larger floor.
+ */
+function alignedBoundsOutline(segments: readonly Segment[]): Vec2[] {
+  const longest = segments.reduce((a, b) => (distance(b.start, b.end) > distance(a.start, a.end) ? b : a))
+  const length = distance(longest.start, longest.end) || 1
+  const u = { x: (longest.end.x - longest.start.x) / length, z: (longest.end.z - longest.start.z) / length }
+  const v = { x: -u.z, z: u.x }
+  const points = segments.flatMap((s) => [s.start, s.end])
+  const along = points.map((p) => p.x * u.x + p.z * u.z)
+  const across = points.map((p) => p.x * v.x + p.z * v.z)
+  const [a0, a1, b0, b1] = [Math.min(...along), Math.max(...along), Math.min(...across), Math.max(...across)]
+  const corner = (a: number, b: number): Vec2 => ({ x: u.x * a + v.x * b, z: u.z * a + v.z * b })
+  return [corner(a0, b0), corner(a1, b0), corner(a1, b1), corner(a0, b1)]
 }
 
 /** Find the single wall an opening lies in, by position and direction. */
@@ -312,12 +354,13 @@ export function parseRoomPlanJson(text: string, options: ImportOptions = {}): Im
   }
   const walls = wallSurfaces.map(segmentOf)
 
-  // Native floor height: the lowest wall base. Native outline: closed wall loop.
+  // Native floor height: the lowest wall base. Native outline, in order of trust:
+  // closed wall loop → RoomPlan's floor polygon → rectangle aligned with the walls (estimated).
   const floorY = Math.min(...walls.map((wall) => wall.bottom))
-  let outline = outlineFromWalls(walls)
+  let outline = outlineFromWalls(walls) ?? outlineFromFloors(record.floors, warnings)
   if (!outline) {
     warnings.push("The walls don't form a closed outline; the floor was estimated from their extents.")
-    outline = boundsOutline(walls)
+    outline = alignedBoundsOutline(walls)
   }
   if (polygonArea(outline) < MIN_FLOOR_AREA) {
     return fail("The walls in this scan don't enclose a floor area, so the room can't be built.")

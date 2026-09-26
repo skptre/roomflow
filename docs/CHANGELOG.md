@@ -5,6 +5,20 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### Web: RoomFlow package import, RoomPlan floor outlines, visible import warnings
+- New `web/src/import/zip.ts`: `readZip(bytes, limits)`, `crc32(data)`, `ZipError`, `DEFAULT_ZIP_LIMITS` — dependency-free
+  reader (stored/deflate via `DecompressionStream`), rejecting unsafe/duplicate names, encryption, ZIP64, CRC or size mismatch.
+- New `web/src/import/roomflowPackage.ts`: `parseRoomflowPackage(bytes, options)`, `isZipArchive(bytes)`, `MAX_PACKAGE_BYTES`,
+  types `PackageEvidence`, `PackagePhoto`, `PhotoRegion`, `PackageImportResult`. Verifies manifest v1, allowed paths, exact
+  inventory, SHA-256; imports `capture.roomplan.json` with `parseRoomPlanJson`; user names become object `name` (category kept).
+- `web/src/import/roomplan.ts`: new `outlineFromFloors` (reads `floors[].polygonCorners`) and `alignedBoundsOutline` (replaces the
+  world-axis `boundsOutline`); outline order is wall loop → RoomPlan floor → wall-aligned rectangle.
+- New `web/src/ui/evidenceStore.ts`: `evidenceStore` (`set(roomId, evidence)`, `regionsFor(objectId)`), in memory only.
+- `web/src/App.tsx`: `open(result)`, new `announceImport(result)`; `importFile` detects zips by signature.
+  `web/src/ui/StartScreen.tsx` accepts `.zip`. Test helper `web/src/test/zipWriter.ts` (`makeZip`).
+- Why: an open-ended real room imported as a ~136 m² tilted diamond instead of its 45 m² floor, warnings weren't shown, and
+  phone evidence (photos, regions, names, colors) had no way into the web app. Contracts updated with Yash's agreement.
+
 ### Docs: project records and indexing
 - Added `docs/INDEX.md`, `docs/ARCHITECTURE.md`, `docs/CHANGELOG.md`, `docs/DECISIONS.md`, and the rules in
   `.claude/documentation.md` / `.claude/index.md`, referenced from `CLAUDE.md` and `AGENTS.md`.
