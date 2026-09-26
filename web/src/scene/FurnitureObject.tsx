@@ -10,6 +10,7 @@ import { moveObject, refuseLockedMove, rotateObject } from '../ui/editorActions'
 import { noticeStore } from '../ui/noticeStore'
 import { AssetView } from './AssetView'
 import { floorPoint, yawOf } from './floorPointer'
+import { gestureOutcome } from './gesture'
 import { HoverTag } from './HoverTag'
 import { palette } from './palette'
 
@@ -157,30 +158,31 @@ export const FurnitureObject = memo(function FurnitureObject({
       invalidate()
     }
 
-    const onUp = () => {
+    const end = (cancelled: boolean) => {
       const g = gesture.current
       finish()
       if (!g?.active) return
-      if (g.kind === 'move') {
-        if (g.status === 'ok') {
-          if (!moveObject(object.id, g.position)) snapBack()
-        } else {
-          snapBack()
-          const room = currentRoom()
-          const names = g.overlaps.map((id) => room?.objects.find((o) => o.id === id)?.name ?? 'another item')
-          noticeStore
-            .getState()
-            .show(g.status === 'outside' ? `${object.name} doesn't fit there.` : `${object.name} would overlap ${names.join(', ')}.`, 'warning')
-        }
-      } else if (!rotateObject(object.id, g.yaw)) {
+      if (gestureOutcome({ kind: g.kind, status: g.status, cancelled }) === 'snap-back') {
         snapBack()
+        if (cancelled) return
+        const room = currentRoom()
+        const names = g.overlaps.map((id) => room?.objects.find((o) => o.id === id)?.name ?? 'another item')
+        noticeStore
+          .getState()
+          .show(g.status === 'outside' ? `${object.name} doesn't fit there.` : `${object.name} would overlap ${names.join(', ')}.`, 'warning')
+        return
       }
+      const committed = g.kind === 'move' ? moveObject(object.id, g.position) : rotateObject(object.id, g.yaw)
+      if (!committed) snapBack()
     }
+    const onUp = () => end(false)
+    // An interrupted gesture (OS gesture, lost pointer) never applies an edit.
+    const onCancel = () => end(true)
 
     function finish() {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onUp)
+      window.removeEventListener('pointercancel', onCancel)
       cleanupRef.current = () => {}
       setOrbit(true)
       document.body.style.cursor = ''
@@ -190,7 +192,7 @@ export const FurnitureObject = memo(function FurnitureObject({
 
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onUp)
+    window.addEventListener('pointercancel', onCancel)
     cleanupRef.current = finish
   }
 

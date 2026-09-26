@@ -10,12 +10,13 @@ import { noticeStore } from './noticeStore'
 
 export const ROTATE_STEP = Math.PI / 12 // 15°
 
-function report(result: ApplyResult): boolean {
+function report(result: ApplyResult, info: string[] = []): boolean {
   if (!result.ok) {
     noticeStore.getState().show(result.error, 'danger')
     return false
   }
-  if (result.warnings.length > 0) noticeStore.getState().show(result.warnings[0]!, 'warning')
+  const messages = [...info, ...result.warnings.slice(0, 1)]
+  if (messages.length > 0) noticeStore.getState().show(messages.join(' '), result.warnings.length > 0 ? 'warning' : 'info')
   return true
 }
 
@@ -32,8 +33,18 @@ export function moveObject(id: string, position: Vec2): boolean {
   return run([{ type: 'move', id, position }])
 }
 
+function objectById(id: string): RoomObject | null {
+  return designStore.getState().committed?.room.objects.find((object) => object.id === id) ?? null
+}
+
+/** Turn an object; if the room had to slide it to keep it inside, say so. */
 export function rotateObject(id: string, yaw: number): boolean {
-  return run([{ type: 'rotate', id, yaw }])
+  const before = objectById(id)
+  const result = designStore.getState().apply([{ type: 'rotate', id, yaw }], { actor: 'user' })
+  const after = result.ok ? objectById(id) : null
+  const nudged =
+    before && after && (before.pose.position.x !== after.pose.position.x || before.pose.position.z !== after.pose.position.z)
+  return report(result, nudged ? [`Nudged ${after.name} to stay inside the room.`] : [])
 }
 
 export function rotateSelected(direction: 1 | -1, step = ROTATE_STEP): boolean {
