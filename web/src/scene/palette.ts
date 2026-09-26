@@ -63,16 +63,14 @@ const clay: ScenePalette = {
 export const palettes = { warm, stone, clay } as const
 export type PaletteName = keyof typeof palettes
 
-function isPaletteName(value: string | null): value is PaletteName {
-  return value !== null && value in palettes
+/** A requested palette name if it is one of ours (own keys only), otherwise warm. */
+export function resolvePaletteName(value: string | null): PaletteName {
+  return value !== null && Object.hasOwn(palettes, value) ? (value as PaletteName) : 'warm'
 }
 
 /** The palette chosen for this page load (dev toggle via ?palette=…; defaults to warm). */
-export const paletteName: PaletteName = (() => {
-  if (typeof window === 'undefined') return 'warm'
-  const requested = new URLSearchParams(window.location.search).get('palette')
-  return isPaletteName(requested) ? requested : 'warm'
-})()
+export const paletteName: PaletteName =
+  typeof window === 'undefined' ? 'warm' : resolvePaletteName(new URLSearchParams(window.location.search).get('palette'))
 
 export const palette: ScenePalette = palettes[paletteName]
 export type Palette = ScenePalette
