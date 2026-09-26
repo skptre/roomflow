@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { lamp, sampleRoom } from '../test/rooms'
-import { createDesignStore, purchaseLines, viewRoom, type DesignStore } from './designStore'
+import { createDesignStore, purchaseLines, viewRoom, type ApplyOptions, type DesignStore } from './designStore'
 import { subtotal } from './money'
 import type { Offer } from './schema'
 
@@ -49,6 +49,13 @@ describe('purchaseLines', () => {
     const sub = committedSubtotal()
     expect(sub.status).toBe('incomplete')
     expect(sub.unpricedCount).toBe(1)
+  })
+
+  it('leaves a line unpriced when its offer belongs to a different variant', () => {
+    store.getState().apply([{ type: 'add', object: { ...lamp(), variantId: 'v-other' } }], { actor: 'user' })
+    const sub = committedSubtotal()
+    expect(sub.status).toBe('incomplete')
+    expect(sub.total).toBeNull()
   })
 })
 
@@ -104,6 +111,19 @@ describe('apply / undo / redo', () => {
     const result = store.getState().apply([{ type: 'remove', id: 'OBJ-DESK' }], { actor: 'auto', baseRevision: stale })
     expect(result).toMatchObject({ ok: false, stale: true })
     expect(committedRoom()).toBe(roomAfterUserEdit)
+  })
+
+  it('requires a base revision for automated edits and previews', () => {
+    // Simulates a caller that bypasses the types (e.g. untyped generated data).
+    const noRevision = { actor: 'auto' } as unknown as ApplyOptions
+    const add = [{ type: 'add' as const, object: lamp() }]
+    expect(store.getState().apply(add, noRevision).ok).toBe(false)
+    expect(store.getState().startPreview(add, noRevision).ok).toBe(false)
+    expect(committedRoom().objects.some((o) => o.id === 'lamp-1')).toBe(false)
+    expect(store.getState().preview).toBeNull()
+    // With the current revision the same automated edit is accepted.
+    const revision = store.getState().committed!.revision
+    expect(store.getState().apply(add, { actor: 'auto', baseRevision: revision }).ok).toBe(true)
   })
 
   it('a failed command changes nothing', () => {
@@ -171,6 +191,15 @@ describe('preview', () => {
     expect(store.getState().preview).toBeNull()
     const result = store.getState().commitPreview()
     expect(result.ok).toBe(false)
+  })
+
+  it('clears selection and hover of preview-only objects on cancel', () => {
+    store.getState().startPreview([{ type: 'add', object: lamp() }])
+    store.getState().select('lamp-1')
+    store.getState().hover('lamp-1')
+    store.getState().cancelPreview()
+    expect(store.getState().selectedId).toBeNull()
+    expect(store.getState().hoveredId).toBeNull()
   })
 
   it('does not start a preview from invalid commands', () => {

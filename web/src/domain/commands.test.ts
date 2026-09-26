@@ -93,6 +93,22 @@ describe('applyCommands', () => {
     expect(chair.offerId).toBe('o-lamp')
   })
 
+  it('keeps the placement lock when an item is replaced', () => {
+    const locked = run(sampleRoom(), [{ type: 'setLock', id: 'OBJ-CHAIR', lock: true }])
+    expect(locked.ok).toBe(true)
+    if (!locked.ok) return
+    const result = run(locked.room, [{ type: 'replace', id: 'OBJ-CHAIR', with: lamp() }])
+    expect(result.ok && find(result.room, 'OBJ-CHAIR')!.lockPlacement).toBe(true)
+  })
+
+  it('rejects non-boolean keep and lock values', () => {
+    const room = sampleRoom()
+    const badKeep = { type: 'setKeep', id: 'OBJ-BED', keep: 'yes' } as unknown as Command
+    const badLock = { type: 'setLock', id: 'OBJ-BED', lock: 1 } as unknown as Command
+    expect(run(room, [badKeep]).ok).toBe(false)
+    expect(run(room, [badLock]).ok).toBe(false)
+  })
+
   it('applies a batch atomically: one bad command rejects all', () => {
     const room = sampleRoom()
     const result = run(room, [
