@@ -8,12 +8,15 @@ struct RoomEditorView: View {
     /// The untouched scan bytes this room came from; nil for debug/sample rooms.
     private let rawCapture: RawCapture?
     private let colors: RoomColorEstimates?
+    private let photos: [RoomPhotoEvidence]
 
-    init(room: RoomModel, isSample: Bool = false, rawCapture: RawCapture? = nil, colors: RoomColorEstimates? = nil) {
+    init(room: RoomModel, isSample: Bool = false, rawCapture: RawCapture? = nil,
+         colors: RoomColorEstimates? = nil, photos: [RoomPhotoEvidence] = []) {
         _editor = State(initialValue: RoomEditorState(room: room))
         self.isSample = isSample
         self.rawCapture = rawCapture
         self.colors = colors
+        self.photos = photos
     }
 
     var body: some View {
@@ -41,7 +44,7 @@ struct RoomEditorView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
-                    ScanSummaryView(room: editor.room, isSample: isSample, rawCapture: rawCapture, colors: colors)
+                    ScanSummaryView(room: editor.room, isSample: isSample, rawCapture: rawCapture, colors: colors, photos: photos)
                 } label: {
                     Label("Room details and JSON", systemImage: "list.bullet.rectangle")
                 }

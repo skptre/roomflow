@@ -74,7 +74,8 @@ struct HomeView: View {
             .navigationDestination(isPresented: $showEditor) {
                 if let latestRoom {
                     RoomEditorView(room: latestRoom, isSample: latestRoomIsSample,
-                                   rawCapture: latestRawCapture, colors: latestColorEstimates)
+                                   rawCapture: latestRawCapture, colors: latestColorEstimates,
+                                   photos: latestPhotos)
                         .id(latestRoom.id)
                 }
             }
@@ -119,8 +120,12 @@ struct HomeView: View {
             }
             try await RoomArchiveStore.shared.saveCapture(id: raw.id, rawData: raw.data,
                                                           editableData: room.jsonData(), photos: latestPhotos)
-            // The saved room now has its own copies; drop the scan's temporary photos.
-            Set(latestPhotos.map(\.sessionID)).forEach { RoomEvidenceRecorder.removeTemporaryFiles(sessionID: $0) }
+            // Point at the saved room's copies, then drop the scan's temporary photos.
+            let temporarySessions = Set(latestPhotos.map(\.sessionID))
+            if !latestPhotos.isEmpty, let saved = try? await RoomArchiveStore.shared.load(id: raw.id).photos {
+                latestPhotos = saved
+                temporarySessions.forEach { RoomEvidenceRecorder.removeTemporaryFiles(sessionID: $0) }
+            }
             showEditor = true
         } catch {
             saveError = error.localizedDescription
