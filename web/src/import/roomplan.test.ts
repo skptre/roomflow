@@ -141,6 +141,20 @@ describe('parseRoomPlanJson — interpretation', () => {
     expect(warnings.join(' ')).toMatch(/unrecognized/i)
   })
 
+  it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])(
+    'treats the inherited key %s as an unknown category instead of crashing',
+    (name) => {
+      const text = mutate((raw) => {
+        raw.objects[0].category = name
+      })
+      const { room, warnings } = load(text)
+      const object = room.objects.find((o) => o.id === 'OBJ-BED')!
+      expect(object.category).toBe('unknown')
+      expect(object.asset).toEqual({ kind: 'placeholder' })
+      expect(warnings.join(' ')).toMatch(/unrecognized/i)
+    },
+  )
+
   it('accepts nested 4×4 (column) transforms the same as flat ones', () => {
     const text = mutate((raw) => {
       for (const list of [raw.walls, raw.doors, raw.windows, raw.objects]) {

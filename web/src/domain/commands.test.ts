@@ -109,6 +109,33 @@ describe('applyCommands', () => {
     expect(run(room, [badLock]).ok).toBe(false)
   })
 
+  it('does not let automated changes turn off keep or lock, even within one batch', () => {
+    const room = sampleRoom()
+    const unkeepThenRemove = run(room, [{ type: 'setKeep', id: 'OBJ-BED', keep: false }, { type: 'remove', id: 'OBJ-BED' }], 'auto')
+    expect(unkeepThenRemove.ok).toBe(false)
+    const locked = run(room, [{ type: 'setLock', id: 'OBJ-BED', lock: true }])
+    expect(locked.ok).toBe(true)
+    if (!locked.ok) return
+    const unlockThenMove = run(
+      locked.room,
+      [{ type: 'setLock', id: 'OBJ-BED', lock: false }, { type: 'move', id: 'OBJ-BED', position: { x: -0.6, z: 0.6 } }],
+      'auto',
+    )
+    expect(unlockThenMove.ok).toBe(false)
+  })
+
+  it('rejects unknown commands and malformed payloads readably, without throwing', () => {
+    const room = sampleRoom()
+    const bogus = { type: 'bogus' } as unknown as Command
+    const noPosition = { type: 'move', id: 'OBJ-CHAIR' } as unknown as Command
+    const stringPosition = { type: 'move', id: 'OBJ-CHAIR', position: { x: '1', z: 0 } } as unknown as Command
+    for (const command of [bogus, noPosition, stringPosition]) {
+      const result = run(room, [command])
+      expect(result.ok).toBe(false)
+      if (!result.ok) expect(result.error).toMatch(/\S/)
+    }
+  })
+
   it('applies a batch atomically: one bad command rejects all', () => {
     const room = sampleRoom()
     const result = run(room, [
