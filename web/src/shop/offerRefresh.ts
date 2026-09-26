@@ -71,12 +71,14 @@ export async function refreshOffer(
   const variantId = Number(request.variant)
 
   let found: Found | null | undefined
+  let notFound = 0
   // .js gives integer cents and availability; .json a decimal string only.
   for (const path of ['js', 'json'] as const) {
     let body: unknown
     try {
       body = await readJson(`${base}.${path}`, store.domain, options.fetch, timeoutMs)
-    } catch {
+    } catch (error) {
+      if ((error as Error).message === 'HTTP 404') notFound += 1
       continue
     }
     const variant = variantsOf(body, path).find((v) => v.id === variantId)
@@ -92,6 +94,8 @@ export async function refreshOffer(
     }
     break
   }
+  // The store answering "no such product" on both paths means it was delisted.
+  if (found === undefined && notFound === 2) found = null
   if (found === undefined) return { ok: false, status: 502, error: UNREACHABLE }
   if (found === null) return { ok: false, status: 404, error: 'This option is no longer listed by the store.' }
   return { ok: true, ...found, retrievedAt: (options.now?.() ?? new Date()).toISOString() }

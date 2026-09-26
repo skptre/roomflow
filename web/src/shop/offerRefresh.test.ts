@@ -55,6 +55,12 @@ describe('refreshOffer', () => {
     expect(result).toEqual({ ok: false, status: 404, error: 'This option is no longer listed by the store.' })
   })
 
+  it('reports a product the store no longer has (404) as delisted, not unreachable', async () => {
+    const { fetch } = fakeFetch({ [JS]: { status: 404 }, [JSON_URL]: { status: 404 } })
+    const result = await refreshOffer({ store: 'www.burrow.com', handle: 'nomad-king-sofa', variant: '111' }, { fetch, now: NOW })
+    expect(result).toEqual({ ok: false, status: 404, error: 'This option is no longer listed by the store.' })
+  })
+
   it('keeps a placeholder-price store unknown', async () => {
     const { fetch } = fakeFetch({ ['https://loloirugs.com/products/vlr-01.js']: { body: { variants: [{ id: 5, price: 9999900, available: true }] } } })
     const result = await refreshOffer({ store: 'loloirugs.com', handle: 'vlr-01', variant: '5' }, { fetch, now: NOW })
