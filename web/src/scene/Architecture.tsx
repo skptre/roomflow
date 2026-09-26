@@ -4,7 +4,7 @@ import { ExtrudeGeometry, Shape, Vector2, type Mesh } from 'three'
 import type { Opening, Room, Vec2, Wall } from '../domain/schema'
 import { outwardNormal } from './cutaway'
 import { proceduralTexture } from './materials'
-import { palette } from './palette'
+import { palette, paletteName } from './palette'
 import { wallLength, wallProfile, wallShapes, wallThickness } from './wallGeometry'
 
 /** Thickness of the floor slab under the room (reads as an architectural model base). */
@@ -21,16 +21,18 @@ type ArchitectureProps = {
 
 /** Floor slab, walls with openings, and door/window frames for a room. */
 export function Architecture({ room, cut, reducedMotion }: ArchitectureProps) {
+  // The dev palette toggle (?palette=…) previews its own wall/floor colors over the room's finishes.
+  const finishes = paletteName === 'warm' ? room.finishes : { ...room.finishes, wall: palette.wall, floor: palette.floor }
   return (
     <group>
-      <Floor polygon={room.floorPolygon} color={room.finishes.floor} />
+      <Floor polygon={room.floorPolygon} color={finishes.floor} />
       {room.walls.map((wall) => (
         <WallMesh
           key={wall.id}
           wall={wall}
           openings={room.openings}
           floorPolygon={room.floorPolygon}
-          color={room.finishes.wall}
+          color={finishes.wall}
           cut={cut.has(wall.id)}
           reducedMotion={reducedMotion}
         />
@@ -151,7 +153,9 @@ function WallMesh({ wall, openings, floorPolygon, color, cut, reducedMotion }: W
   return (
     <group position={[wall.start.x, 0, wall.start.z]} rotation-y={placement.yaw}>
       <mesh ref={meshRef} geometry={showStub ? stub : full} castShadow receiveShadow>
-        <meshStandardMaterial color={color} map={plaster} roughness={0.92} />
+        {/* ExtrudeGeometry groups: 0 = wall faces, 1 = cut edges (top, ends, reveals) — a darker section tone. */}
+        <meshStandardMaterial attach="material-0" color={color} map={plaster} roughness={0.92} />
+        <meshStandardMaterial attach="material-1" color={palette.wallSection} roughness={0.95} />
       </mesh>
       {standing
         ? own.map((opening) => <OpeningFrame key={opening.id} opening={opening} placement={placement} wall={wall} />)

@@ -1,13 +1,18 @@
-import { EffectComposer, N8AO, SMAA, ToneMapping } from '@react-three/postprocessing'
+import { EffectComposer, N8AO, Outline, SMAA, ToneMapping } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
+import { palette } from './palette'
 
-/** Contact shading (ambient occlusion), edge smoothing, and filmic tone mapping. */
+/**
+ * Contact shading (ambient occlusion), a selection outline (objects wrapped in
+ * <Select enabled> inside <Selection>), edge smoothing, and tone mapping.
+ */
 export function Effects() {
   return (
-    <EffectComposer multisampling={0}>
-      <N8AO aoRadius={0.45} distanceFalloff={0.6} intensity={2.2} halfRes quality="medium" />
+    <EffectComposer multisampling={0} autoClear={false}>
+      <N8AO aoRadius={0.5} distanceFalloff={0.5} intensity={3} halfRes quality="medium" />
+      <Outline visibleEdgeColor={palette.selection} hiddenEdgeColor={palette.selection} edgeStrength={4} blur />
       <SMAA />
-      <ToneMapping mode={ToneMappingMode.AGX} />
+      <ToneMapping mode={ToneMappingMode.NEUTRAL} />
     </EffectComposer>
   )
 }
