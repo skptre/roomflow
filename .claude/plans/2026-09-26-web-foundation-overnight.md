@@ -171,8 +171,8 @@ FoundItem = { id; name; category; photoRef?; dimensions; price: Money|null; stor
 
 **Produces:** `designStore` (vanilla zustand): `committed {revision, room, budget}`, `preview`, `selectedId`, `hoveredId`, `past/future` (≤100); `loadRoom`, `apply(cmds, {baseRevision?, actor:'user'|'auto'})`, `startPreview/cancelPreview/commitPreview`, `undo/redo`, `select`, `hover`; `viewRoom(state)`; `purchaseLines(room, offers)` — purchases **derived** from committed objects so cart and room can't drift.
 `commands.ts`: `add | move | rotate | remove | replace | setKeep | setLock | restyle` — each validated (bounds via `clampIntoRoom`/`insideRoom`, overlap warning; `actor:'auto'` may not move/rotate locked or remove kept items).
-- [ ] Tests: apply bumps revision + history; undo restores room **and** subtotal; redo; new apply clears future; preview visible in `viewRoom` but committed + subtotal unchanged; cancel → deep-equal (**RF3**); commitPreview = one undo step; auto actor can't move locked / remove kept; stale `baseRevision` → rejected, room untouched; selection survives commit if object exists.
-- [ ] Commit `feat(domain): design store, validated commands, preview isolation, undo, revisions`.
+- [x] Tests: apply bumps revision + history; undo restores room **and** subtotal; redo; new apply clears future; preview visible in `viewRoom` but committed + subtotal unchanged; cancel → deep-equal (**RF3**); commitPreview = one undo step; auto actor can't move locked / remove kept; stale `baseRevision` → rejected, room untouched; selection survives commit if object exists.
+- [x] Commit `feat(domain): design store, validated commands, preview isolation, undo, revisions`.
 
 ## Task 5: Architecture (dollhouse)
 
@@ -277,3 +277,4 @@ Empty/loading/error states everywhere, mobile-width check, keyboard-only pass, d
 - 2026-09-26 · T1 units + schemas · feat/web-pr1-foundation · 13 tests. Money schema lives in schema.ts (Offer/FoundItem need it); opening offset = wall start → opening center.
 - 2026-09-26 · T2 geometry + money · feat/web-pr1-foundation · 41 tests total. budgetStatus is 'unknown' whenever any price is unknown (review fix). insideRoom and clampIntoRoom handle concave rooms (nearest-fit grid fallback, review fix).
 - 2026-09-26 · T3 RoomPlan import · feat/web-pr2-import · 21 import tests; added Room.source.nativeToApp (capture→app mapping). No real scan in fixtures/scans/ yet — real-scan test still open. Open questions for iOS in docs/contracts/room-import.md.
+- 2026-09-26 · T4 design store + commands · feat/web-pr3-store · 27 new tests (91 total). Purchases derived from committed objects (captured/owned = owned). Revision bumps on undo/redo/setBudget too. User may move locked items at command level; UI refuses drag (T8).
