@@ -63,6 +63,9 @@ const MAPPED: [string, string, string][] = [
   ['Trays', 'Cove Tray', 'decor-object'],
   ['Stools', 'Forma Stool', 'ottoman'],
   ['Blankets', 'Cashmere Throw', 'throw'],
+  // Floyd files this chair under Sectionals: an explicit object word in the title wins over a sofa type.
+  ['Sectionals', 'Sink Down Lounge Chair', 'lounge-chair'],
+  ['Sofas & Loveseats', 'Nolita Leather Ottoman | Olivine Green', 'ottoman'],
 ]
 
 /** [product_type, title] — listings that are not visible room objects or not buyable as one. */
