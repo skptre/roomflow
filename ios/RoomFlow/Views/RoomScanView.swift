@@ -32,10 +32,16 @@ struct RoomScanView: View {
                     .background(.ultraThinMaterial, in: Capsule())
                     Spacer()
                 }
+                if scanner.state == .scanning, let hint = scanner.focusHint {
+                    ScanFocusHintView(hint: hint)
+                        .padding(.top, 8)
+                        .transition(.opacity)
+                }
                 Spacer()
                 bottomPanel
             }
             .padding(20)
+            .animation(.easeOut(duration: 0.2), value: scanner.focusHint?.objectId)
         }
         .task {
             scanner.capturePhotos = capturePhotos
@@ -51,7 +57,9 @@ struct RoomScanView: View {
             ProgressView()
         case .scanning:
             VStack(spacing: 12) {
-                statusText("Walk slowly around the room. Point at every wall, door, window, and piece of furniture.")
+                statusText(capturePhotos
+                    ? "Walk slowly around the room. When furniture is found, hold the phone steady on it for a moment."
+                    : "Walk slowly around the room. Point at every wall, door, window, and piece of furniture.")
                 Button("Done Scanning") { scanner.finish() }
                     .buttonStyle(RFButtonStyle())
             }

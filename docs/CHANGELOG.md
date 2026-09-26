@@ -5,6 +5,26 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### iOS: hint overlay on the scan screen
+- New `ios/RoomFlow/Models/ObjectNames.swift`: `ObjectNames.display(category:)` turns category strings
+  ("television", "washerDryer") into display names ("TV", "Washer"), splitting camelCase and handling special
+  short names. Used by views to show user-friendly furniture names without storage changes.
+- New `ios/RoomFlow/Views/ScanFocusHintView.swift`: small non-blocking capsule showing the name of the
+  furniture in view, photo count and progress ring, and guidance ("hold steady", "try another side", etc.).
+  Sits under the top controls; appears only when `RoomScanService.capturePhotos` is on, scanning, and
+  something is in focus. New `ScanFocusHintView.message(for:)` implements the copy table from the plan:
+  4 cases (0 photos + no new angle, 1+ photos + new angle, 1+ photos holding, complete).
+- `ios/RoomFlow/Views/RoomScanView.swift`: shows `ScanFocusHintView` below the Cancel button when
+  `scanner.state == .scanning` and `scanner.focusHint` is non-nil, with a `.opacity` transition and
+  animation keyed on the object ID. Updated `.scanning` status text to vary by `capturePhotos` flag.
+- New `ios/RoomFlowTests/ScanFocusHintTests.swift`: 2 test cases over message text (4 scenarios) and
+  display names (camelCase, special cases, unknown).
+- Why: task 4 of the furniture-aware photos plan. Surfaces the focus hint (created by task 1's tracker,
+  wired up by task 3) so the person knows which object the app is trying to photograph and how many
+  shots are done and needed.
+- Verified: device build (`generic/platform=iOS`, `CODE_SIGNING_ALLOWED=NO`) succeeds; full suite
+  (`RoomFlowTests` scheme, iPhone 18 Pro Simulator) — 56/56 tests pass (54 existing + 2 new).
+
 ### iOS: furniture-aware photos — live feed and scan loop wiring
 - `ios/RoomFlow/Services/LiveRoomObserver.swift`: promoted from a debug-only spike to the live-object feed
   used at runtime. New `latestObjects() -> [LiveObject]`: thread-safe copy of the newest live room's objects
