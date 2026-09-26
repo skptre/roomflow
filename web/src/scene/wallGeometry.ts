@@ -70,6 +70,27 @@ export function wallProfile(wall: Wall, openings: readonly Opening[], options: P
   return polygonClipping.difference(solid, ...cuts) as ProfilePolygon[]
 }
 
+export type SlabProfileOptions = ProfileOptions & {
+  /** Thickness of the floor slab: the wall continues this far below the floor (y = 0). */
+  slab: number
+}
+
+/**
+ * The profile as rendered: v is height above the floor, and the wall extends
+ * down to the bottom of the floor slab (v = -slab). Openings keep their height
+ * above the floor, so a floor-level door is open from the floor up while the
+ * wall still meets the slab edge beneath it.
+ */
+export function slabWallProfile(wall: Wall, openings: readonly Opening[], options: SlabProfileOptions): ProfilePolygon[] {
+  const { slab, maxHeight, ...rest } = options
+  const polygons = wallProfile(
+    { ...wall, height: wall.height + slab },
+    openings.map((opening) => ({ ...opening, bottom: opening.bottom + slab })),
+    { ...rest, maxHeight: maxHeight === undefined ? undefined : maxHeight + slab },
+  )
+  return polygons.map((polygon) => polygon.map((ring) => ring.map(([u, v]): Pair => [u, v - slab])))
+}
+
 function ringPoints(ring: readonly Pair[]): Pair[] {
   // polygon-clipping closes rings by repeating the first point; three.js shapes do not.
   const last = ring[ring.length - 1]
