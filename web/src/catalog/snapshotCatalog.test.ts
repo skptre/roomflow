@@ -47,6 +47,15 @@ describe('snapshotEntries', () => {
     expect(curtain.variant.asset).toEqual({ kind: 'placeholder' })
   })
 
+  it('tags each entry with the moods its own words suggest, so looks can tell listings apart', () => {
+    const entries = snapshotEntries(snapshot)
+    const walnut = entries.find((e) => e.variant.label.includes('Walnut'))!
+    const black = entries.find((e) => e.variant.label.includes('Black - Metal'))
+    expect(walnut.product.tags).toContain('natural')
+    if (black) expect(black.product.tags).toContain('minimal')
+    expect(new Set(walnut.product.tags).size).toBe(walnut.product.tags.length)
+  })
+
   it('keeps unknown prices unknown', () => {
     const rug = snapshotEntries(snapshot).find((e) => e.product.category === 'rug')!
     expect(rug.offer.price).toBeNull()
