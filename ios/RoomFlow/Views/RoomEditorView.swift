@@ -1,4 +1,3 @@
-import RoomPlan
 import SwiftUI
 
 /// Top-down floor plan of a room: walls, doors, windows, and furniture drawn to scale
@@ -6,14 +5,14 @@ import SwiftUI
 struct RoomEditorView: View {
     @State private var editor: RoomEditorState
     private let isSample: Bool
-    /// The untouched scan this room came from; nil for debug/sample rooms.
-    private let capture: CapturedRoom?
+    /// The untouched scan bytes this room came from; nil for debug/sample rooms.
+    private let rawCapture: RawCapture?
     private let colors: RoomColorEstimates?
 
-    init(room: RoomModel, isSample: Bool = false, capture: CapturedRoom? = nil, colors: RoomColorEstimates? = nil) {
+    init(room: RoomModel, isSample: Bool = false, rawCapture: RawCapture? = nil, colors: RoomColorEstimates? = nil) {
         _editor = State(initialValue: RoomEditorState(room: room))
         self.isSample = isSample
-        self.capture = capture
+        self.rawCapture = rawCapture
         self.colors = colors
     }
 
@@ -42,7 +41,7 @@ struct RoomEditorView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
-                    ScanSummaryView(room: editor.room, isSample: isSample, capture: capture, colors: colors)
+                    ScanSummaryView(room: editor.room, isSample: isSample, rawCapture: rawCapture, colors: colors)
                 } label: {
                     Label("Room details and JSON", systemImage: "list.bullet.rectangle")
                 }

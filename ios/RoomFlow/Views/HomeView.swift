@@ -5,14 +5,16 @@ struct HomeView: View {
     @State private var isScanning = false
     @State private var showUnsupported = false
     @State private var pendingScan: (room: CapturedRoom, colors: RoomColorEstimates)?
-    /// The untouched RoomPlan result, kept for saving/export later.
-    @State private var latestCapture: CapturedRoom?
-    /// Camera colors for `latestCapture`; exported separately, never inside the raw file.
+    /// The untouched RoomPlan result as frozen JSON bytes: what gets saved and shared.
+    @State private var latestRawCapture: RawCapture?
+    /// Camera colors for `latestRawCapture`; exported separately, never inside the raw file.
     @State private var latestColorEstimates: RoomColorEstimates?
     /// Our editable model built from `latestCapture` (or a debug room).
     @State private var latestRoom: RoomModel?
     @State private var latestRoomIsSample = false
     @State private var showEditor = false
+    @State private var saveError: String?
+    @State private var showSaveError = false
 
     var body: some View {
         NavigationStack {
@@ -41,12 +43,12 @@ struct HomeView: View {
                     }
                     .buttonStyle(RFButtonStyle())
 
-                    Button("Saved Room", systemImage: "square.stack.3d.up") {}
-                        .buttonStyle(RFButtonStyle(prominent: false))
-                        .disabled(true)
-                    Text("Saved rooms are coming soon.")
-                        .font(.footnote)
-                        .foregroundStyle(Color.rfSecondaryText)
+                    NavigationLink {
+                        SavedRoomsView()
+                    } label: {
+                        Label("Saved Rooms", systemImage: "square.stack.3d.up")
+                    }
+                    .buttonStyle(RFButtonStyle(prominent: false))
 
                     #if DEBUG
                     debugMenu
@@ -57,7 +59,7 @@ struct HomeView: View {
             .navigationDestination(isPresented: $showEditor) {
                 if let latestRoom {
                     RoomEditorView(room: latestRoom, isSample: latestRoomIsSample,
-                                   capture: latestCapture, colors: latestColorEstimates)
+                                   rawCapture: latestRawCapture, colors: latestColorEstimates)
                         .id(latestRoom.id)
                 }
             }
@@ -68,6 +70,12 @@ struct HomeView: View {
                 isScanning = false
             }
         }
+        .alert("Couldn't save this room", isPresented: $showSaveError) {
+            Button("Retry") { Task { await saveAndOpenLatest() } }
+            Button("Continue Without Saving", role: .cancel) { showEditor = true }
+        } message: {
+            Text("\(saveError ?? "") The scan is still open and can be shared, but it won't appear in Saved Rooms.")
+        }
         .alert("Scanning isn't available", isPresented: $showUnsupported) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -75,16 +83,30 @@ struct HomeView: View {
         }
     }
 
-    // Open the editor only after the scanner cover has fully dismissed,
-    // so the two transitions don't fight each other.
+    // Runs after the scanner cover has fully dismissed, so transitions don't fight each other.
+    // Freezes the scan bytes once, saves the room, then opens the editor.
     private func openPendingScan() {
         guard let pendingScan else { return }
-        latestCapture = pendingScan.room
+        self.pendingScan = nil
+        latestRawCapture = try? RoomPlanFileExport.encode(pendingScan.room)
         latestColorEstimates = pendingScan.colors
         latestRoom = RoomPlanConverter.convert(pendingScan.room, colors: pendingScan.colors)
         latestRoomIsSample = false
-        self.pendingScan = nil
-        showEditor = true
+        Task { await saveAndOpenLatest() }
+    }
+
+    /// Saves the latest scan before opening it. On failure the editor can still open from memory.
+    private func saveAndOpenLatest() async {
+        do {
+            guard let raw = latestRawCapture, let room = latestRoom else {
+                throw CocoaError(.fileWriteUnknown, userInfo: [NSLocalizedDescriptionKey: "The scan couldn't be encoded."])
+            }
+            try await RoomArchiveStore.shared.saveCapture(id: raw.id, rawData: raw.data, editableData: room.jsonData())
+            showEditor = true
+        } catch {
+            saveError = error.localizedDescription
+            showSaveError = true
+        }
     }
 
     #if DEBUG
@@ -108,7 +130,7 @@ struct HomeView: View {
 
     private func open(_ room: RoomModel, isSample: Bool) {
         // Debug rooms have no RoomPlan capture; clear it so an older scan is never exported with them.
-        latestCapture = nil
+        latestRawCapture = nil
         latestColorEstimates = nil
         latestRoom = room
         latestRoomIsSample = isSample
