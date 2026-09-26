@@ -24,6 +24,7 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
   shots are done and needed.
 - Verified: device build (`generic/platform=iOS`, `CODE_SIGNING_ALLOWED=NO`) succeeds; full suite
   (`RoomFlowTests` scheme, iPhone 18 Pro Simulator) — 56/56 tests pass (54 existing + 2 new).
+- Fix round 1: `RoomScanView.swift` animation now respects `accessibilityReduceMotion` setting (disables hint opacity transition for users who prefer reduced motion).
 
 ### iOS: furniture-aware photos — live feed and scan loop wiring
 - `ios/RoomFlow/Services/LiveRoomObserver.swift`: promoted from a debug-only spike to the live-object feed
