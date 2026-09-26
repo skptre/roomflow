@@ -85,7 +85,7 @@ struct RoomPhotosView: View {
     }
 }
 
-private struct PhotoRegion: Identifiable {
+struct PhotoRegion: Identifiable {
     let id = UUID()
     let label: String
     /// Normalized [x, y, w, h] in sensor orientation.
@@ -100,7 +100,7 @@ private struct PhotoRegion: Identifiable {
 
 /// Shows a sensor-orientation JPEG rotated upright for a phone held in portrait,
 /// optionally with object regions drawn on top.
-private struct SensorPhoto: View {
+struct SensorPhoto: View {
     let url: URL?
     var regions: [PhotoRegion] = []
 
