@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import { useStore } from 'zustand'
+import { catalogStore } from '../catalog/appCatalog'
 import { sizedImage } from '../catalog/display'
 import { pickVariant } from '../catalog/snapshotCatalog'
 import type { CatalogEntry, PlacementTarget } from '../domain/catalog'
@@ -16,7 +17,10 @@ export function ProductCard({ variants, target }: { variants: CatalogEntry[]; ta
   const [problem, setProblem] = useState<string | null>(null)
   const [photoFailed, setPhotoFailed] = useState<string | null>(null)
   const owner = useId()
-  const entry = variants[variantIndex] ?? variants[0]!
+  const listed = variants[variantIndex] ?? variants[0]!
+  // A refreshed price replaces the offer in the catalog map; show that, not the copy from the query.
+  const liveOffer = useStore(catalogStore, (state) => state.offers.get(listed.offer.id))
+  const entry = liveOffer && liveOffer !== listed.offer ? { ...listed, offer: liveOffer } : listed
   const optionNames = entry.product.optionNames ?? []
   const photo = entry.variant.imageUrl && photoFailed !== entry.variant.imageUrl ? entry.variant.imageUrl : null
   const soldOut = entry.offer.available === false
