@@ -5,6 +5,17 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### Web: match scanned furniture automatically from the package's photos
+- After a `.roomflow.zip` opens, `App.tsx` (`offerAutoMatch`) offers to match every scanned item that has a usable phone
+  photo and no appearance yet (≤12). `AutoMatchDialog.tsx` shows the exact crops, one consent for all, progress, and
+  applies every match as one undoable change. Nothing is sent before consent.
+- New `web/src/recognition/autoMatch.ts`: `planAutoMatch`, `paddedCrop`, `uprightQuarterTurns`, `runAutoMatch`,
+  `sendToRecognizer`, `abortableSleep`, `reconcileMatches`, constants `AUTO_MATCH_MAX_ITEMS`, `MIN_REGION_AREA`,
+  `RATE_LIMIT_WAIT_MS`; tests in `autoMatch.test.ts` (14).
+- New `web/src/recognition/cropPhoto.ts`: `cropPhotoRegion`, `prepareAutoMatch`. Styles `.auto-match-*` in `index.css`.
+- Also committed on this branch: a byte-identical snapshot of Codex's uncommitted Gemini work (`codex/gemini-appearance`).
+- Why: the manual dialog only took an uploaded file and ignored the photos the phone already took of each item.
+
 ### Web: RoomFlow package import, RoomPlan floor outlines, visible import warnings
 - New `web/src/import/zip.ts`: `readZip(bytes, limits)`, `crc32(data)`, `ZipError`, `DEFAULT_ZIP_LIMITS` — dependency-free
   reader (stored/deflate via `DecompressionStream`), rejecting unsafe/duplicate names, encryption, ZIP64, CRC or size mismatch.

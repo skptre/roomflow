@@ -69,3 +69,14 @@ no encryption), with CRC and size checks. Rejected: JSZip/fflate — a new depen
 ## User names become display names, never categories
 An annotation sets the object's `name`; `category`, dimensions and provenance stay as scanned, so ranking and
 furniture templates keep using RoomPlan's classification. Rejected: overwriting `category` from free text.
+
+## Auto-match asks once, then sends items one at a time and reconciles at the end
+One consent screen shows every crop that will be sent; requests go sequentially because the local server analyzes one
+photo at a time and allows 6 a minute (a 429 is a local refusal, so that item is sent once more after 61 s; a second
+refusal stops). All matches apply as one change so one undo reverts them; items removed or restyled while matching are
+left as the person set them. Rejected: silently matching on import (sends private photos without consent), one consent
+per item (defeats "automatic"), and raising the server rate limit (it is the local spending guard).
+
+## Scan photo crops are turned upright from the camera pose
+Phone photos are stored in sensor orientation, so the crop is rotated by quarter turns until world up points up,
+computed from `cameraToWorld`. Rejected: sending sideways crops (worse recognition) and reading EXIF (the phone strips it).

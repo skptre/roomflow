@@ -10,6 +10,10 @@ import { MAX_IMPORT_BYTES, parseRoomPlanJson, type ImportResult } from './import
 import { isZipArchive, MAX_PACKAGE_BYTES, parseRoomflowPackage, type PackageImportResult } from './import/roomflowPackage'
 import { RoomScene } from './scene/RoomScene'
 import type { ViewRequest } from './scene/CameraRig'
+import type { Room } from './domain/schema'
+import type { PreparedItem } from './recognition/autoMatch'
+import { prepareAutoMatch } from './recognition/cropPhoto'
+import { AutoMatchDialog } from './ui/AutoMatchDialog'
 import { CatalogPanel } from './ui/CatalogPanel'
 import { evidenceStore } from './ui/evidenceStore'
 import { cancelCatalogPreview } from './ui/catalogActions'
@@ -52,6 +56,7 @@ function Workspace() {
     designStore,
     (state) => state.committed?.room.objects.find((object) => object.id === state.selectedId) ?? null,
   )
+  const [autoMatch, setAutoMatch] = useState<{ items: PreparedItem[]; model: string } | null>(null)
   const [looksOpen, setLooksOpen] = useState(false)
   const [welcome, setWelcome] = useState(true)
   const [panel, setPanel] = useState<'room' | 'catalog'>('room')
@@ -86,6 +91,17 @@ function Workspace() {
     setPanel('room')
     setSwapId(null)
     announceImport(result)
+    offerAutoMatch(result.room)
+  }
+  /** After a package opens, offers to match every photographed item (nothing is sent without consent). */
+  function offerAutoMatch(opened: Room) {
+    setAutoMatch(null)
+    const evidence = evidenceStore.getState()
+    if (!evidence.evidence || evidence.evidence.photos.length === 0) return
+    void prepareAutoMatch(opened, evidence.regionsFor).then((offer) => {
+      // Only offer for the room that is still open.
+      if (offer && designStore.getState().committed?.room.id === opened.id && evidenceStore.getState().roomId === opened.id) setAutoMatch(offer)
+    })
   }
   /** Tells the user what came in with the room and anything the importer had to estimate or skip. */
   function announceImport(result: Extract<ImportResult | PackageImportResult, { ok: true }>) {
@@ -245,6 +261,7 @@ function Workspace() {
         </aside>
       </div>
       {help && <HelpDialog onClose={() => setHelp(false)} />}
+      {autoMatch && <AutoMatchDialog items={autoMatch.items} model={autoMatch.model} onClose={() => setAutoMatch(null)} />}
     </main>
   )
 }

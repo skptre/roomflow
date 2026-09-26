@@ -112,6 +112,10 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `web/src/test/zipWriter.ts` | Test-only ZIP builder (`makeZip`) with tampering options |
 | `web/src/domain/` | Pure logic: schema, units, geometry, layout, money, purchases, catalog, commands, design store, themes, labels, mounting |
 | `web/src/scene/` | React Three Fiber scene: architecture, furniture, camera, lighting, cutaway, gestures |
+| `web/src/recognition/` | Gemini photo matching (snapshot of Codex's work): `contract.ts` (`Appearance`, `RecognitionResponse`), `appearance.ts` (`appearanceCommand`), `appearanceAsset.ts`; server side in `web/server/recognition*.ts` |
+| `web/src/recognition/autoMatch.ts` | Auto-match from package photos: `planAutoMatch`, `paddedCrop`, `uprightQuarterTurns`, `runAutoMatch` (sequential, one wait after a 429), `sendToRecognizer`, `abortableSleep`, `reconcileMatches` |
+| `web/src/recognition/cropPhoto.ts` | Browser crops for auto-match: `cropPhotoRegion` (padded, upright, ≤1024 px JPEG), `prepareAutoMatch` (status check + plan + crops; sends nothing) |
+| `web/src/ui/AutoMatchDialog.tsx` | Post-import offer: exact crops, one consent, progress, applies all matches as one undo step |
 | `web/src/ui/` | Interface components |
 | `web/src/fixtures/` | Sample catalog, assemblies, synthetic RoomPlan fixture |
 | `web/scripts/` | Fixture and test-GLB generators |
