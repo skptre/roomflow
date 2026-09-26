@@ -15,6 +15,8 @@ import { poseFromColumnMajor, type Vec3 } from '../domain/units'
 
 export const MAX_IMPORT_BYTES = 20 * 1024 * 1024
 export const MAX_IMPORT_OBJECTS = 500
+/** Rooms have tens of walls; the cap also bounds the outline search (cubic in wall count). */
+export const MAX_IMPORT_WALLS = 200
 const MAX_SURFACES_PER_LIST = 1000
 
 /** Wall endpoints closer than this are treated as the same corner. */
@@ -23,6 +25,10 @@ const CORNER_TOLERANCE = 0.15
 const OPENING_WALL_DISTANCE = 0.2
 /** Max |sin| between opening and wall directions to count as parallel (~6°). */
 const PARALLEL_TOLERANCE = 0.1
+/** Min horizontal length of a transform's local X axis; below this the surface isn't upright. */
+const MIN_HORIZONTAL_AXIS = 0.5
+/** Smallest floor area (m²) accepted as a room. */
+const MIN_FLOOR_AREA = 0.5
 
 const DEFAULT_FINISHES = { wall: '#f4efe8', floor: '#c9a882' } as const
 
@@ -71,14 +77,21 @@ const Finite = z.number() // Zod 4 rejects NaN and ±Infinity.
 const Transform = z.union([z.array(Finite).length(16), z.array(z.array(Finite).length(4)).length(4)])
 const Category = z.union([z.string(), z.record(z.string(), z.unknown())])
 
-const RawSurface = z.object({
-  identifier: z.string().min(1),
-  dimensions: z.array(Finite).length(3),
-  transform: Transform,
-  category: Category.optional(),
-  parentIdentifier: z.string().nullish(),
-  confidence: z.unknown().optional(),
-})
+const RawSurface = z
+  .object({
+    identifier: z.string().min(1),
+    dimensions: z.array(Finite).length(3),
+    transform: Transform,
+    category: Category.optional(),
+    parentIdentifier: z.string().nullish(),
+    confidence: z.unknown().optional(),
+  })
+  .superRefine((surface, ctx) => {
+    const m = flatten(surface.transform)
+    if (Math.hypot(m[0]!, m[2]!) < MIN_HORIZONTAL_AXIS) {
+      ctx.addIssue({ code: 'custom', path: ['transform'], message: 'surface is not upright' })
+    }
+  })
 type RawSurface = z.infer<typeof RawSurface>
 
 const SurfaceList = z.array(RawSurface).max(MAX_SURFACES_PER_LIST)
@@ -111,7 +124,7 @@ function exceedsByteLimit(text: string): boolean {
   return new TextEncoder().encode(text).length > MAX_IMPORT_BYTES
 }
 
-function flatten(transform: RawSurface['transform']): number[] {
+function flatten(transform: z.infer<typeof Transform>): number[] {
   // Nested form lists the four columns, so concatenating keeps column-major order.
   return Array.isArray(transform[0]) ? (transform as number[][]).flat() : (transform as number[])
 }
@@ -135,7 +148,8 @@ type Segment = { id: string; start: Vec2; end: Vec2; bottom: number; height: num
 function segmentOf(surface: RawSurface): Segment {
   const m = flatten(surface.transform)
   const [width, height, depth] = surface.dimensions as [number, number, number]
-  const length = Math.hypot(m[0]!, m[2]!) || 1
+  // Upright transforms are enforced by RawSurface, so this length is well above zero.
+  const length = Math.hypot(m[0]!, m[2]!)
   const dir = { x: m[0]! / length, z: m[2]! / length }
   const center = { x: m[12]!, z: m[14]! }
   const half = width / 2
@@ -266,6 +280,9 @@ export function parseRoomPlanJson(text: string, options: ImportOptions = {}): Im
   if (!Array.isArray(record.walls)) {
     return fail("This file isn't a RoomPlan scan: it has no walls list.")
   }
+  if (record.walls.length > MAX_IMPORT_WALLS) {
+    return fail(`This scan has too many walls (${record.walls.length}; the limit is ${MAX_IMPORT_WALLS}).`)
+  }
   if (Array.isArray(record.objects) && record.objects.length > MAX_IMPORT_OBJECTS) {
     return fail(`This scan has too many objects (${record.objects.length}; the limit is ${MAX_IMPORT_OBJECTS}).`)
   }
@@ -296,6 +313,9 @@ export function parseRoomPlanJson(text: string, options: ImportOptions = {}): Im
   if (!outline) {
     warnings.push("The walls don't form a closed outline; the floor was estimated from their extents.")
     outline = boundsOutline(walls)
+  }
+  if (polygonArea(outline) < MIN_FLOOR_AREA) {
+    return fail("The walls in this scan don't enclose a floor area, so the room can't be built.")
   }
   const xs = outline.map((p) => p.x)
   const zs = outline.map((p) => p.z)

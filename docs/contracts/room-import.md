@@ -42,9 +42,10 @@ Ignored for now: `floors`, `sections`, `polygonCorners`, `completedEdges`, `curv
 Rejected with a readable message; the currently open room is left untouched:
 
 - file larger than 20 MB, not JSON, not an object, or without a `walls` array;
-- more than 500 objects or more than 1000 entries in any surface list;
+- more than 200 walls, more than 500 objects, or more than 1000 entries in any other surface list;
+- a surface whose local X axis is not (roughly) horizontal — walls, openings and objects must be upright;
 - any non-finite number (`NaN`, `Infinity`, strings such as `"NaN"`) in `dimensions` or `transform`, or a transform that is not 16 numbers / 4×4;
-- no usable walls.
+- no usable walls, or walls that enclose less than 0.5 m² of floor.
 
 Zero-size walls, openings, or objects are skipped with a warning.
 
