@@ -143,6 +143,16 @@ describe('checkPlacement', () => {
     expect(checkPlacement(sampleRoom(), 'OBJ-CHAIR', { x: 2.1, z: 0 }, 0).status).toBe('outside')
   })
 
+  it('never counts a flat floor covering such as a rug as overlapping', () => {
+    const room = sampleRoom()
+    const rug = { ...lamp('rug-1'), category: 'rug', dimensions: { width: 2, height: 0.01, depth: 1.4, source: 'merchant' as const } }
+    const withRug = applyCommands(room, [{ type: 'add', object: rug }], 'user')
+    expect(withRug.ok && withRug.warnings).toEqual([])
+    if (!withRug.ok) return
+    const bed = find(withRug.room, 'OBJ-BED')!
+    expect(checkPlacement(withRug.room, 'rug-1', { x: bed.pose.position.x, z: bed.pose.position.z }, 0).status).toBe('ok')
+  })
+
   it('uses the rotated footprint', () => {
     // The 1.2 × 0.6 desk fits flush to the east wall only when its long side runs along the wall.
     const room = sampleRoom()
