@@ -279,7 +279,7 @@ export const FurnitureObject = memo(function FurnitureObject({
             onPointerDown={(event) => beginGesture(event, 'move')}
             onClick={handleClick}
           >
-            <AssetView asset={object.asset} dimensions={object.dimensions} />
+            <AssetView asset={object.asset} dimensions={object.dimensions} category={object.category} />
           </group>
         </Select>
         {(hovered || selected) && !feedback ? <HoverTag object={object} sources={sources} /> : null}

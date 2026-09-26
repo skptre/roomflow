@@ -49,7 +49,7 @@ export function ProductCard({ variants, target }: { variants: CatalogEntry[]; ta
             onError={() => setPhotoFailed(photo)}
           />
         ) : (
-          <FurnitureThumbnail asset={entry.variant.asset} dimensions={entry.variant.dimensions} />
+          <FurnitureThumbnail asset={entry.variant.asset} dimensions={entry.variant.dimensions} category={entry.product.category} />
         )}
         {soldOut && <span className="sold-out-badge">Sold out</span>}
         <span className="product-style">{entry.product.tags.slice(0, 2).join(' · ')}</span>

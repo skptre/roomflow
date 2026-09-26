@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Offer, Product, Variant } from '../domain/schema'
-import { assemblies } from './assemblies'
+import { FAMILIES } from '../blocks/families'
+import { getRecipe } from '../blocks/registry'
 import { sampleCatalog } from './sample-catalog'
 
 describe('sample catalog', () => {
@@ -41,14 +42,14 @@ describe('sample catalog', () => {
     expect(new Set(sampleCatalog.map((e) => e.offer.id)).size).toBe(sampleCatalog.length)
   })
 
-  it('uses existing assemblies, and every recolor targets a color the assembly actually has', () => {
+  it('draws every variant with a known recipe, coloring only slots that recipe has', () => {
     for (const { variant } of sampleCatalog) {
-      expect(variant.asset.kind).toBe('parametric')
-      if (variant.asset.kind !== 'parametric') continue
-      const assembly = assemblies[variant.asset.assemblyId]
-      expect(assembly, variant.asset.assemblyId).toBeDefined()
-      const colors = new Set(assembly!.parts.map((part) => part.color.toLowerCase()))
-      for (const from of Object.keys(variant.asset.recolor ?? {})) expect(colors.has(from), `${variant.id} ${from}`).toBe(true)
+      expect(variant.asset.kind).toBe('recipe')
+      if (variant.asset.kind !== 'recipe') continue
+      const recipe = getRecipe(variant.asset.recipeId)
+      expect(recipe, variant.asset.recipeId).toBeDefined()
+      const slots = Object.keys(FAMILIES[recipe!.family]!.slots)
+      for (const slot of Object.keys(variant.asset.colors ?? {})) expect(slots, `${variant.id} ${slot}`).toContain(slot)
     }
   })
 

@@ -1,34 +1,31 @@
 import { Edges, Html, useGLTF } from '@react-three/drei'
 import { Component, Suspense, useMemo, type ReactNode } from 'react'
 import { Box3, Vector3 } from 'three'
+import { resolveRecipe } from '../blocks/registry'
 import type { AssetRef, Dimensions } from '../domain/schema'
-import { getAssembly } from '../fixtures/assemblies'
-import { AssemblyMesh } from './AssemblyMesh'
 import { palette } from './palette'
+import { RecipeMesh } from './RecipeMesh'
 
 type Size = Pick<Dimensions, 'width' | 'height' | 'depth'>
 
 type AssetViewProps = {
   asset: AssetRef
   dimensions: Size
-  recolor?: Readonly<Record<string, string>>
+  /** The object's category: its default recipe draws it when the asset's own recipe isn't known. */
+  category: string
 }
 
 /**
  * Draws an object's visual asset at its authoritative size, origin at the
- * bottom-center: a parametric assembly, a GLB model, or a placeholder box.
- * A missing assembly or a failed model falls back to a placeholder so the
- * object always stays visible and selectable.
+ * bottom-center: a block recipe, a GLB model, or a placeholder box. An
+ * unknown recipe falls back to the category's default, and anything we can't
+ * draw to a placeholder, so the object always stays visible and selectable.
  */
-export function AssetView({ asset, dimensions, recolor }: AssetViewProps) {
+export function AssetView({ asset, dimensions, category }: AssetViewProps) {
   switch (asset.kind) {
-    case 'parametric': {
-      const assembly = getAssembly(asset.assemblyId)
-      return assembly ? (
-        <AssemblyMesh assembly={assembly} dimensions={dimensions} recolor={recolor ?? asset.recolor} />
-      ) : (
-        <Placeholder dimensions={dimensions} />
-      )
+    case 'recipe': {
+      const recipe = resolveRecipe(asset.recipeId, category)
+      return recipe ? <RecipeMesh recipe={recipe} dimensions={dimensions} colors={asset.colors} /> : <Placeholder dimensions={dimensions} />
     }
     case 'glb':
       return (

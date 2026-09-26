@@ -7,16 +7,11 @@
  */
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import type { CatalogEntry, CatalogQuery, CatalogResult, CatalogSource } from '../domain/catalog'
+import { recipeAsset } from '../blocks/registry'
 import { categoryInfo } from '../domain/categories'
-import type { AssetRef, Offer } from '../domain/schema'
+import type { Offer } from '../domain/schema'
 import { Snapshot, variantId, variantLabel, variantUrl } from '../shop/snapshot'
 import { moodsOf } from './display'
-
-/** What renders a category until product-specific block recipes exist. */
-function categoryAsset(category: string): AssetRef {
-  const assemblyId = categoryInfo(category)?.assemblyId
-  return assemblyId ? { kind: 'parametric', assemblyId } : { kind: 'placeholder' }
-}
 
 export function snapshotEntries(snapshot: Snapshot): CatalogEntry[] {
   return snapshot.products.flatMap((p) =>
@@ -41,7 +36,7 @@ export function snapshotEntries(snapshot: Snapshot): CatalogEntry[] {
           productId: p.id,
           label: v.label,
           dimensions: v.dimensions,
-          asset: categoryAsset(p.category),
+          asset: recipeAsset(p.category),
           optionValues: v.optionValues,
           ...(v.imageUrl ? { imageUrl: v.imageUrl } : {}),
         },
