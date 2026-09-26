@@ -8,6 +8,7 @@ import Foundation
 /// rooms/<capture-id>/editable.roomflow.json  current RoomModel, replaced atomically on each save
 /// rooms/<capture-id>/record.json             name, date, evidence status
 /// rooms/<capture-id>/photos.json, photos/     optional reference photos and their calibration
+/// rooms/<capture-id>/appearance.json          optional approximate colors and photo regions
 /// staging/…                                  in-progress saves; never listed
 /// ```
 /// A new room is assembled in `staging/` and published with a single directory rename,
@@ -44,6 +45,7 @@ actor RoomArchiveStore {
     private static let recordName = "record.json"
     private static let photosName = "photos.json"
     private static let photosFolder = "photos"
+    private static let appearanceName = "appearance.json"
 
     private let root: URL
     private let writeData: DataWriter
@@ -67,6 +69,7 @@ actor RoomArchiveStore {
     /// a different scan under the same ID is refused so the original is never replaced.
     func saveCapture(id: UUID, rawData: Data, editableData: Data,
                      photos: [RoomPhotoEvidence] = [],
+                     appearance: RoomAppearanceEvidence? = nil,
                      name: String? = nil, capturedAt: Date = Date()) throws {
         let destination = roomDirectory(id)
         if fileManager.fileExists(atPath: destination.path) {
@@ -96,6 +99,9 @@ actor RoomArchiveStore {
                 try fileManager.copyItem(at: source, to: folder.appendingPathComponent(photo.fileName))
             }
             try writeData(Self.encoder.encode(photos), staging.appendingPathComponent(Self.photosName))
+        }
+        if let appearance {
+            try writeData(Self.encoder.encode(appearance), staging.appendingPathComponent(Self.appearanceName))
         }
         try writeData(Self.encoder.encode(record), staging.appendingPathComponent(Self.recordName))
 
@@ -130,7 +136,9 @@ actor RoomArchiveStore {
             record: record,
             rawData: try Data(contentsOf: directory.appendingPathComponent(Self.rawName)),
             editableData: try Data(contentsOf: directory.appendingPathComponent(Self.editableName)),
-            photos: photos
+            photos: photos,
+            appearance: (try? Data(contentsOf: directory.appendingPathComponent(Self.appearanceName)))
+                .flatMap { try? Self.decoder.decode(RoomAppearanceEvidence.self, from: $0) }
         )
     }
 

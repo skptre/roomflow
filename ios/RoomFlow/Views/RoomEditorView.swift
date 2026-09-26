@@ -9,14 +9,17 @@ struct RoomEditorView: View {
     private let rawCapture: RawCapture?
     private let colors: RoomColorEstimates?
     private let photos: [RoomPhotoEvidence]
+    private let appearance: RoomAppearanceEvidence?
 
     init(room: RoomModel, isSample: Bool = false, rawCapture: RawCapture? = nil,
-         colors: RoomColorEstimates? = nil, photos: [RoomPhotoEvidence] = []) {
+         colors: RoomColorEstimates? = nil, photos: [RoomPhotoEvidence] = [],
+         appearance: RoomAppearanceEvidence? = nil) {
         _editor = State(initialValue: RoomEditorState(room: room))
         self.isSample = isSample
         self.rawCapture = rawCapture
         self.colors = colors
         self.photos = photos
+        self.appearance = appearance
     }
 
     var body: some View {
@@ -44,7 +47,8 @@ struct RoomEditorView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
-                    ScanSummaryView(room: editor.room, isSample: isSample, rawCapture: rawCapture, colors: colors, photos: photos)
+                    ScanSummaryView(room: editor.room, isSample: isSample, rawCapture: rawCapture, colors: colors, photos: photos,
+                                    appearance: appearance)
                 } label: {
                     Label("Room details and JSON", systemImage: "list.bullet.rectangle")
                 }

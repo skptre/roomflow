@@ -76,8 +76,13 @@ struct RoomArchiveStoreTests {
             cameraToWorld: Array(repeating: 0, count: 16), intrinsics: Array(repeating: 0, count: 9),
             trackingContinuous: true, byteCount: 10, fileURL: tempPhoto)
 
+        let appearance = RoomAppearanceEvidence(
+            captureId: roomID, colors: [SourceColor(sourceId: UUID(), hex: "#E4DED3", sampleCount: 40)], floorColor: nil,
+            associations: [RoomPhotoAssociation(sourceId: UUID(), photoId: photo.id, rect: [0.1, 0.2, 0.3, 0.4])])
+
         let store = RoomArchiveStore(root: root)
-        try await store.saveCapture(id: roomID, rawData: rawBytes, editableData: editable(revision: 0), photos: [photo])
+        try await store.saveCapture(id: roomID, rawData: rawBytes, editableData: editable(revision: 0),
+                                    photos: [photo], appearance: appearance)
 
         let archive = try await RoomArchiveStore(root: root).load(id: roomID)
         #expect(archive.record.evidenceStatus == .photos)
@@ -85,6 +90,8 @@ struct RoomArchiveStoreTests {
         #expect(archive.photos[0].fileURL?.path.contains("/rooms/") == true)
         #expect(try Data(contentsOf: archive.photos[0].fileURL!) == Data("jpeg-bytes".utf8))
         #expect(archive.rawData == rawBytes)
+        #expect(archive.appearance == appearance)
+        #expect(archive.appearance?.colors.first?.provenance == "camera-estimate")
     }
 
     @Test func incompleteStagingDirectoryIsNotListed() async throws {

@@ -10,6 +10,7 @@ struct SavedRoomsView: View {
     @State private var openedRoom: RoomModel?
     @State private var openedRaw: RawCapture?
     @State private var openedPhotos: [RoomPhotoEvidence] = []
+    @State private var openedAppearance: RoomAppearanceEvidence?
     @State private var showEditor = false
     @State private var errorMessage: String?
     @State private var showError = false
@@ -47,7 +48,7 @@ struct SavedRoomsView: View {
         .refreshable { await reload() }
         .navigationDestination(isPresented: $showEditor) {
             if let openedRoom {
-                RoomEditorView(room: openedRoom, rawCapture: openedRaw, photos: openedPhotos)
+                RoomEditorView(room: openedRoom, rawCapture: openedRaw, photos: openedPhotos, appearance: openedAppearance)
                     .id(openedRoom.id)
             }
         }
@@ -79,6 +80,7 @@ struct SavedRoomsView: View {
             openedRoom = try RoomModel.jsonDecoder.decode(RoomModel.self, from: archive.editableData)
             openedRaw = RawCapture(id: archive.record.id, data: archive.rawData)
             openedPhotos = archive.photos
+            openedAppearance = archive.appearance
             showEditor = true
         } catch {
             errorMessage = error.localizedDescription
