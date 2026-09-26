@@ -103,7 +103,13 @@ function applyOne(room: Room, command: Command, actor: Actor, warnings: string[]
       const index = objectIndex(room, command.id)
       const object = room.objects[index]!
       if (actor === 'auto' && object.keep) throw new CommandError(`${object.name} is marked to keep.`)
-      const parsed = RoomObject.safeParse({ ...command.with, id: object.id, pose: object.pose })
+      // Placement state (id, pose, lock) belongs to the spot in the room, not the product.
+      const parsed = RoomObject.safeParse({
+        ...command.with,
+        id: object.id,
+        pose: object.pose,
+        lockPlacement: object.lockPlacement,
+      })
       if (!parsed.success) throw new CommandError(`That item has invalid data (${parsed.error.issues[0]!.message}).`)
       const candidate = parsed.data
       // A different footprint may need a nudge to stay inside; a locked item must not move.
@@ -120,11 +126,13 @@ function applyOne(room: Room, command: Command, actor: Actor, warnings: string[]
     }
 
     case 'setKeep': {
+      if (typeof command.keep !== 'boolean') throw new CommandError('Invalid keep value.')
       const index = objectIndex(room, command.id)
       return withObject(room, index, { ...room.objects[index]!, keep: command.keep })
     }
 
     case 'setLock': {
+      if (typeof command.lock !== 'boolean') throw new CommandError('Invalid lock value.')
       const index = objectIndex(room, command.id)
       return withObject(room, index, { ...room.objects[index]!, lockPlacement: command.lock })
     }
