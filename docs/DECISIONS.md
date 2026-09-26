@@ -52,6 +52,14 @@ Rejected: a project generator (XcodeGen), an extra tool for everyone.
 The web app already edits furniture (keep/lock/undo). iOS focuses on accurate capture and evidence.
 `RoomEditorState` keeps selection only; `RoomArchiveStore.saveEdits` exists for when editing is added.
 
+## Steadiness stands in for photo sharpness
+`ObjectFocusTracker` infers "phone is steady enough for a sharp shot" from linear/angular speed between
+successive ARKit poses (free every tick from `PhotoFrameSnapshot`). Rejected: measuring blur on the image
+itself (e.g. Laplacian variance), which needs a full image read every ~250 ms and is much more expensive on
+device. Also chose a 0.6 s dwell before signalling a shot, rejected shooting immediately on first detection:
+the live-object spike showed detection often happens while the camera is already resting on the item, but its
+box is still refining, so an immediate shot would frequently frame a stale, inaccurate box.
+
 ## Live object spike forwards to the session's existing delegate
 `RoomCaptureSession.delegate` is a single weak slot that `RoomCaptureView` may use for its own preview.
 `LiveRoomObserver` stores the previous delegate and forwards every callback unchanged. Rejected: plainly

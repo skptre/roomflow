@@ -75,6 +75,7 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `RoomPackageExport.swift` | Builds `<capture-id>.roomflow.zip` from allowlisted files | `RoomPackageArchiver`, `CoordinatorZipArchiver`, `RoomPackageExport` (`export(archive:selection:destination:archiver:)`, `Result`, `maxPhotos`, `maxPhotoBytes`) |
 | `FloorPlanGeometry.swift` | Pure plan math: fit-to-view, footprints, hit test, wall outline | `FloorPlanTransform` (`toView`, `toRoom`), `FloorPlanGeometry` (`axes`, `footprint(of:)`, `contains`, `object(at:in:margin:)`, `outline(of:)`) |
 | `RoomEditorState.swift` | Editable room copy + selection (no move/rotate/delete yet) | `RoomEditorState` (`room`, `originalRoom`, `selectedObjectID`, `select(at:margin:)`) |
+| `ObjectFocusTracker.swift` | Pure: decides when a detected object is well framed and unoccluded, the phone steady, and a new-angle photo due | `LiveObject`, `FocusShotPolicy`, `FocusHint`, `FocusDecision`, `ObjectFocusTracker` (`update(objects:camera:depthAt:)`, `recordShot(objectId:cameraToWorld:objectCenter:)`, `shots(for:)`, `reset()`) |
 
 ### Views (`ios/RoomFlow/Views/`)
 
