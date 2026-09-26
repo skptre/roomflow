@@ -3,7 +3,7 @@
  * and size always give the same answer.
  */
 import { collisions } from './commands'
-import { blocksFloor, footprint, footprintBounds, footprintsOverlap, insideRoom, pointInPolygon } from './geometry'
+import { blocksFloor, clampIntoRoom, footprint, footprintBounds, footprintsOverlap, insideRoom, pointInPolygon } from './geometry'
 import type { Dimensions, Room, RoomObject, Vec2 } from './schema'
 import type { Pose } from './units'
 
@@ -62,6 +62,8 @@ export function freeSpot(
       const placed = { pose: { position: { x: candidate.x, y: 0, z: candidate.z }, yaw }, dimensions: size }
       if (!insideRoom(placed, room.floorPolygon)) continue
       if (others.some((other) => footprintsOverlap(placed, other))) continue
+      const standing = { pose: placed.pose, dimensions: { width: size.width, depth: size.depth, height: size.height ?? Infinity } }
+      if (!covering && blocksDoorway(room, standing)) continue
       return placed.pose
     }
   }
@@ -79,9 +81,64 @@ function placedAt(candidate: RoomObject, position: Vec2, yaw: number, y: number)
   return { ...candidate, pose: { position: { x: position.x, y, z: position.z }, yaw } }
 }
 
-/** Inside the room and not colliding with anything (height-aware). */
+/** Inside the room, not colliding with anything (height-aware), and not blocking a doorway. */
 export function fitsAt(room: Room, candidate: RoomObject): boolean {
-  return insideRoom(candidate, room.floorPolygon) && collisions(room, candidate).length === 0
+  return insideRoom(candidate, room.floorPolygon) && collisions(room, candidate).length === 0 && !blocksDoorway(room, candidate)
+}
+
+/** Depth of floor kept clear in front of every door. */
+const DOOR_CLEARANCE = 0.8
+/** Things hung higher than this don't get in the way of walking through a door. */
+const HEADROOM = 1.0
+
+/** Unit normal of a wall pointing into the room (toward the floor). */
+function inwardNormal(room: Room, wall: Room['walls'][number]): Vec2 {
+  const dx = wall.end.x - wall.start.x
+  const dz = wall.end.z - wall.start.z
+  const length = Math.hypot(dx, dz) || 1
+  const left = { x: -dz / length, z: dx / length }
+  const mid = { x: wall.start.x + dx / 2, z: wall.start.z + dz / 2 }
+  return pointInPolygon({ x: mid.x + left.x * 0.05, z: mid.z + left.z * 0.05 }, room.floorPolygon) ? left : { x: -left.x, z: -left.z }
+}
+
+/**
+ * Would this item stand in a door's entry zone (the door's width, 80 cm into
+ * the room)? Rugs and things hung above head height don't count.
+ */
+export function blocksDoorway(room: Room, candidate: { pose: Pose; dimensions: Pick<Dimensions, 'width' | 'height' | 'depth'> }): boolean {
+  if (!blocksFloor(candidate) || candidate.pose.position.y >= HEADROOM) return false
+  return room.openings.some((opening) => {
+    if (opening.kind !== 'door') return false
+    const wall = room.walls.find((w) => w.id === opening.wallId)
+    if (!wall) return false
+    const length = Math.hypot(wall.end.x - wall.start.x, wall.end.z - wall.start.z) || 1
+    const dir = { x: (wall.end.x - wall.start.x) / length, z: (wall.end.z - wall.start.z) / length }
+    const inward = inwardNormal(room, wall)
+    const center = {
+      x: wall.start.x + dir.x * opening.offsetAlongWall + inward.x * (DOOR_CLEARANCE / 2),
+      z: wall.start.z + dir.z * opening.offsetAlongWall + inward.z * (DOOR_CLEARANCE / 2),
+    }
+    const zone = {
+      // Local +X along the wall: yaw turns +X to (cos, -sin).
+      pose: { position: { x: center.x, y: 0, z: center.z }, yaw: Math.atan2(-dir.z, dir.x) },
+      dimensions: { width: opening.width, depth: DOOR_CLEARANCE },
+    }
+    return footprintsOverlap(candidate, zone)
+  })
+}
+
+/** The exterior wall an item's back rests against (e.g. hung art), or null. */
+export function hostWall(room: Room, object: RoomObject): string | null {
+  const back = toWorld(object.pose.position, object.pose.yaw, { x: 0, z: -object.dimensions.depth / 2 })
+  for (const wall of room.walls) {
+    if (!wall.exterior) continue
+    const dx = wall.end.x - wall.start.x
+    const dz = wall.end.z - wall.start.z
+    const lengthSq = dx * dx + dz * dz || 1
+    const t = Math.max(0, Math.min(1, ((back.x - wall.start.x) * dx + (back.z - wall.start.z) * dz) / lengthSq))
+    if (Math.hypot(back.x - (wall.start.x + t * dx), back.z - (wall.start.z + t * dz)) < 0.03) return wall.id
+  }
+  return null
 }
 
 /** Where along a wall to try hanging something, middle first. */
@@ -104,10 +161,7 @@ export function wallSpot(room: Room, candidate: RoomObject, mountHeight: number)
     const length = Math.hypot(dx, dz)
     if (length < width + 2 * WALL_MARGIN) continue
     const dir = { x: dx / length, z: dz / length }
-    // Inward normal: the side of the wall the floor is on.
-    const left = { x: -dir.z, z: dir.x }
-    const mid = { x: wall.start.x + dx / 2, z: wall.start.z + dz / 2 }
-    const inward = pointInPolygon({ x: mid.x + left.x * 0.05, z: mid.z + left.z * 0.05 }, room.floorPolygon) ? left : { x: -left.x, z: -left.z }
+    const inward = inwardNormal(room, wall)
     const y = Math.min(mountHeight, wall.height - height - WALL_MARGIN)
     if (y < 0) continue
     for (const stop of WALL_STOPS) {
@@ -152,4 +206,88 @@ export function surfaceSpot(room: Room, candidate: RoomObject): RoomObject | nul
     }
   }
   return null
+}
+
+/** The piece a room is arranged around: bed, then sofa, then desk/table. */
+export function anchorObject(room: Room): RoomObject | null {
+  for (const category of ['bed', 'sofa', 'desk', 'table']) {
+    const found = room.objects.find((object) => object.category === category)
+    if (found) return found
+  }
+  return null
+}
+
+/** A rug under the anchor, shifted toward its front so it shows; otherwise the middle of the room. */
+export function rugSpot(room: Room, candidate: RoomObject, anchor: RoomObject | null): RoomObject | null {
+  if (anchor) {
+    const center = toWorld(anchor.pose.position, anchor.pose.yaw, { x: 0, z: anchor.dimensions.depth * 0.25 })
+    const placed = placedAt(candidate, center, anchor.pose.yaw, 0)
+    const pose = clampIntoRoom(placed, room.floorPolygon)
+    if (pose) return { ...placed, pose }
+  }
+  const pose = freeSpot(room, candidate.dimensions)
+  return pose ? { ...candidate, pose } : null
+}
+
+/** Beside the anchor's head end (a lamp by the bed or desk), right side first; else the nearest free spot. */
+export function besideSpot(room: Room, candidate: RoomObject, anchor: RoomObject | null): RoomObject | null {
+  if (anchor) {
+    const { width: aw, depth: ad } = anchor.dimensions
+    const { width: w, depth: d } = candidate.dimensions
+    for (const side of [1, -1]) {
+      const local = { x: side * (aw / 2 + w / 2 + 0.08), z: -ad / 2 + d / 2 + 0.05 }
+      const placed = placedAt(candidate, toWorld(anchor.pose.position, anchor.pose.yaw, local), anchor.pose.yaw, 0)
+      if (fitsAt(room, placed)) return placed
+    }
+  }
+  const pose = freeSpot(room, candidate.dimensions, { near: anchor ? anchor.pose.position : undefined })
+  return pose ? { ...candidate, pose } : null
+}
+
+/** In the first free room corner (a plant), else anywhere free. */
+export function cornerSpot(room: Room, candidate: RoomObject): RoomObject | null {
+  const bounds = footprintBounds(room.floorPolygon)
+  const inset = Math.max(candidate.dimensions.width, candidate.dimensions.depth) / 2 + 0.05
+  const corners = [
+    { x: bounds.minX + inset, z: bounds.minZ + inset },
+    { x: bounds.maxX - inset, z: bounds.minZ + inset },
+    { x: bounds.maxX - inset, z: bounds.maxZ - inset },
+    { x: bounds.minX + inset, z: bounds.maxZ - inset },
+  ]
+  for (const corner of corners) {
+    const pose = freeSpot(room, candidate.dimensions, { near: corner })
+    if (pose && Math.hypot(pose.position.x - corner.x, pose.position.z - corner.z) < 0.6) return { ...candidate, pose }
+  }
+  const pose = freeSpot(room, candidate.dimensions)
+  return pose ? { ...candidate, pose } : null
+}
+
+/** Distance from a point to the nearest edge of the floor outline. */
+function distanceToOutline(point: Vec2, polygon: readonly Vec2[]): number {
+  let best = Infinity
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i]!
+    const b = polygon[(i + 1) % polygon.length]!
+    const dx = b.x - a.x
+    const dz = b.z - a.z
+    const lengthSq = dx * dx + dz * dz || 1
+    const t = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.z - a.z) * dz) / lengthSq))
+    best = Math.min(best, Math.hypot(point.x - (a.x + t * dx), point.z - (a.z + t * dz)))
+  }
+  return best
+}
+
+/**
+ * On the wall behind the anchor, above it (art over the bed or desk) — only when
+ * the anchor's back is against a wall, so art never floats mid-room.
+ */
+export function aboveSpot(room: Room, candidate: RoomObject, anchor: RoomObject | null, wallHeight: number): RoomObject | null {
+  if (!anchor) return null
+  const back = toWorld(anchor.pose.position, anchor.pose.yaw, { x: 0, z: -anchor.dimensions.depth / 2 })
+  if (distanceToOutline(back, room.floorPolygon) > 0.1) return null
+  const position = toWorld(anchor.pose.position, anchor.pose.yaw, { x: 0, z: -anchor.dimensions.depth / 2 + candidate.dimensions.depth / 2 + 0.002 })
+  const y = Math.min(Math.max(1.2, anchor.dimensions.height + 0.25), wallHeight - candidate.dimensions.height - 0.1)
+  if (y <= anchor.dimensions.height) return null
+  const placed = placedAt(candidate, position, anchor.pose.yaw, y)
+  return fitsAt(room, placed) ? placed : null
 }

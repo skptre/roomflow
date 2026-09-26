@@ -9,11 +9,11 @@ const tones: Record<NoticeTone, string> = {
   danger: 'bg-danger-soft text-danger ring-1 ring-danger/20',
 }
 
-/** Bottom-center status line for short confirmations and refusals. Announced politely. */
+/** Top-center status line (below the top bar) for short confirmations and refusals. Announced politely. */
 export function NoticeBar() {
   const notice = useStore(noticeStore, (state) => state.notice)
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center px-4" role="status" aria-live="polite">
+    <div className="pointer-events-none absolute inset-x-0 top-18 flex justify-center px-4" role="status" aria-live="polite">
       <AnimatePresence>
         {notice ? (
           <motion.p key={notice.id} {...floatIn} className={`rounded-pill px-4 py-2 text-sm font-medium shadow-float ${tones[notice.tone]}`}>

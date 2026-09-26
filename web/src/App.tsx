@@ -3,7 +3,7 @@ import { lazy, Suspense, useMemo, useState } from 'react'
 import { useStore } from 'zustand'
 import { designStore, viewRoom } from './domain/designStore'
 import { budgetForChoice, type SummarySources } from './domain/purchases'
-import { sampleOffers, sampleVariantLabels } from './fixtures/sample-catalog'
+import { sampleCatalog, sampleOffers, sampleVariantLabels } from './fixtures/sample-catalog'
 import { SampleCatalogSource } from './fixtures/sample-catalog-source'
 import sampleScan from './fixtures/synthetic-bedroom.roomplan.json?raw'
 import { MAX_IMPORT_BYTES, parseRoomPlanJson } from './import/roomplan'
@@ -14,6 +14,7 @@ import { Inspector } from './ui/Inspector'
 import { NoticeBar } from './ui/NoticeBar'
 import { StartScreen } from './ui/StartScreen'
 import { SubtotalBar } from './ui/SubtotalBar'
+import { ThemePicker } from './ui/ThemePicker'
 import { TopBar } from './ui/TopBar'
 import { useEditorShortcuts } from './ui/useEditorShortcuts'
 
@@ -44,6 +45,7 @@ function Workspace() {
   const selected = useStore(designStore, (state) => state.committed?.room.objects.find((object) => object.id === state.selectedId) ?? null)
   const committed = useStore(designStore, (state) => state.committed)
   const [catalogOpen, setCatalogOpen] = useState(false)
+  const [looksOpen, setLooksOpen] = useState(false)
   // What the next choice may cost: swapping the selected item gives its own price back first.
   const selectedId = selected?.id
   const budgetLeft = useMemo(
@@ -84,7 +86,13 @@ function Workspace() {
       {room ? (
         <>
           <RoomScene room={room} sources={SOURCES} />
-          <TopBar room={room} catalogOpen={catalogOpen} onToggleCatalog={() => setCatalogOpen(!catalogOpen)} />
+          <TopBar
+            room={room}
+            catalogOpen={catalogOpen}
+            onToggleCatalog={() => setCatalogOpen(!catalogOpen)}
+            looksOpen={looksOpen}
+            onToggleLooks={() => setLooksOpen(!looksOpen)}
+          />
           {/* Left column: catalog above, purchases pinned below; the catalog shrinks so they never overlap. */}
           <div className="pointer-events-none absolute top-18 bottom-4 left-4 flex w-80 flex-col gap-3">
             <div className="flex min-h-0 flex-1 flex-col">
@@ -99,6 +107,11 @@ function Workspace() {
           <div className="pointer-events-none absolute top-18 right-4 flex flex-col items-end gap-3">
             <AnimatePresence>
               {selected ? <Inspector key={selected.id} object={selected} sources={SOURCES} onBrowseAlternatives={() => setCatalogOpen(true)} /> : null}
+            </AnimatePresence>
+          </div>
+          <div className="pointer-events-none absolute right-4 bottom-4 left-[22rem] flex justify-center">
+            <AnimatePresence>
+              {looksOpen ? <ThemePicker catalog={sampleCatalog} sources={SOURCES} onClose={() => setLooksOpen(false)} /> : null}
             </AnimatePresence>
           </div>
           <NoticeBar />
