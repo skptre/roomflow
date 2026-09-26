@@ -32,7 +32,19 @@ nonisolated enum SampleRoom {
             .init(kind: .object, sourceId: UUID(), category: "table", transform: pose(3.6, 0.375, 1.6, yawDegrees: 90), dimensions: [1.2, 0.75, 0.6]),
             .init(kind: .object, sourceId: UUID(), category: "chair", transform: pose(3.0, 0.45, 1.6, yawDegrees: 270), dimensions: [0.5, 0.9, 0.5]),
         ]
-        return RoomNormalizer.makeRoom(from: elements)
+        // Illustrative colors (sampleCount 0 = not from a camera), so the colored plan can be checked in the Simulator.
+        func paint(_ hex: String) -> EstimatedColor { EstimatedColor(hex: hex, sampleCount: 0) }
+        let objectColors = ["bed": "#5F7185", "storage": "#E8E2D6", "table": "#6B4F3A", "chair": "#2F2F33"]
+        let painted = elements.map { element -> CaptureElement in
+            var element = element
+            switch element.kind {
+            case .wall: element.color = paint("#E4DED3")
+            case .object: element.color = objectColors[element.category].map(paint)
+            default: break
+            }
+            return element
+        }
+        return RoomNormalizer.makeRoom(from: painted, floorColor: paint("#9C7A56"))
     }
 }
 #endif

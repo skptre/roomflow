@@ -4,7 +4,7 @@ import RoomPlan
 /// The only place that reads RoomPlan's `CapturedRoom` into RoomFlow's own model.
 /// The rest of the app works with `RoomModel` and never depends on RoomPlan types.
 enum RoomPlanConverter {
-    static func convert(_ room: CapturedRoom, capturedAt: Date = Date()) -> RoomModel {
+    static func convert(_ room: CapturedRoom, colors: RoomColorEstimates = .none, capturedAt: Date = Date()) -> RoomModel {
         var elements: [CaptureElement] = []
 
         for wall in room.walls {
@@ -30,11 +30,15 @@ enum RoomPlanConverter {
                 category: String(describing: object.category),
                 transform: object.transform,
                 dimensions: object.dimensions,
-                confidence: confidenceName(object.confidence)
+                confidence: confidenceName(object.confidence),
+                color: colors.byElement[object.identifier]
             ))
         }
+        for index in elements.indices where elements[index].kind == .wall {
+            elements[index].color = colors.byElement[elements[index].sourceId]
+        }
 
-        return RoomNormalizer.makeRoom(from: elements, id: room.identifier, capturedAt: capturedAt)
+        return RoomNormalizer.makeRoom(from: elements, floorColor: colors.floor, id: room.identifier, capturedAt: capturedAt)
     }
 
     private static func surfaceElement(_ surface: CapturedRoom.Surface, kind: CaptureElement.Kind) -> CaptureElement {
