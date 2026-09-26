@@ -7,6 +7,9 @@
 import { z } from 'zod'
 import { Dimensions, Money } from '../domain/schema'
 
+/** Links and photos render in the page, so only https URLs cross this boundary. */
+const HttpsUrl = z.url({ protocol: /^https$/ })
+
 /** Compact: id, link and label are derived from the product (see helpers below). */
 export const SnapshotVariant = z.object({
   /** The store's variant id. */
@@ -15,7 +18,7 @@ export const SnapshotVariant = z.object({
   optionValues: z.array(z.string()),
   dimensions: Dimensions,
   /** Only when this variant has its own photo (otherwise the product's). */
-  imageUrl: z.url().optional(),
+  imageUrl: HttpsUrl.optional(),
   /** null = unknown (unparseable, placeholder, or not listed). Never zero-for-unknown. */
   price: Money.nullable(),
   available: z.boolean(),
@@ -32,8 +35,8 @@ export const SnapshotProduct = z.object({
   store: z.string().min(1),
   storeDomain: z.string().min(1),
   handle: z.string().min(1),
-  url: z.url(),
-  imageUrl: z.url().optional(),
+  url: HttpsUrl,
+  imageUrl: HttpsUrl.optional(),
   optionNames: z.array(z.string()),
   variants: z.array(SnapshotVariant).min(1),
 })
