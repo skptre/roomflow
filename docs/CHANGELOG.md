@@ -5,6 +5,19 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### iOS: furniture-aware photos — focus tracker
+- New `ios/RoomFlow/Services/ObjectFocusTracker.swift`: `LiveObject`, `FocusShotPolicy`, `FocusHint`,
+  `FocusDecision`, and pure `ObjectFocusTracker` (`update(objects:camera:depthAt:)`,
+  `recordShot(objectId:cameraToWorld:objectCenter:)`, `shots(for:)`, `reset()`). Decides, per sampling tick,
+  whether a live-detected object is in view (unclipped, big enough, close enough, unoccluded by LiDAR depth),
+  the phone is steady, and a not-yet-photographed angle is due, dwelling before signalling a shot and capping
+  at `maxShotsPerObject`.
+- Test: `ios/RoomFlowTests/ObjectFocusTrackerTests.swift`, 9 cases covering dwell timing, movement rejection,
+  edge-clipping, occlusion, angle diversity/cap, tracking loss, and most-centered-object selection.
+- Why: task 1 of the furniture-aware photos plan. One real scan (see `docs/ios-room-evidence-verification.md`)
+  produced usable photos of only 2 of 8 detected items because nothing told the person which objects still
+  needed a closer shot; this pure decider is the first building block for a live on-screen hint.
+
 ### Docs: live-object spike results
 - `docs/ios-room-evidence-verification.md`: on-device results of the `LiveRoomObserver` spike (delegate slot was
   empty, preview unchanged, live IDs survive into the final room, detection latency).
