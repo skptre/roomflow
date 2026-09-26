@@ -73,7 +73,8 @@ No other paths appear. Consumers should still reject anything else, `..`, absolu
   +X right, +Y up, looking down **−Z**.
 - Projecting a world point `P`: `p = inverse(cameraToWorld) · P`, `d = −p.z` (must be > 0),
   `u = fx·p.x/d + cx`, `v = cy − fy·p.y/d` (pixels, v downward).
-- No EXIF or location metadata is written.
+- No location, device make/model, or date metadata is written. (Apple's JPEG writer adds a minimal EXIF
+  block containing only the pixel dimensions; verified on a real export.)
 - `trackingContinuous: false` means AR tracking was interrupted after the photo was taken; its pose may not
   match the final room, and it has no associations.
 

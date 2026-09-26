@@ -57,7 +57,8 @@ nonisolated protocol PhotoEncoding: Sendable {
     func writeJPEG(_ image: CGImage, quality: Double, to url: URL) throws -> Int
 }
 
-/// ImageIO JPEG writer. Adds no metadata: no location, no EXIF; calibration lives in the manifest.
+/// ImageIO JPEG writer. Writes no location, device, or date metadata (ImageIO itself adds only
+/// the pixel dimensions to a minimal EXIF block); calibration lives in the manifest.
 nonisolated struct ImageIOPhotoEncoder: PhotoEncoding {
     func writeJPEG(_ image: CGImage, quality: Double, to url: URL) throws -> Int {
         guard let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.jpeg.identifier as CFString, 1, nil) else {
