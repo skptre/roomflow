@@ -23,15 +23,17 @@ import { useEditorShortcuts } from './ui/useEditorShortcuts'
 
 const sampleResult = parseRoomPlanJson(sampleScan)
 const sampleRoom = sampleResult.ok ? sampleResult.room : null
-const AssetLineup = lazy(() => import('./scene/dev/AssetLineup').then((m) => ({ default: m.AssetLineup })))
-const showLineup = new URLSearchParams(window.location.search).has('lineup')
+const BlockSheet = lazy(() => import('./scene/dev/BlockSheet').then((m) => ({ default: m.BlockSheet })))
+const blocksParam = new URLSearchParams(window.location.search).get('blocks')
+const blocksFilter = (new URLSearchParams(window.location.search).get('v') ?? '').split(',').filter(Boolean)
+const blocksImage = new URLSearchParams(window.location.search).get('img')
 
 export default function App() {
-  if (showLineup)
+  if (blocksParam !== null)
     return (
       <main className="relative h-full w-full overflow-hidden">
         <Suspense fallback={null}>
-          <AssetLineup />
+          <BlockSheet only={blocksParam || null} filter={blocksFilter} image={blocksImage} />
         </Suspense>
       </main>
     )

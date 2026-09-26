@@ -41,10 +41,10 @@ describe('snapshotEntries', () => {
       available: false,
       sourceStore: 'www.burrow.com',
     })
-    // Until block recipes land, a category's stand-in assembly renders it.
-    expect(sofa.variant.asset).toEqual({ kind: 'parametric', assemblyId: 'sofa' })
+    // Until product recipes land (M3), every listing is drawn with its category's default recipe.
+    expect(sofa.variant.asset).toEqual({ kind: 'recipe', recipeId: 'default:sofa' })
     const curtain = entries.find((e) => e.product.category === 'curtain')!
-    expect(curtain.variant.asset).toEqual({ kind: 'placeholder' })
+    expect(curtain.variant.asset).toEqual({ kind: 'recipe', recipeId: 'default:curtain' })
   })
 
   it('tags each entry with the moods its own words suggest, so looks can tell listings apart', () => {

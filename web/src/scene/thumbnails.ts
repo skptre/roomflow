@@ -1,4 +1,4 @@
-/** Small catalog stills rendered from the same authored geometry as the room. */
+/** Small catalog stills rendered from the same block models as the room. */
 import {
   AmbientLight,
   Box3,
@@ -13,22 +13,24 @@ import {
   WebGLRenderer,
   ACESFilmicToneMapping,
 } from 'three'
+import { acquireModel, slotLooks } from '../blocks/build'
+import { resolveRecipe } from '../blocks/registry'
 import type { AssetRef, Dimensions } from '../domain/schema'
-import { getAssembly } from '../fixtures/assemblies'
-import { bevelRadius, partGeometry } from './partGeometry'
 
 const cache = new Map<string, string>()
 let renderer: WebGLRenderer | null = null
 let release: ReturnType<typeof setTimeout> | undefined
 
-export function thumbnail(asset: AssetRef, dimensions: Pick<Dimensions, 'width' | 'height' | 'depth'>): string | null {
-  if (asset.kind !== 'parametric') return null
-  const assembly = getAssembly(asset.assemblyId)
-  if (!assembly) return null
-  const key = JSON.stringify([asset, dimensions])
+export function thumbnail(asset: AssetRef, dimensions: Pick<Dimensions, 'width' | 'height' | 'depth'>, category: string): string | null {
+  if (asset.kind !== 'recipe') return null
+  const recipe = resolveRecipe(asset.recipeId, category)
+  if (!recipe) return null
+  const size = { width: dimensions.width, height: dimensions.height, depth: dimensions.depth }
+  const key = JSON.stringify([asset, size, recipe.id])
   const cached = cache.get(key)
   if (cached) return cached
   const materials: MeshStandardMaterial[] = []
+  let held: ReturnType<typeof acquireModel> | null = null
   try {
     if (!renderer) {
       renderer = new WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true })
@@ -37,25 +39,17 @@ export function thumbnail(asset: AssetRef, dimensions: Pick<Dimensions, 'width' 
       renderer.toneMapping = ACESFilmicToneMapping
       renderer.toneMappingExposure = 1.25
     }
+    held = acquireModel(recipe, size)
     const scene = new Scene()
     const group = new Group()
-    const scale = [dimensions.width, dimensions.height, dimensions.depth]
-    for (const part of assembly.parts) {
-      const size = part.size.map((v, i) => v * scale[i]!) as [number, number, number]
-      const color = asset.recolor?.[part.color.toLowerCase()] ?? part.color
+    for (const look of slotLooks(recipe, held.model, asset.colors)) {
       const material = new MeshStandardMaterial({
-        color: new Color(color),
-        roughness: 0.8,
-        metalness: part.material === 'metal' ? 0.25 : 0,
+        color: new Color(look.color),
+        roughness: look.kind === 'metal' || look.kind === 'mirror' ? 0.45 : 0.8,
+        metalness: look.kind === 'metal' || look.kind === 'mirror' ? 0.25 : 0,
       })
       materials.push(material)
-      const mesh = new Mesh(
-        partGeometry(part.shape, size, part.shape === 'box' ? bevelRadius(part.material, size) : 0),
-        material,
-      )
-      mesh.position.set(...(part.position.map((v, i) => v * scale[i]!) as [number, number, number]))
-      mesh.rotation.set(...(part.rotation ?? [0, 0, 0]))
-      group.add(mesh)
+      group.add(new Mesh(look.geometry, material))
     }
     scene.add(group, new AmbientLight('#fff8ed', 2))
     const light = new DirectionalLight('#ffffff', 3)
@@ -76,6 +70,7 @@ export function thumbnail(asset: AssetRef, dimensions: Pick<Dimensions, 'width' 
     return null
   } finally {
     materials.forEach((material) => material.dispose())
+    held?.release()
     clearTimeout(release)
     release = setTimeout(() => {
       renderer?.dispose()

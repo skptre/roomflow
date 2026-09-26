@@ -69,10 +69,11 @@ export type Opening = z.infer<typeof Opening>
 
 export const AssetRef = z.discriminatedUnion('kind', [
   z.object({
-    kind: z.literal('parametric'),
-    assemblyId: Id,
-    /** Color swaps for a finish variant or a photographed item's tint: { '#authored': '#shown' } (lowercase). */
-    recolor: z.record(HexColor, HexColor).optional(),
+    kind: z.literal('recipe'),
+    /** A block recipe (src/blocks): a product's own, or `default:<category>`. */
+    recipeId: Id,
+    /** Color per material slot for this variant or photographed item ({ upholstery: '#4a4b4d' }). */
+    colors: z.record(z.string().min(1).max(64), HexColor).optional(),
   }),
   z.object({ kind: z.literal('glb'), url: z.string().min(1), attribution: z.string().optional() }),
   z.object({ kind: z.literal('placeholder') }),
