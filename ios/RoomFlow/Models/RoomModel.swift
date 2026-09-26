@@ -21,6 +21,8 @@ nonisolated struct RoomModel: Codable, Identifiable, Equatable {
     var openings: [WallOpening]
     var objects: [RoomObject]
     var capture: CaptureAlignment
+    /// Floor color sampled from the camera during the scan, if available.
+    var floorColor: EstimatedColor? = nil
 
     static let jsonEncoder: JSONEncoder = {
         let encoder = JSONEncoder()
@@ -68,6 +70,7 @@ nonisolated struct Wall: Codable, Identifiable, Equatable {
     var end: FloorPoint
     var height: Double
     var sourceId: UUID?
+    var estimatedColor: EstimatedColor? = nil
 }
 
 /// A door, window, or open doorway, drawn as a segment along its wall.
@@ -83,6 +86,15 @@ nonisolated struct WallOpening: Codable, Identifiable, Equatable {
     /// Doors only.
     var isOpen: Bool?
     var sourceId: UUID?
+}
+
+/// A color sampled from camera frames during the scan: approximate, affected by lighting.
+/// Kept separate from measured geometry; absent when there was nothing reliable to sample.
+nonisolated struct EstimatedColor: Codable, Equatable {
+    /// sRGB, "#RRGGBB".
+    var hex: String
+    /// How many camera samples the median was taken from.
+    var sampleCount: Int
 }
 
 /// How the room frame relates to RoomPlan's world frame:

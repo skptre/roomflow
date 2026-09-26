@@ -4,7 +4,7 @@ import UIKit
 
 /// Full-screen RoomPlan scanning experience with RoomFlow's controls layered on top.
 struct RoomScanView: View {
-    let onComplete: (CapturedRoom) -> Void
+    let onComplete: (CapturedRoom, RoomColorEstimates) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
@@ -60,7 +60,7 @@ struct RoomScanView: View {
         case .finished:
             Button("View Room") {
                 if let room = scanner.capturedRoom {
-                    onComplete(room)
+                    onComplete(room, scanner.colorEstimates)
                 }
             }
             .buttonStyle(RFButtonStyle())

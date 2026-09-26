@@ -1,3 +1,4 @@
+import ARKit
 import AVFoundation
 import Foundation
 import Observation
@@ -39,6 +40,11 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
 
     private(set) var state: State = .idle
     private(set) var capturedRoom: CapturedRoom?
+    /// Camera-sampled colors for `capturedRoom`; empty if sampling found nothing reliable.
+    private(set) var colorEstimates = RoomColorEstimates.none
+
+    @ObservationIgnored private let colorSampler = RoomColorSampler()
+    @ObservationIgnored private var colorSampling: Task<Void, Never>?
 
     // Built lazily so unsupported devices never create an AR view.
     // RoomCaptureView bundles the camera feed, coaching UI, and its own RoomCaptureSession.
@@ -73,19 +79,25 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
             return
         }
         capturedRoom = nil
+        colorEstimates = .none
+        colorSampler.reset()
         state = .scanning
         captureView.captureSession.run(configuration: RoomCaptureSession.Configuration())
+        startColorSampling()
     }
 
     /// Stops capturing. RoomPlan then runs its final processing pass and calls `didPresent`.
     func finish() {
         guard state == .scanning else { return }
+        stopColorSampling()
         state = .processing
         captureView.captureSession.stop()
     }
 
     /// Abandons the scan. Safe to call in any state.
     func cancel() {
+        stopColorSampling()
+        colorSampler.reset()
         if state == .scanning {
             captureView.captureSession.stop()
         }
@@ -113,9 +125,32 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
             state = .failed(.scanFailed(error.localizedDescription))
             return
         }
+        colorEstimates = colorSampler.estimate(for: processedResult)
+        colorSampler.reset()
         capturedRoom = processedResult
         state = .finished
         print("[RoomFlow] Scan finished: \(processedResult.walls.count) walls, \(processedResult.doors.count) doors, \(processedResult.windows.count) windows, \(processedResult.objects.count) objects")
+    }
+
+    // MARK: - Color sampling
+
+    // Grabs a downscaled camera frame a little faster than once a second while scanning.
+    private func startColorSampling() {
+        colorSampling?.cancel()
+        colorSampling = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                if let frame = self.captureView.captureSession.arSession.currentFrame {
+                    self.colorSampler.capture(frame)
+                }
+                try? await Task.sleep(for: .milliseconds(750))
+            }
+        }
+    }
+
+    private func stopColorSampling() {
+        colorSampling?.cancel()
+        colorSampling = nil
     }
 
     // MARK: - Permissions

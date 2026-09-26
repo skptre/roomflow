@@ -18,6 +18,7 @@ nonisolated struct CaptureElement {
     var dimensions: SIMD3<Float>
     var confidence: String = "high"
     var isOpen: Bool? = nil
+    var color: EstimatedColor? = nil
 }
 
 /// Converts scanned elements from RoomPlan's world frame into RoomFlow's room frame.
@@ -27,7 +28,7 @@ nonisolated struct CaptureElement {
 /// walls at an arbitrary angle. This rotates the room so its longest wall runs along X,
 /// puts the floor at y = 0, and shifts the walls' bounding box to start at (0, 0).
 nonisolated enum RoomNormalizer {
-    static func makeRoom(from elements: [CaptureElement], id: UUID = UUID(), capturedAt: Date = Date()) -> RoomModel {
+    static func makeRoom(from elements: [CaptureElement], floorColor: EstimatedColor? = nil, id: UUID = UUID(), capturedAt: Date = Date()) -> RoomModel {
         let walls = elements.filter { $0.kind == .wall }
         let objects = elements.filter { $0.kind == .object }
 
@@ -72,7 +73,8 @@ nonisolated enum RoomNormalizer {
                 start: floorPoint(ends[0]),
                 end: floorPoint(ends[1]),
                 height: meters(wall.dimensions.y),
-                sourceId: wall.sourceId
+                sourceId: wall.sourceId,
+                estimatedColor: wall.color
             )
         }
 
@@ -108,7 +110,8 @@ nonisolated enum RoomNormalizer {
                 movable: RoomObject.isMovable(category: object.category),
                 source: "roomplan",
                 confidence: object.confidence,
-                sourceId: object.sourceId
+                sourceId: object.sourceId,
+                estimatedColor: object.color
             )
         }
 
@@ -128,7 +131,8 @@ nonisolated enum RoomNormalizer {
                 capturedAt: capturedAt,
                 alignmentYawDegrees: normalizedDegrees(referenceYaw),
                 alignmentOffset: Vector3(x: meters(offset.x), y: meters(offset.y), z: meters(offset.z))
-            )
+            ),
+            floorColor: floorColor
         )
     }
 

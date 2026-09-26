@@ -23,6 +23,8 @@ nonisolated struct RoomObject: Codable, Identifiable, Equatable {
     var confidence: String
     /// RoomPlan's identifier, kept so edits can be traced back to the original scan.
     var sourceId: UUID?
+    /// Camera-sampled color of the object, if available.
+    var estimatedColor: EstimatedColor? = nil
 
     /// RoomPlan categories treated as fixed fixtures. Everything else is movable furniture.
     static let fixtureCategories: Set<String> = [
