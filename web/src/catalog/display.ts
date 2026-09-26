@@ -14,6 +14,11 @@ export function sizedImage(url: string, width: number): string {
   return parsed.href
 }
 
+/** Sold-out listings last (still browsable), order otherwise unchanged. */
+export function inStockFirst(entries: readonly CatalogEntry[]): CatalogEntry[] {
+  return [...entries.filter((e) => e.offer.available !== false), ...entries.filter((e) => e.offer.available === false)]
+}
+
 const MOOD_WORDS: Record<string, readonly string[]> = {
   natural: ['oak', 'walnut', 'teak', 'ash', 'maple', 'wood', 'natural', 'linen', 'jute', 'rattan', 'cane', 'wicker', 'woven', 'sisal', 'seagrass', 'terracotta', 'clay', 'stone', 'travertine', 'oat', 'sand'],
   cozy: ['boucle', 'velvet', 'mohair', 'wool', 'shearling', 'sherpa', 'knit', 'plush', 'chunky', 'faux fur', 'chenille', 'cashmere', 'fleece', 'quilted', 'tufted'],
