@@ -1,56 +1,84 @@
-import RoomPlan
 import SwiftUI
+import UIKit
 
-/// Milestone 1 results: what RoomPlan detected. Replaced by RoomEditorView in Milestone 3.
+/// What the scan produced, plus the exact JSON the backend will receive.
+/// Replaced by RoomEditorView in Milestone 3.
 struct ScanSummaryView: View {
-    private let summary: ScanSummary
+    let room: RoomModel
+    /// True for the debug sample room, which must never look like a real scan.
+    var isSample = false
 
-    init(room: CapturedRoom) {
-        summary = ScanSummary(room: room)
-    }
+    @State private var json = ""
+    @State private var didCopy = false
 
     var body: some View {
         List {
-            Section {
-                if let x = summary.footprintX, let z = summary.footprintZ {
-                    LabeledContent("Approx. footprint", value: "\(meters(x)) × \(meters(z))")
+            if isSample {
+                Section {
+                    Label("Sample room for testing — not a real scan.", systemImage: "flask")
+                        .foregroundStyle(.orange)
                 }
-                if let height = summary.wallHeight {
-                    LabeledContent("Wall height", value: meters(height))
-                }
-            } header: {
-                Text("Room")
-            } footer: {
-                Text("Footprint is measured along the direction you started scanning from, so angled rooms read slightly larger.")
+            }
+
+            Section("Room") {
+                LabeledContent("Width", value: meters(room.dimensions.width))
+                LabeledContent("Length", value: meters(room.dimensions.length))
+                LabeledContent("Height", value: meters(room.dimensions.height))
             }
 
             Section("Structure") {
-                LabeledContent("Walls", value: "\(summary.wallCount)")
-                LabeledContent("Doors", value: "\(summary.doorCount)")
-                LabeledContent("Windows", value: "\(summary.windowCount)")
-                LabeledContent("Openings", value: "\(summary.openingCount)")
+                LabeledContent("Walls", value: "\(room.walls.count)")
+                LabeledContent("Doors", value: "\(room.doors.count)")
+                LabeledContent("Windows", value: "\(room.windows.count)")
+                LabeledContent("Openings", value: "\(room.openings.count)")
             }
 
-            Section("Furniture & objects (\(summary.objects.count))") {
-                if summary.objects.isEmpty {
+            Section("Furniture & objects (\(room.objects.count))") {
+                if room.objects.isEmpty {
                     Text("No objects detected.")
                         .foregroundStyle(Color.rfSecondaryText)
                 }
-                ForEach(summary.objects) { object in
-                    LabeledContent(object.category.capitalized) {
-                        Text("\(meters(object.width)) W · \(meters(object.depth)) D · \(meters(object.height)) H")
+                ForEach(room.objects) { object in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(object.id).font(.body.monospaced())
+                            Spacer()
+                            if !object.movable {
+                                Text("Fixed").font(.caption).foregroundStyle(Color.rfSecondaryText)
+                            }
+                        }
+                        Text("\(meters(object.dimensions.width)) W · \(meters(object.dimensions.depth)) D · \(meters(object.dimensions.height)) H · \(Int(object.yawDegrees))°")
                             .font(.caption.monospacedDigit())
+                            .foregroundStyle(Color.rfSecondaryText)
                     }
                 }
+            }
+
+            Section {
+                Button(didCopy ? "Copied" : "Copy JSON", systemImage: didCopy ? "checkmark" : "doc.on.doc") {
+                    UIPasteboard.general.string = json
+                    didCopy = true
+                }
+                .disabled(json.isEmpty)
+                ShareLink("Share JSON", item: json)
+                    .disabled(json.isEmpty)
+            } header: {
+                Text("Room JSON")
+            } footer: {
+                Text("\(json.utf8.count.formatted()) bytes · format in docs/room-json.md")
             }
         }
         .scrollContentBackground(.hidden)
         .background(Color.rfBackground)
-        .navigationTitle("Scan Result")
+        .navigationTitle(isSample ? "Sample Room" : "Scan Result")
         .navigationBarTitleDisplayMode(.inline)
+        .task(id: room) {
+            didCopy = false
+            json = (try? room.jsonData()).map { String(decoding: $0, as: UTF8.self) } ?? ""
+        }
     }
 
-    private func meters(_ value: Float) -> String {
+    private func meters(_ value: Double) -> String {
         String(format: "%.2f m", value)
     }
 }

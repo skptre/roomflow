@@ -115,7 +115,7 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         }
         capturedRoom = processedResult
         state = .finished
-        print(ScanSummary(room: processedResult).logDescription)
+        print("[RoomFlow] Scan finished: \(processedResult.walls.count) walls, \(processedResult.doors.count) doors, \(processedResult.windows.count) windows, \(processedResult.objects.count) objects")
     }
 
     // MARK: - Permissions
