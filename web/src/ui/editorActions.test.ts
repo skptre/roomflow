@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { designStore } from '../domain/designStore'
 import { lamp, sampleRoom } from '../test/rooms'
-import { rotateObject } from './editorActions'
+import { rotateObject, rotateSelected } from './editorActions'
 import { noticeStore } from './noticeStore'
 
 beforeEach(() => {
@@ -54,5 +54,17 @@ describe('rotateObject for a ring gesture (rejectOverlap)', () => {
     designStore.getState().loadRoom({ ...room, objects: room.objects.filter((o) => o.id === 'A') })
     expect(rotateObject('A', 0, { rejectOverlap: true })).toBe(true)
     expect(noticeStore.getState().notice?.text).toMatch(/nudged/i)
+  })
+})
+
+describe('rotateSelected', () => {
+  it('refuses to turn a picture hung on the wall', () => {
+    const room = sampleRoom()
+    const art = { ...lamp('art', 0, -1.7), name: 'Print', category: 'wall-art', dimensions: { width: 0.6, height: 0.8, depth: 0.04, source: 'merchant' as const } }
+    art.pose = { ...art.pose, position: { ...art.pose.position, y: 1.2 } }
+    designStore.getState().loadRoom({ ...room, objects: [...room.objects, art] })
+    designStore.getState().select('art')
+    expect(rotateSelected(1)).toBe(false)
+    expect(noticeStore.getState().notice?.text).toMatch(/wall/i)
   })
 })

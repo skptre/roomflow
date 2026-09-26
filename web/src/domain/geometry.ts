@@ -16,6 +16,21 @@ export function blocksFloor(object: { dimensions: Pick<Dimensions, 'height'> }):
   return object.dimensions.height > FLOOR_COVERING_MAX_HEIGHT
 }
 
+/** True when two objects share height: [y, y + height] ranges overlap (touching does not count). */
+export function verticalOverlap(
+  a: { pose: Pose; dimensions: Pick<Dimensions, 'height'> },
+  b: { pose: Pose; dimensions: Pick<Dimensions, 'height'> },
+): boolean {
+  const a0 = a.pose.position.y
+  const b0 = b.pose.position.y
+  return a0 < b0 + b.dimensions.height - EPS && b0 < a0 + a.dimensions.height - EPS
+}
+
+/** Raised items (hung on a wall or standing on furniture) — dragging them across the floor would leave them floating. */
+export function isRaised(object: { pose: Pose }): boolean {
+  return object.pose.position.y > EPS
+}
+
 export type Bounds = { minX: number; maxX: number; minZ: number; maxZ: number }
 
 /** Tolerance in meters: touching within this distance is not overlap or escape. */

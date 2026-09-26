@@ -8,6 +8,7 @@ import { prepareAssets } from '../scene/assetPreload'
 import { Button } from './Button'
 import { Chip } from './Chip'
 import { FloatingPanel } from './FloatingPanel'
+import { endAnyPreview } from './catalogActions'
 import { CloseIcon } from './icons'
 import { ProductCard } from './ProductCard'
 
@@ -40,11 +41,19 @@ function byProduct(entries: readonly CatalogEntry[]): CatalogEntry[][] {
 export function CatalogPanel({ source, selected, budgetRemaining, onClose }: CatalogPanelProps) {
   const revision = useStore(designStore, (state) => state.committed?.revision ?? 0)
   const [tab, setTab] = useState(CATEGORY_IDS[0]!)
-  const [results, setResults] = useState<{ key: string; entries: CatalogEntry[] } | null>(null)
+  const [results, setResults] = useState<{ key: string; entries: CatalogEntry[]; failed?: boolean } | null>(null)
+  const [attempt, setAttempt] = useState(0)
 
   const categories = useMemo(() => (selected ? alternativeCategories(selected.category) : [tab]), [selected, tab])
   const target: PlacementTarget = selected ? { mode: 'swap', objectId: selected.id } : { mode: 'add' }
-  const queryKey = `${categories.join(',')}|${revision}|${budgetRemaining?.amountMinor ?? 'none'}`
+  const queryKey = `${categories.join(',')}|${revision}|${budgetRemaining?.amountMinor ?? 'none'}|${attempt}`
+
+  // A preview belongs to one target; when the selection (or add/swap mode) changes, drop it.
+  const targetKey = selected ? selected.id : 'add'
+  useEffect(() => {
+    endAnyPreview()
+  }, [targetKey])
+  useEffect(() => () => endAnyPreview(), [])
 
   // Callers pass stable `selected` / `budgetRemaining` values, so this re-queries only when the query changes.
   useEffect(() => {
@@ -59,6 +68,9 @@ export function CatalogPanel({ source, selected, budgetRemaining, onClose }: Cat
       const ranked = rankSoft(filterHard(accepted, { category: categories, budgetRemaining }, room), { tags: [] })
       prepareAssets(preloadPicks(ranked, 3))
       setResults({ key: queryKey, entries: ranked })
+    }, () => {
+      // A failed source leaves the room and saved catalog untouched; offer a retry.
+      if (!cancelled) setResults({ key: queryKey, entries: [], failed: true })
     })
     return () => {
       cancelled = true
@@ -66,6 +78,7 @@ export function CatalogPanel({ source, selected, budgetRemaining, onClose }: Cat
   }, [source, categories, budgetRemaining, revision, queryKey])
 
   const loading = results?.key !== queryKey
+  const failed = !loading && results?.failed === true
   const products = results ? byProduct(results.entries) : []
   const heading = selected ? `Alternatives for this ${selected.name.toLowerCase()}` : 'Browse'
 
@@ -103,7 +116,15 @@ export function CatalogPanel({ source, selected, budgetRemaining, onClose }: Cat
 
       <div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4" aria-busy={loading}>
         {loading ? <p className="py-6 text-center text-sm text-muted">Finding options…</p> : null}
-        {!loading && products.length === 0 ? (
+        {failed ? (
+          <div role="alert" className="py-6 text-center text-sm text-muted">
+            <p>Couldn't load products. Your room is unchanged.</p>
+            <Button size="sm" className="mt-2" onClick={() => setAttempt(attempt + 1)}>
+              Try again
+            </Button>
+          </div>
+        ) : null}
+        {!loading && !failed && products.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted">
             {selected ? 'No alternatives for this item in the sample catalog.' : 'Nothing in this category fits the room and budget.'}
           </p>

@@ -2,7 +2,7 @@ import { useId, useMemo, useState } from 'react'
 import { useStore } from 'zustand'
 import { designStore } from '../domain/designStore'
 import { formatMoney } from '../domain/money'
-import { purchaseSummary, type PurchaseSummary, type SummarySources } from '../domain/purchases'
+import { formatSubtotal, purchaseSummary, type PurchaseSummary, type SummarySources } from '../domain/purchases'
 import { Chip } from './Chip'
 import { FloatingPanel } from './FloatingPanel'
 import { noticeStore } from './noticeStore'
@@ -10,9 +10,7 @@ import { noticeStore } from './noticeStore'
 const CURRENCY = 'USD'
 
 function totalText(summary: PurchaseSummary): string {
-  const { subtotal } = summary
-  if (subtotal.status === 'mixed-currency') return subtotal.totals.map((money) => formatMoney(money)).join(' + ')
-  return formatMoney(subtotal.total ?? { amountMinor: 0, currency: CURRENCY })
+  return formatSubtotal(summary.subtotal, CURRENCY)
 }
 
 function BudgetLine({ summary, budget }: { summary: PurchaseSummary; budget: { amountMinor: number; currency: string } | null }) {
@@ -66,7 +64,7 @@ export function SubtotalBar({ sources }: { sources: SummarySources }) {
       </div>
       <div className="mt-1 flex items-baseline gap-2">
         <span className="text-2xl font-semibold tabular-nums text-ink">{totalText(summary)}</span>
-        {unpriced > 0 ? <span className="text-xs text-muted">+ {unpriced} unpriced</span> : null}
+        {unpriced > 0 && summary.subtotal.total ? <span className="text-xs text-muted">+ {unpriced} unpriced</span> : null}
       </div>
       {previewSummary ? (
         <p className="mt-0.5 text-xs text-accent" aria-live="polite">

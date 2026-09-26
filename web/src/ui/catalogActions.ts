@@ -12,6 +12,12 @@ export type PreviewOutcome = { ok: true } | { ok: false; reason: 'no-space' | 'n
 
 /** Which card currently owns the preview, so a late "leave" from another card can't cancel it. */
 let previewOwner: string | null = null
+/** What exactly the live preview shows (card, variant, target, quantity); a commit reuses it only on an exact match. */
+let previewKey: string | null = null
+
+function keyFor(owner: string, entry: CatalogEntry, target: PlacementTarget, quantity: number): string {
+  return JSON.stringify([owner, entry.variant.id, target, quantity])
+}
 
 type Built = { ok: true; commands: Command[] } | { ok: false; outcome: Extract<PreviewOutcome, { ok: false }> }
 
@@ -35,13 +41,20 @@ export function previewEntry(owner: string, entry: CatalogEntry, target: Placeme
     return { ok: false, reason: 'refused', message: result.error }
   }
   previewOwner = owner
+  previewKey = keyFor(owner, entry, target, quantity)
   return { ok: true }
 }
 
 export function endPreview(owner: string) {
   if (previewOwner !== owner) return
   previewOwner = null
+  previewKey = null
   designStore.getState().cancelPreview()
+}
+
+/** Drop whatever catalog preview is showing (e.g. the selection it was built for changed). */
+export function endAnyPreview() {
+  if (previewOwner) endPreview(previewOwner)
 }
 
 /** Commit the entry: reuse the live preview when it is this card's, otherwise apply fresh commands. */
@@ -49,10 +62,12 @@ export function placeEntry(owner: string, entry: CatalogEntry, target: Placement
   const state = designStore.getState()
   let result
   let commands
-  if (previewOwner === owner && state.preview) {
+  if (previewKey === keyFor(owner, entry, target, quantity) && state.preview) {
     commands = state.preview.commands
     result = state.commitPreview()
   } else {
+    // A preview for a different choice must not linger or be committed by mistake.
+    endAnyPreview()
     const built = commandsFor(entry, target, quantity)
     if (!built.ok) {
       noticeStore.getState().show(built.outcome.message, 'warning')
@@ -62,6 +77,7 @@ export function placeEntry(owner: string, entry: CatalogEntry, target: Placement
     result = state.apply(commands, { actor: 'user' })
   }
   previewOwner = null
+  previewKey = null
   if (!result.ok) {
     noticeStore.getState().show(result.error, 'danger')
     return false

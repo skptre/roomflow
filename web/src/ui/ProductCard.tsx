@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { CatalogEntry, PlacementTarget } from '../domain/catalog'
 import { formatDimensions } from '../domain/labels'
 import { formatMoney } from '../domain/money'
@@ -28,6 +28,8 @@ export function ProductCard({ variants, target }: ProductCardProps) {
     setProblem(outcome.ok ? null : outcome.message)
   }
   const leave = () => endPreview(owner)
+  // If the card goes away while it owns the preview (panel closed, results changed), clear it.
+  useEffect(() => () => endPreview(owner), [owner])
 
   return (
     <article
