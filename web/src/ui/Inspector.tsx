@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from 'react'
 import type { PurchaseSources } from '../domain/designStore'
+import { isWallHung } from '../domain/categories'
 import { designStore } from '../domain/designStore'
 import { formatLength, priceLabel, provenanceLabel } from '../domain/labels'
 import type { MeasurementSource, RoomObject } from '../domain/schema'
@@ -108,8 +109,8 @@ export function Inspector({ object, sources, onBrowseAlternatives }: { object: R
       </div>
 
       <div className="mt-3 flex items-center gap-1 border-t border-line pt-3">
-        <Button size="sm" icon={<RotateLeftIcon />} aria-label="Turn left 15°" disabled={object.lockPlacement} onClick={() => rotateSelected(1)} />
-        <Button size="sm" icon={<RotateRightIcon />} aria-label="Turn right 15°" disabled={object.lockPlacement} onClick={() => rotateSelected(-1)} />
+        <Button size="sm" icon={<RotateLeftIcon />} aria-label="Turn left 15°" disabled={object.lockPlacement || isWallHung(object)} onClick={() => rotateSelected(1)} />
+        <Button size="sm" icon={<RotateRightIcon />} aria-label="Turn right 15°" disabled={object.lockPlacement || isWallHung(object)} onClick={() => rotateSelected(-1)} />
         <Button size="sm" variant="secondary" onClick={onBrowseAlternatives}>
           Alternatives
         </Button>

@@ -4,7 +4,7 @@
  * commands applied atomically: all succeed or the room is left unchanged.
  */
 import { z } from 'zod'
-import { blocksFloor, clampIntoRoom, footprintsOverlap, insideRoom } from './geometry'
+import { blocksFloor, clampIntoRoom, footprintsOverlap, insideRoom, verticalOverlap } from './geometry'
 import { Finishes, RoomObject, Vec2, type Room } from './schema'
 import { normalizeYaw } from './units'
 
@@ -43,10 +43,15 @@ function objectIndex(room: Room, id: string): number {
   return index
 }
 
-/** Objects that stand in the same floor space. Floor coverings (rugs) never collide. */
-function collisions(room: Room, object: RoomObject): RoomObject[] {
+/**
+ * Objects that occupy the same space: overlapping footprints at overlapping
+ * heights (a vase on a desk or art above a bed is fine). Floor coverings never collide.
+ */
+export function collisions(room: Room, object: RoomObject): RoomObject[] {
   if (!blocksFloor(object)) return []
-  return room.objects.filter((other) => other.id !== object.id && blocksFloor(other) && footprintsOverlap(object, other))
+  return room.objects.filter(
+    (other) => other.id !== object.id && blocksFloor(other) && verticalOverlap(object, other) && footprintsOverlap(object, other),
+  )
 }
 
 function overlapWarning(room: Room, object: RoomObject): string | null {

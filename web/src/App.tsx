@@ -2,7 +2,7 @@ import { AnimatePresence } from 'motion/react'
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { useStore } from 'zustand'
 import { designStore, viewRoom } from './domain/designStore'
-import { purchaseSummary, remainingBudget, type SummarySources } from './domain/purchases'
+import { budgetForChoice, type SummarySources } from './domain/purchases'
 import { sampleOffers, sampleVariantLabels } from './fixtures/sample-catalog'
 import { SampleCatalogSource } from './fixtures/sample-catalog-source'
 import sampleScan from './fixtures/synthetic-bedroom.roomplan.json?raw'
@@ -44,9 +44,11 @@ function Workspace() {
   const selected = useStore(designStore, (state) => state.committed?.room.objects.find((object) => object.id === state.selectedId) ?? null)
   const committed = useStore(designStore, (state) => state.committed)
   const [catalogOpen, setCatalogOpen] = useState(false)
+  // What the next choice may cost: swapping the selected item gives its own price back first.
+  const selectedId = selected?.id
   const budgetLeft = useMemo(
-    () => (committed ? remainingBudget(purchaseSummary(committed.room, SOURCES, committed.budget), committed.budget) : null),
-    [committed],
+    () => (committed ? budgetForChoice(committed.room, SOURCES, committed.budget, selectedId) : null),
+    [committed, selectedId],
   )
   useEditorShortcuts()
   const [error, setError] = useState<string | null>(null)

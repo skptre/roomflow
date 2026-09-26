@@ -1,6 +1,6 @@
 /** What the committed room would cost to buy, line by line, with honest totals. */
 import { purchaseLine, type PurchaseSources } from './designStore'
-import { budgetStatus, subtotal, type BudgetStatus, type Subtotal } from './money'
+import { budgetStatus, formatMoney, subtotal, type BudgetStatus, type Subtotal } from './money'
 import type { Money, Room } from './schema'
 
 export type PurchaseRow = {
@@ -60,4 +60,21 @@ export function remainingBudget(summary: PurchaseSummary, budget: Money | null):
   const spent = summary.subtotal.total
   if (spent && spent.currency !== budget.currency) return null
   return { amountMinor: Math.max(0, budget.amountMinor - (spent?.amountMinor ?? 0)), currency: budget.currency }
+}
+
+/**
+ * Budget available for the next choice: for an addition, what is left after
+ * everything already chosen; when replacing an item, that item's own cost is
+ * given back first. Null when there is no budget or it can't be known.
+ */
+export function budgetForChoice(room: Room, sources: SummarySources, budget: Money | null, replacingId?: string): Money | null {
+  const rest = replacingId ? { ...room, objects: room.objects.filter((object) => object.id !== replacingId) } : room
+  return remainingBudget(purchaseSummary(rest, sources, budget), budget)
+}
+
+/** The subtotal as display text. An entirely unpriced subtotal is "Price unknown", never $0.00. */
+export function formatSubtotal(sub: Subtotal, fallbackCurrency = 'USD'): string {
+  if (sub.status === 'mixed-currency') return sub.totals.map((money) => formatMoney(money)).join(' + ')
+  if (sub.total) return formatMoney(sub.total)
+  return sub.unpricedCount > 0 ? 'Price unknown' : formatMoney({ amountMinor: 0, currency: fallbackCurrency })
 }

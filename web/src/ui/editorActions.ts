@@ -3,6 +3,7 @@
  * manipulation. Each goes through the store's validated command pipeline as a
  * user action and reports refusals and warnings as notices.
  */
+import { isWallHung } from '../domain/categories'
 import { applyCommands, type Command } from '../domain/commands'
 import { designStore, type ApplyResult } from '../domain/designStore'
 import type { RoomObject, Vec2 } from '../domain/schema'
@@ -64,6 +65,10 @@ export function rotateSelected(direction: 1 | -1, step = ROTATE_STEP): boolean {
   if (!object) return false
   if (object.lockPlacement) {
     noticeStore.getState().show(`${object.name} is locked in place. Unlock it to turn it.`, 'warning')
+    return false
+  }
+  if (isWallHung(object)) {
+    noticeStore.getState().show(`${object.name} hangs on the wall, so it can't be turned.`, 'warning')
     return false
   }
   return rotateObject(object.id, object.pose.yaw + direction * step)

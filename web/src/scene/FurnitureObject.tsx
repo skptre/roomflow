@@ -3,6 +3,8 @@ import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { memo, useEffect, useRef, useState } from 'react'
 import type { Group } from 'three'
 import { checkPlacement, type PlacementCheck } from '../domain/commands'
+import { isWallHung } from '../domain/categories'
+import { isRaised } from '../domain/geometry'
 import { designStore, type PurchaseSources } from '../domain/designStore'
 import type { RoomObject, Vec2 } from '../domain/schema'
 import { normalizeYaw } from '../domain/units'
@@ -135,6 +137,11 @@ export const FurnitureObject = memo(function FurnitureObject({
           finish()
           return
         }
+        if (g.kind === 'move' && isRaised(object)) {
+          noticeStore.getState().show(`${object.name} is on a wall or tabletop and can't be dragged yet. Remove it and add it again to place it elsewhere.`, 'warning')
+          finish()
+          return
+        }
         g.active = true
         onSelect(object.id)
         document.body.style.cursor = g.kind === 'move' ? 'grabbing' : 'alias'
@@ -228,7 +235,7 @@ export const FurnitureObject = memo(function FurnitureObject({
           />
         </mesh>
       ) : null}
-      {selected && !object.lockPlacement ? (
+      {selected && !object.lockPlacement && !isWallHung(object) ? (
         <group>
           <mesh
             rotation-x={-Math.PI / 2}

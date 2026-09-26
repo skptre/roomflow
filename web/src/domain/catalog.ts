@@ -7,7 +7,8 @@
  */
 import type { Command } from './commands'
 import { footprintBounds } from './geometry'
-import { freeSpot } from './layout'
+import { categoryInfo } from './categories'
+import { freeSpot, surfaceSpot, wallSpot } from './layout'
 import type { Money, Offer, Product, Room, RoomObject, Variant, Vec2 } from './schema'
 
 /** One purchasable choice: a product, one of its variants, and the offer that prices it. */
@@ -127,8 +128,16 @@ export function placementCommands(room: Room, entry: CatalogEntry, target: Place
     const { id: _id, pose: _pose, ...replacement } = entryToObject(entry, { id: current.id, position: { x: 0, z: 0 }, yaw: 0 }, quantity)
     return [{ type: 'replace', id: current.id, with: replacement }]
   }
+  const id = newObjectId(room, entry)
+  const info = categoryInfo(entry.product.category)
+  // Wall pieces hang on a wall; tabletop pieces stand on furniture; everything else goes on the floor.
+  if (info?.mount === 'wall' || info?.mount === 'surface') {
+    const candidate = entryToObject(entry, { id, position: { x: 0, z: 0 }, yaw: 0 }, quantity)
+    const placed = info.mount === 'wall' ? wallSpot(room, candidate, info.mountHeight ?? 1.2) : surfaceSpot(room, candidate)
+    return placed ? [{ type: 'add', object: placed }] : null
+  }
   const pose = freeSpot(room, entry.variant.dimensions, { near: target.near })
   if (!pose) return null
-  const object = entryToObject(entry, { id: newObjectId(room, entry), position: { x: pose.position.x, z: pose.position.z }, yaw: pose.yaw }, quantity)
+  const object = entryToObject(entry, { id, position: { x: pose.position.x, z: pose.position.z }, yaw: pose.yaw }, quantity)
   return [{ type: 'add', object }]
 }

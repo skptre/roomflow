@@ -180,6 +180,19 @@ describe('checkPlacement', () => {
     expect(checkPlacement(withRug.room, 'rug-1', { x: bed.pose.position.x, z: bed.pose.position.z }, 0).status).toBe('ok')
   })
 
+  it('does not count a wall-mounted item above furniture as overlapping', () => {
+    const room = sampleRoom()
+    const bed = find(room, 'OBJ-BED')!
+    const art = {
+      ...lamp('art-1', bed.pose.position.x, bed.pose.position.z),
+      category: 'wall-art',
+      dimensions: { width: 0.6, height: 0.8, depth: 0.04, source: 'merchant' as const },
+    }
+    art.pose = { ...art.pose, position: { ...art.pose.position, y: 1.2 } }
+    const result = applyCommands(room, [{ type: 'add', object: art }], 'user')
+    expect(result.ok && result.warnings).toEqual([])
+  })
+
   it('uses the rotated footprint', () => {
     // The 1.2 × 0.6 desk fits flush to the east wall only when its long side runs along the wall.
     const room = sampleRoom()
