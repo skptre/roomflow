@@ -177,10 +177,10 @@ FoundItem = { id; name; category; photoRef?; dimensions; price: Money|null; stor
 ## Task 5: Architecture (dollhouse)
 
 **Produces:** `wallGeometry(wall, openings) → THREE.Shape` via polygon-clipping difference; extruded to `thickness` (default 0.12 m if scan gives 0). `cutaway.ts`: pure `wallsToCut(walls, cameraDir, prevCut) → Set<id>` with hysteresis (on 0.25 / off 0.15), exterior walls only.
-- [ ] Tests: no openings → 1 outer ring, 0 holes; floor door → notch, **no solid over door area** (**RF1**); window → hole; opening clipped to wall; overlapping openings merged; cutaway doesn't toggle on small camera jitter; interior partition never cut.
-- [ ] `Architecture.tsx`: floor from polygon with meter-UV procedural wood; walls plaster; doors/windows as simple frames (translucent glass). Cut walls ease to 0.3 m stubs (instant under reduced motion).
-- [ ] `CameraRig`: fit to bounding sphere (both FOVs), ~40° elevation, polar clamp, damped `OrbitControls`; fit once per room so panel resizing never resets orbit. `Lighting` + `Effects` (subtle SSAO/N8AO, SMAA), `frameloop="demand"`.
-- [ ] Browser check: screenshot overview, orbit 360°, door gap visible, no wall flicker. Commit `feat(scene): dollhouse architecture with openings, thickness, exterior cutaway`.
+- [x] Tests: no openings → 1 outer ring, 0 holes; floor door → notch, **no solid over door area** (**RF1**); window → hole; opening clipped to wall; overlapping openings merged; cutaway doesn't toggle on small camera jitter; interior partition never cut.
+- [x] `Architecture.tsx`: floor from polygon with meter-UV procedural wood; walls plaster; doors/windows as simple frames (translucent glass). Cut walls ease to 0.3 m stubs (instant under reduced motion).
+- [x] `CameraRig`: fit to bounding sphere (both FOVs), ~40° elevation, polar clamp, damped `OrbitControls`; fit once per room so panel resizing never resets orbit. `Lighting` + `Effects` (subtle SSAO/N8AO, SMAA), `frameloop="demand"`.
+- [x] Browser check: screenshot overview, orbit 360°, door gap visible, no wall flicker. Commit `feat(scene): dollhouse architecture with openings, thickness, exterior cutaway`.
 
 ## Task 6: Assets — parametric furniture, GLB slot, placeholder
 
@@ -278,3 +278,4 @@ Empty/loading/error states everywhere, mobile-width check, keyboard-only pass, d
 - 2026-09-26 · T2 geometry + money · feat/web-pr1-foundation · 41 tests total. budgetStatus is 'unknown' whenever any price is unknown (review fix). insideRoom and clampIntoRoom handle concave rooms (nearest-fit grid fallback, review fix).
 - 2026-09-26 · T3 RoomPlan import · feat/web-pr2-import · 21 import tests; added Room.source.nativeToApp (capture→app mapping). No real scan in fixtures/scans/ yet — real-scan test still open. Open questions for iOS in docs/contracts/room-import.md.
 - 2026-09-26 · T4 design store + commands · feat/web-pr3-store · 27 new tests (91 total). Purchases derived from committed objects (captured/owned = owned). Revision bumps on undo/redo/setBudget too. User may move locked items at command level; UI refuses drag (T8).
+- 2026-09-26 · T5 dollhouse architecture · feat/web-pr4-scene · wall profiles via polygon-clipping (RF1 pinned), exterior cutaway w/ hysteresis, camera fit once per room, key light through first window, N8AO+SMAA+AgX. Browser: sample room opens, orbit 4 angles, door gap + window visible, cut walls follow camera. Furniture still sized boxes (T6). Visual polish pending T7.
