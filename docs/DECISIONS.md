@@ -74,3 +74,7 @@ box is still refining, so an immediate shot would frequently frame a stale, inac
 `LiveRoomObserver` stores the previous delegate and forwards every callback unchanged. Rejected: plainly
 replacing the delegate (could silently break Apple's live preview), and polling visibility of known objects
 every few frames (fallback if forwarding proves unreliable on device).
+
+Correction (same day, task 3): the slot was `nil` on iOS 27 in both device scans run so far — `RoomCaptureView`
+does not itself occupy it. Forwarding is kept anyway because it costs nothing and protects against a future
+`RoomCaptureView` (or another wrapper) that does use the slot.

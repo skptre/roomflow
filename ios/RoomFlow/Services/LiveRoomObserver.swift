@@ -3,14 +3,9 @@ import OSLog
 import RoomPlan
 import simd
 
-/// SPIKE (debug builds only): logs the objects RoomPlan detects while scanning.
-///
-/// Answers two questions for furniture-aware photo capture:
-/// 1. Can we receive live `didUpdate` rooms without breaking `RoomCaptureView`'s own preview?
-///    The session has a single weak delegate slot, so `install(on:)` keeps whatever delegate was
-///    already there (possibly the view itself) and forwards every callback to it unchanged.
-/// 2. Do live object identifiers survive into the final processed room? `logFinalOverlap(with:)`
-///    compares them after `didPresent`.
+/// Live-object feed: takes `RoomCaptureSession.delegate`, forwards every callback unchanged to the
+/// previous delegate, and keeps the newest detected objects for the focus tracker. Debug builds also
+/// log detections and whether live IDs survive into the final room.
 ///
 /// Callbacks arrive on RoomPlan's queue, so state is lock-protected and nothing touches the main actor.
 nonisolated final class LiveRoomObserver: NSObject, RoomCaptureSessionDelegate {
@@ -24,6 +19,7 @@ nonisolated final class LiveRoomObserver: NSObject, RoomCaptureSessionDelegate {
     private var seen: [UUID: String] = [:]
     private var current: Set<UUID> = []
     private var updateCount = 0
+    private var latest: [LiveObject] = []
 
     /// Takes over `session.delegate`, remembering and forwarding to the previous one.
     /// Call on the main actor before `session.run`; calling twice keeps the original forward target.
@@ -59,7 +55,15 @@ nonisolated final class LiveRoomObserver: NSObject, RoomCaptureSessionDelegate {
         seen = [:]
         current = []
         updateCount = 0
+        latest = []
         lock.unlock()
+    }
+
+    /// The objects in the newest live room update (empty before the first update). Safe from any thread.
+    func latestObjects() -> [LiveObject] {
+        lock.lock()
+        defer { lock.unlock() }
+        return latest
     }
 
     private func record(_ room: CapturedRoom) {
@@ -71,6 +75,11 @@ nonisolated final class LiveRoomObserver: NSObject, RoomCaptureSessionDelegate {
         let removedNames = removed.map { "\(seen[$0] ?? "?") \($0.uuidString.prefix(4))" }
         for object in room.objects { seen[object.identifier] = Self.name(object.category) }
         current = ids
+        latest = room.objects.map { object in
+            let c = object.transform.columns.3
+            return LiveObject(sourceId: object.identifier, category: Self.name(object.category),
+                              transform: object.transform, dimensions: object.dimensions, center: SIMD3(c.x, c.y, c.z))
+        }
         let now = Date()
         // Log every membership change, otherwise at most once a second.
         let shouldLog = !added.isEmpty || !removed.isEmpty || now.timeIntervalSince(lastLoggedAt) >= 1
@@ -92,8 +101,9 @@ nonisolated final class LiveRoomObserver: NSObject, RoomCaptureSessionDelegate {
     }
 
     private func emit(_ message: String) {
+        #if DEBUG
         log.notice("[spike] \(message, privacy: .public)")
-        print("[RoomFlow spike] \(message)")
+        #endif
     }
 
     private static func describe(_ object: CapturedRoom.Object) -> String {

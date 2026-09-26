@@ -5,6 +5,27 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### iOS: furniture-aware photos — live feed and scan loop wiring
+- `ios/RoomFlow/Services/LiveRoomObserver.swift`: promoted from a debug-only spike to the live-object feed
+  used at runtime. New `latestObjects() -> [LiveObject]`: thread-safe copy of the newest live room's objects
+  (built in `record(_:)`, cleared in `reset()`). `emit(_:)` now only logs in `DEBUG` builds (dropped the
+  duplicate `print`, since the `Logger` line already showed in Xcode's console).
+- `ios/RoomFlow/Services/RoomScanService.swift`: removed the three `#if DEBUG` guards around `liveObserver`,
+  `install(on:)`, and `logFinalOverlap(with:)` — the live feed now runs in release builds too. New
+  `private(set) var focusHint: FocusHint?` (nil unless `capturePhotos` is on, scanning, and something is
+  framed), backed by `ObjectFocusTracker`. `startColorSampling()` now polls every 250 ms: `updateFocus(with:)`
+  runs the focus tracker and takes focused photos every tick (via `RoomEvidenceRecorder.captureFocused`),
+  while `colorSampler.capture`/ambient `evidenceRecorder.consider` still run every third tick (~750 ms, as
+  before). New `Self.depth(in:u:v:)` reads LiDAR depth from the scene-depth map at a normalized point for the
+  tracker's occlusion check. `focusHint` is reset to nil in `start()`, `finish()`, `cancel()`, and
+  `stopEvidence()`.
+- Why: task 3 of the furniture-aware photos plan. Connects task 1's `ObjectFocusTracker` and task 2's
+  `RoomEvidenceRecorder.captureFocused` to the running scan, so the app can actually surface a focus hint
+  and take a focused photo while scanning, instead of just having the pieces in isolation.
+- Verified: device build (`generic/platform=iOS`, `CODE_SIGNING_ALLOWED=NO`) succeeds with no new warnings in
+  either file; full suite (`RoomFlowTests` scheme, iPhone 18 Pro Simulator) — 54/54 tests pass. Not verified:
+  behavior on a physical LiDAR device (no device build/run was available in this session).
+
 ### iOS: furniture-aware photos — recorder focused shots and coverage-aware selection
 - `ios/RoomFlow/Models/RoomPhotoEvidence.swift`: new `focusObjectId: UUID?` field (default nil, local archive
   only, not part of the package manifest) recording which live object a photo was deliberately taken of;
