@@ -4,7 +4,6 @@
 # JavaScript dependencies and package-manager caches
 node_modules/
 .npm/
-.npm-cache/
 .pnpm-store/
 .yarn/cache/
 .yarn/unplugged/
