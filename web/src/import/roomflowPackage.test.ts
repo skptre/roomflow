@@ -205,6 +205,16 @@ describe('parseRoomflowPackage', () => {
       expect(warnings.join(' ')).not.toMatch(/wall art/)
     })
 
+    it('anchors art to its imported wall when the measured plane drifts', async () => {
+      const file = wallArtFile()
+      // A camera/LiDAR plane can drift behind the RoomPlan wall; placement still uses the named rendered wall.
+      file.items[0]!.center[2] = 3.8
+      const { room } = await load(await makePackage({ wallArt: file }))
+      const art = room.objects.find((object) => object.id === ART)!
+      expect(art.pose.position.z).toBeCloseTo(4.2 - 0.017 - 2.45, 6)
+      expect(hostWall(room, art)).toBe('WALL-C-NORTH')
+    })
+
     it('keeps a piece without a photo (photoPath null, or omitted as Swift Codable writes it)', async () => {
       for (const clear of [(item: Record<string, any>) => { item.photoPath = null }, (item: Record<string, any>) => { delete item.photoPath }]) {
         const file = wallArtFile()

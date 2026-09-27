@@ -1,5 +1,9 @@
 # Decisions
 
+## Imported wall art follows the rendered RoomPlan wall, not the camera/LiDAR plane
+
+Wall-art detections carry a measured camera/LiDAR center and normal, but those can be centimeters away from the RoomPlan wall plane rendered by the Designer. When `wallSourceId` resolves after import, project the center along that wall and use its room-facing normal, with the existing 2 mm visual clearance. Retain the measured center/normal fallback only when a package names a wall missing from the room. Rejected: a larger fixed offset from the measured plane, which made some pieces float while leaving others buried because it did not correct the different source planes.
+
 Non-obvious tradeoffs, each with the alternative that was rejected. Routine "only way to do it" changes don't belong here.
 
 ## Room-designer Apply requires the dialog's own live preview

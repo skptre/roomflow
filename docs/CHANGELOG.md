@@ -1,5 +1,9 @@
 # Changelog
 
+### 2026-09-27 — web: anchor imported art to its rendered RoomPlan wall
+
+Updated `web/src/import/roomflowPackage.ts`: `wallArtObject` now projects a package item's center onto its surviving `wallSourceId` wall and uses `inwardNormal(room, wall)` for its front and yaw. Camera/LiDAR art planes can drift from the RoomPlan wall plane, which previously left different items on the same wall inconsistently buried or detached. Packages whose named wall is absent retain the prior center/normal fallback. `roomflowPackage.test.ts` now covers a deliberately drifted art plane.
+
 ### 2026-09-27 — web: prevent imported art from being buried by its wall
 
 Updated `web/src/import/roomflowPackage.ts`: `wallArtObject` now applies a 2 mm `WALL_ART_GAP` from the scanned wall face after preserving the measured art size, normal, wall association, and standoff. A flush back was coplanar with the standing wall and could be depth-occluded at some camera angles; 2 mm matches the clearance used for other wall-mounted pieces without making art appear detached. The package import regression now asserts the gap.
