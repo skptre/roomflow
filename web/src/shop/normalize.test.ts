@@ -65,14 +65,40 @@ describe('normalizeProduct', () => {
     expect(a!.dimensions.source).toBe('estimated')
   })
 
-  it('reads print sizes per variant', () => {
+  it('reads print sizes per variant, turned landscape for a horizontal print', () => {
     const product = normalized(fixtures.artPrint, 'juniperprintshop.com')
     expect(product.category).toBe('wall-art')
-    expect(product.variants[0]!.dimensions.width).toBeCloseTo(8 * IN, 6)
-    expect(product.variants[0]!.dimensions.height).toBeCloseTo(10 * IN, 6)
+    // Juniper files this print under "Horizontal": its 8x10 hangs 10 wide, 8 tall.
+    expect(product.variants[0]!.dimensions.width).toBeCloseTo(10 * IN, 6)
+    expect(product.variants[0]!.dimensions.height).toBeCloseTo(8 * IN, 6)
     expect(product.variants[0]!.price).toEqual({ amountMinor: 2900, currency: 'USD' })
     // 14 in = 0.35559999999999997 in floating point; stored to the micrometer instead.
-    expect(product.variants[1]!.dimensions.height).toBe(0.3556)
+    expect(product.variants[1]!.dimensions.width).toBe(0.3556)
+  })
+
+  it('keeps a print portrait unless the store files it as horizontal', () => {
+    const src = structuredClone(fixtures.artPrint)
+    src.product_type = 'Vertical'
+    const product = normalized(src, 'juniperprintshop.com')
+    expect(product.variants[0]!.dimensions.width).toBeCloseTo(8 * IN, 6)
+    expect(product.variants[0]!.dimensions.height).toBeCloseTo(10 * IN, 6)
+  })
+
+  it('lays a lumbar pillow on its long side, listed or not', () => {
+    const src = structuredClone(fixtures.artPrint)
+    src.title = 'Modern Wool Lumbar Pillow Cover'
+    src.product_type = 'Pillows'
+    src.tags = []
+    src.options = [{ name: 'Size', position: 1, values: ['14"x36"'] }]
+    src.variants = [{ ...src.variants[0]!, option1: '14"x36"' }]
+    const listed = normalized(src, 'parachutehome.com').variants[0]!.dimensions
+    expect(listed.width).toBeCloseTo(36 * IN, 6)
+    expect(listed.height).toBeCloseTo(14 * IN, 6)
+    src.options = []
+    src.variants = [{ ...src.variants[0]!, option1: 'Default Title' }]
+    const estimated = normalized(src, 'parachutehome.com').variants[0]!.dimensions
+    expect(estimated.source).toBe('estimated')
+    expect(estimated.width).toBeGreaterThan(estimated.height * 1.5)
   })
 
   it("never shows a store's placeholder price (Loloi lists 99999.00)", () => {
@@ -119,7 +145,8 @@ describe('normalizeProduct', () => {
     // Not for rugs, art or curtains, whose names may quote other measures.
     const rug = structuredClone(fixtures.artPrint)
     rug.title = 'Vintage Pillow No. 216, 22" x 22"'
-    expect(normalized(rug, 'juniperprintshop.com').variants[0]!.dimensions.width).toBeCloseTo(8 * IN, 6)
+    // The listed 8x10 (landscape: 10 wide), not the title's 22".
+    expect(normalized(rug, 'juniperprintshop.com').variants[0]!.dimensions.width).toBeCloseTo(10 * IN, 6)
   })
 
   it('drops a photo that is not https instead of failing the snapshot', () => {

@@ -19,6 +19,8 @@ const MAPPED: [string, string, string][] = [
   ['Dining Chair', 'The Sol Dining Chair - Heritage Belgian Linen', 'dining-chair'],
   ['Bar and Counter Stools', 'Batu Indoor / Outdoor Backless Counter Height Stool', 'dining-chair'],
   ['Ottoman', 'Kova Pillow Cushion Ottoman', 'ottoman'],
+  ['Pillows & Throws', 'Kass Throw Pillow by Classic Home', 'pillow'],
+  ['Pillows & Throws', 'Grid Knit Cotton Throw Blanket', 'throw'],
   ['Seating', 'Range Ottoman', 'ottoman'],
   ['Benches, Stools & Ottomans', 'Este Bench | Shadow Brown', 'bench'],
   ['Dining Bench', 'Ora Dining Bench', 'bench'],

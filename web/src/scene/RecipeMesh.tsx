@@ -6,6 +6,7 @@ import { getFamily } from '../blocks/families'
 import { blockMaterial, castsShadow } from '../blocks/materials'
 import type { Recipe } from '../blocks/recipe'
 import type { Dimensions } from '../domain/schema'
+import { sizedPhoto } from '../shop/photo'
 
 type RecipeMeshProps = {
   recipe: Recipe
@@ -35,7 +36,7 @@ export const RecipeMesh = memo(function RecipeMesh({ recipe, dimensions, colors 
         look.slot === imageSlot && recipe.image ? (
           <ImageErrorBoundary key={look.slot} fallback={<SlotMesh look={look} />}>
             <Suspense fallback={<SlotMesh look={look} />}>
-              <PhotoSlot look={look} url={recipe.image.url} aspect={imageAspect(recipe, model)} />
+              <PhotoSlot look={look} url={sizedPhoto(recipe.image.url, 1024)} aspect={imageAspect(recipe, model)} />
             </Suspense>
           </ImageErrorBoundary>
         ) : (

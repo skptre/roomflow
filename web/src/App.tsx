@@ -27,8 +27,18 @@ const BlockSheet = lazy(() => import('./scene/dev/BlockSheet').then((m) => ({ de
 const blocksParam = new URLSearchParams(window.location.search).get('blocks')
 const blocksFilter = (new URLSearchParams(window.location.search).get('v') ?? '').split(',').filter(Boolean)
 const blocksImage = new URLSearchParams(window.location.search).get('img')
+const LineupSheet = lazy(() => import('./scene/dev/LineupSheet').then((m) => ({ default: m.LineupSheet })))
+const lineupParam = new URLSearchParams(window.location.search).get('lineup')
 
 export default function App() {
+  if (lineupParam !== null)
+    return (
+      <main className="relative h-full w-full overflow-auto">
+        <Suspense fallback={null}>
+          <LineupSheet page={Math.max(1, Number(lineupParam) || 1)} />
+        </Suspense>
+      </main>
+    )
   if (blocksParam !== null)
     return (
       <main className="relative h-full w-full overflow-hidden">

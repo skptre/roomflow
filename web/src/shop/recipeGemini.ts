@@ -181,7 +181,7 @@ const BLOCK_GUIDE: Readonly<Record<string, Readonly<Record<string, string>>>> = 
   plant: { bush: 'bushy leafy plant', fiddle: 'fiddle-leaf fig tree', snake: 'upright sword leaves', palm: 'palm fronds', trailing: 'trailing vines', none: 'no plant (empty planter)' },
   edge: { none: 'plain edges', fringe: 'fringe or tassels at the ends' },
   mat: { none: 'no mat', white: 'white mat border' },
-  profile: { bud: 'small bud vase', amphora: 'rounded belly with a neck', cylinder: 'straight cylinder', bowl: 'wide bowl', bottle: 'bottle with a long neck', sphere: 'sphere' },
+  profile: { bud: 'small bud vase', amphora: 'rounded belly with a neck', cylinder: 'straight cylinder', bowl: 'wide bowl', bottle: 'bottle with a long neck', sphere: 'sphere', tray: 'flat tray with a low rim' },
   seat: { flat: 'hard flat seat', cushion: 'separate cushion on the seat', upholstered: 'upholstered seat' },
   shelf: { none: 'no lower shelf', lower: 'a lower shelf' },
   drawer: { none: 'no drawer', '1': 'one drawer', '2': 'two drawers' },
@@ -368,7 +368,7 @@ export function promptText(product: SnapshotProduct, family: Family, text: Listi
     .join('\n')
   const hasValues = images.some((image) => image.role === 'value')
   const listing = family.imageSlot
-    ? `8. productImage: the number of the photo that shows only the ${family.id === 'art' ? 'artwork itself, flat and unframed or straight-on in its frame, with no room around it' : 'rug from above, filling most of the photo, with no furniture on it'}; 0 if no photo does.`
+    ? `8. productImage: the number of the photo that shows only the ${family.id === 'art' ? 'artwork itself, flat and unframed or straight-on in its frame, with no room around it (if that photo already shows the frame, choose frame "none" so it isn’t framed twice)' : 'rug from above, filling most of the photo, with no furniture on it'}; 0 if no photo does.`
     : ''
 
   return [

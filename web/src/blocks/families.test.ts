@@ -81,3 +81,35 @@ describe('block families', () => {
     })
   }
 })
+
+describe('shapes keep their own proportions inside a looser box', () => {
+  const extent = (family: string, size: Size, blocks: Record<string, string>) => {
+    const box = new Box3()
+    for (const geometries of buildParts(FAMILIES[family]!, size, blocks, {}).parts.values()) {
+      for (const geometry of geometries) {
+        geometry.computeBoundingBox()
+        box.union(geometry.boundingBox!)
+      }
+    }
+    return { x: box.max.x - box.min.x, y: box.max.y - box.min.y, z: box.max.z - box.min.z }
+  }
+
+  it('a round table top is a circle, even in a long estimated box', () => {
+    const e = extent('table', { width: 1.8, height: 0.75, depth: 0.9 }, { top: 'round', base: 'pedestal' })
+    expect(e.x).toBeCloseTo(e.z, 2)
+    expect(e.x).toBeLessThanOrEqual(0.9 + 0.001)
+  })
+
+  it('a round rug is a circle', () => {
+    const e = extent('rug', { width: 2.4, height: 0.012, depth: 1.5 }, { shape: 'round' })
+    expect(e.x).toBeCloseTo(e.z, 2)
+  })
+
+  it('a bowl stays low and a tray stays flat in a tall box', () => {
+    const size = { width: 0.15, height: 0.2, depth: 0.15 }
+    expect(extent('vase', size, { profile: 'bowl' }).y).toBeLessThanOrEqual(0.15 * 0.5 + 0.001)
+    const tray = extent('vase', size, { profile: 'tray' })
+    expect(tray.y).toBeLessThanOrEqual(0.06 + 0.001)
+    expect(tray.x).toBeCloseTo(0.15, 2)
+  })
+})

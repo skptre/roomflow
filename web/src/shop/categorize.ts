@@ -87,6 +87,8 @@ const BY_TITLE: Rule[] = [
   [/\brug\b/, 'rug'],
   [/mirror/, 'mirror'],
   [/curtain|drape/, 'curtain'],
+  // A "throw pillow" is a pillow, not a throw blanket.
+  [/throw pillow/, 'pillow'],
   [/\bthrow\b/, 'throw'],
   [/pillow|cushion/, 'pillow'],
   [/planter|\bpot\b/, 'planter'],

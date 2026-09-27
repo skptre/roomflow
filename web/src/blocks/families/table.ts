@@ -47,8 +47,11 @@ export const table = defineFamily({
     base: { kind: 'wood', color: '#b08a62' },
   },
   build(ctx) {
-    const { w, h, d } = ctx
     const topKind = ctx.block('top')
+    // A round top is a circle: in a longer box (often an estimated size) it takes the shorter side.
+    const h = ctx.h
+    const w = topKind === 'round' ? Math.min(ctx.w, ctx.d) : ctx.w
+    const d = topKind === 'round' ? Math.min(ctx.w, ctx.d) : ctx.d
     const base = ctx.block('base')
     const t = Math.min(ctx.param('topThickness'), h * 0.25)
     const under = h - t

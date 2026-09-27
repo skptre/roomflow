@@ -120,6 +120,7 @@ const RULES: Readonly<Record<string, Rule[]>> = {
     [/\bframeless\b|\bbeveled\b/, 'frame', 'none'],
   ],
   vase: [
+    [/\btrays?\b/, 'profile', 'tray'],
     [/\bbud\b/, 'profile', 'bud'],
     [/\bbottle\b/, 'profile', 'bottle'],
     [/\bbowl\b/, 'profile', 'bowl'],
@@ -275,6 +276,11 @@ export function rulesTrace(product: SnapshotProduct, text: ListingText = {}): { 
     matchedShape = true
   }
   if (family.id === 'planter' && product.category === 'plant' && !fired.has('plant')) blocks.plant = 'bush'
+  // A planter listing sells the pot; a photo's styling plant is not part of it.
+  if (product.category === 'planter') {
+    blocks.plant = 'none'
+    fired.add('plant')
+  }
   if (family.id === 'art' && !fired.has('frame')) {
     // A print sold as paper or canvas arrives without a frame unless the listing says framed.
     blocks.frame = 'none'
