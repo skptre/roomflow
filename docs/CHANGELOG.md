@@ -1,5 +1,9 @@
 # Changelog
 
+### 2026-09-27 — web: close room-designer intent bypasses
+
+Updated `web/src/roomDesigner/contract.ts` and `contract.test.ts` so model summary/notes reject price, URL, measurement, coordinate, and command claims; `ROOM_DESIGN_CATEGORIES` now allows only committed catalog categories for additions and replacements. `RoomDesignResponse` is now a type with the new `parseRoomDesignResponse(value, room)` factory, which validates the envelope through the size- and current-room-bound `parseRoomDesignIntent`. This prevents consumers from accepting independently parsed responses that bypass identity checks.
+
 ### 2026-09-27 — web: bounded Gemini room-designer contract
 
 Added `web/src/roomDesigner/contract.ts` and `contract.test.ts` to define the redacted, consented text request and strict intent-only model response. Public schemas/types are `RoomSummary`, `RoomDesignRequest`, `RoomDesignIntent`, and `RoomDesignResponse`; `ROOM_DESIGN_CATEGORIES`, `roomSummary`, and `parseRoomDesignIntent` bound categories, output size, planned count, identities, and duplicate references. This keeps scan evidence and purchase facts out of Gemini while leaving coordinate, catalog, and budget decisions to deterministic browser code.

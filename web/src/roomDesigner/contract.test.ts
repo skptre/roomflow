@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { sampleRoom } from '../test/rooms'
-import { RoomDesignRequest, parseRoomDesignIntent, roomSummary } from './contract'
+import { RoomDesignRequest, parseRoomDesignIntent, parseRoomDesignResponse, roomSummary } from './contract'
 
 const room = sampleRoom()
 const intent = () => ({
@@ -38,7 +38,9 @@ describe('room designer contract', () => {
   it('accepts a bounded high-level intent', () => {
     expect(parseRoomDesignIntent(intent(), room)).toEqual(intent())
     expect(parseRoomDesignIntent({ ...intent(), add: [{ category: 'sectional', count: 1 }, { category: 'dining-chair', count: 2 }] }, room).add).toHaveLength(2)
-    expect(parseRoomDesignIntent({ ...intent(), add: [{ category: 'chair', count: 1 }, { category: 'table', count: 1 }] }, room).add).toHaveLength(2)
+    expect(() => parseRoomDesignIntent({ ...intent(), add: [{ category: 'chair', count: 1 }] }, room)).toThrow()
+    expect(() => parseRoomDesignIntent({ ...intent(), add: [{ category: 'table', count: 1 }] }, room)).toThrow()
+    expect(() => parseRoomDesignIntent({ ...intent(), replace: [{ objectId: room.objects[0]!.id, category: 'closet', count: 1 }] }, room)).toThrow()
   })
 
   it('rejects aggregate additions and replacements over 12', () => {
@@ -73,5 +75,19 @@ describe('room designer contract', () => {
     expect(() => parseRoomDesignIntent({ ...intent(), notes: ['x'.repeat(301)] }, room)).toThrow()
     const oversized = { ...intent(), removeObjectIds: Array.from({ length: 100 }, (_, index) => `${'x'.repeat(297)}${index.toString().padStart(3, '0')}`) }
     expect(() => parseRoomDesignIntent(oversized, room)).toThrow('exceeds 24 KB')
+  })
+
+  it.each(['$499', '499 USD', 'price: 499', 'https://shop.example/item', '2.4 m', 'width: 2.4', 'x=3,z=4', 'position: (1,2,3)', 'execute command moveObject'])('rejects fabricated facts in prose: %s', (claim) => {
+    expect(() => parseRoomDesignIntent({ ...intent(), summary: `A calm room. ${claim}` }, room)).toThrow()
+    expect(() => parseRoomDesignIntent({ ...intent(), notes: [`Try warm wood. ${claim}`] }, room)).toThrow()
+    expect(parseRoomDesignIntent({ ...intent(), summary: 'A calm room with a sofa', notes: ['Try warm wood and open space'] }, room).summary).toBe('A calm room with a sofa')
+  })
+
+  it('validates the response envelope through the current room and byte cap', () => {
+    expect(parseRoomDesignResponse({ intent: intent() }, room)).toEqual({ intent: intent() })
+    expect(() => parseRoomDesignResponse({ intent: { ...intent(), removeObjectIds: ['missing'] } }, room)).toThrow()
+    expect(() => parseRoomDesignResponse({ intent: intent(), price: 499 }, room)).toThrow()
+    const oversized = { ...intent(), removeObjectIds: Array.from({ length: 100 }, (_, index) => `${'x'.repeat(297)}${index.toString().padStart(3, '0')}`) }
+    expect(() => parseRoomDesignResponse({ intent: oversized }, room)).toThrow('exceeds 24 KB')
   })
 })

@@ -2,6 +2,16 @@ import { z } from 'zod'
 import type { Room } from '../domain/schema'
 
 const ShortText = z.string().max(300)
+// Numeric purchase, measurement, coordinate, URL, and command claims are not
+// model facts. Keep prose to subjective, human-actionable design language.
+const FabricatedFacts = [
+  /(?:[$€£¥]\s*\d|\b(?:USD|EUR|GBP|CAD|AUD|JPY)\s*\d|\b\d+(?:\.\d+)?\s*(?:USD|EUR|GBP|CAD|AUD|JPY|dollars?|euros?|pounds?)\b|\b(?:price|cost|subtotal)\s*[:=])/i,
+  /(?:\b\d+(?:\.\d+)?\s*(?:mm|cm|m|meters?|metres?|inches?|ft|feet)\b|\b(?:width|height|depth|size)\s*(?::|=|is|of)?\s*\d|\bdimensions?\b)/i,
+  /(?:\b(?:https?:\/\/|www\.)|\b[a-z0-9-]+\.(?:com|net|org|io|co)(?:\/|\b))/i,
+  /(?:\b[xyz]\s*[:=]\s*-?\d|\b(?:coordinates?|position|pose)\s*[:=])/i,
+  /\b(?:commands?|applycommands|setposition|moveobject|execute)\b/i,
+]
+const SafeModelText = ShortText.refine((value) => !FabricatedFacts.some((pattern) => pattern.test(value)), 'Model prose contains unsupported factual claims')
 const Id = z.string().min(1).max(300)
 const HexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/)
 const Vec2 = z.strictObject({ x: z.number(), z: z.number() })
@@ -61,15 +71,13 @@ export const RoomDesignRequest = z.strictObject({
 })
 export type RoomDesignRequest = z.infer<typeof RoomDesignRequest>
 
-/** Categories eligible for catalog resolution. The model cannot invent a product identity or an unsupported category. */
+/** Categories in committed catalog inventory eligible for model add/replace requests. Captured structural categories remain in room summaries for ID-based targeting but are never new catalog requests. */
 export const ROOM_DESIGN_CATEGORIES = [
-  'bathtub', 'bed', 'bench', 'bookshelf', 'cabinet', 'chair', 'closet',
-  'coffee-table', 'console', 'curtain', 'decor-object', 'desk', 'desk-chair',
-  'dining-chair', 'dining-table', 'dishwasher', 'dresser', 'fireplace',
-  'floor-lamp', 'lounge-chair', 'mirror', 'nightstand', 'ottoman', 'oven',
-  'pillow', 'plant', 'planter', 'refrigerator', 'rug', 'sectional', 'side-table',
-  'sink', 'sofa', 'stairs', 'storage', 'stove', 'table', 'table-lamp',
-  'television', 'throw', 'toilet', 'vase', 'wall-art', 'washer-dryer',
+  'bed', 'bench', 'bookshelf', 'cabinet', 'coffee-table', 'console', 'curtain',
+  'decor-object', 'desk', 'dining-chair', 'dining-table', 'dresser',
+  'floor-lamp', 'lounge-chair', 'mirror', 'nightstand', 'ottoman', 'pillow',
+  'plant', 'planter', 'rug', 'sectional', 'side-table', 'sofa', 'table-lamp',
+  'throw', 'vase', 'wall-art',
 ] as const
 const Category = z.enum(ROOM_DESIGN_CATEGORIES)
 const Palette = z.discriminatedUnion('mode', [
@@ -82,22 +90,27 @@ const PlannedItem = z.strictObject({ category: Category, count: z.number().int()
 
 /** Model output is intent only. It contains no coordinates, dimensions, prices, URLs, room fields, or executable commands; deterministic browser code resolves all edits. */
 export const RoomDesignIntent = z.strictObject({
-  summary: ShortText.min(1),
+  summary: SafeModelText.min(1),
   palette: Palette.optional(),
   rearrange: z.enum(['none', 'gentle', 'full']),
   removeObjectIds: z.array(Id).max(100),
   replace: z.array(z.strictObject({ objectId: Id, category: Category, count: z.number().int().min(1).max(12) })).max(12),
   add: z.array(PlannedItem).max(12),
-  notes: z.array(ShortText.min(1)).max(12),
+  notes: z.array(SafeModelText.min(1)).max(12),
 }).superRefine((intent, ctx) => {
   const total = [...intent.replace, ...intent.add].reduce((sum, item) => sum + item.count, 0)
   if (total > 12) ctx.addIssue({ code: 'custom', message: 'At most 12 planned additions and replacements', path: ['add'] })
 })
 export type RoomDesignIntent = z.infer<typeof RoomDesignIntent>
 
-/** Minimal server response; all user-visible proposal facts are computed locally from validated intent. */
-export const RoomDesignResponse = z.strictObject({ intent: RoomDesignIntent })
-export type RoomDesignResponse = z.infer<typeof RoomDesignResponse>
+/** Minimal validated server response; all user-visible proposal facts are computed locally from current-room intent. */
+export type RoomDesignResponse = { intent: RoomDesignIntent }
+
+/** Parses a response envelope and validates its intent against the current room and 24 KB model limit. */
+export function parseRoomDesignResponse(value: unknown, room: Room): RoomDesignResponse {
+  const envelope = z.strictObject({ intent: z.unknown() }).parse(value)
+  return { intent: parseRoomDesignIntent(envelope.intent, room) }
+}
 
 /** Validates bounded model JSON against the current room; throws for stale identities, duplicates, fabricated fields, or oversized output. */
 export function parseRoomDesignIntent(value: unknown, room: Room): RoomDesignIntent {
