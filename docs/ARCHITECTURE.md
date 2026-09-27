@@ -125,7 +125,7 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `web/src/ui/evidenceStore.ts` | In-memory package evidence beside the loaded room (`evidenceStore.set`, `regionsFor`, `artPhotoFor`) |
 | `web/src/test/zipWriter.ts` | Test-only ZIP builder (`makeZip`) with tampering options |
 | `web/src/domain/` | Pure logic: schema (incl. optional `Room.zones` / `Zone`: per-room floor and wall finishes), units, geometry, layout, money, purchases, catalog, commands, design store, themes, labels, mounting |
-| `web/src/scene/` | React Three Fiber scene: architecture (zone floors, per-face wall paint via `splitFaces`), furniture, camera, lighting, cutaway (exterior walls and camera-facing partitions; wall-mounted items hide with their wall: `isWallMounted` + `hostWall`), gestures |
+| `web/src/scene/` | React Three Fiber scene: architecture (zone floors, per-face wall paint via `splitFaces`), furniture, camera, lighting, cutaway (exterior walls and camera-facing partitions; wall art remains visible while its host wall is cut, while other wall-mounted pieces follow it), gestures |
 | `web/src/scene/ArtPhoto.tsx` | `ArtPhoto`: a wall-art object's package photo as a textured plane on its front face; disposes texture/object URL |
 | `web/src/domain/categories.ts`, `layout.ts` | Categories (`CATEGORIES` incl. built-in `closet`, `isWallHung`, `isWallMounted`); placement (`inwardNormal`, `hostWall`, `wallSpot`, …); hung pieces on their wall (`WallPlacement`, `wallPlacement`, `slideOnWall`, `coversOpening`) |
 | `web/src/domain/catalog.ts` | Catalog query/ranking and placement; `defaultVariantIndex` (wall pieces start at the listed size nearest a typical one) |
