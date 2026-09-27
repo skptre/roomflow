@@ -1,10 +1,9 @@
 import { AnimatePresence } from 'motion/react'
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useStore } from 'zustand'
+import { catalogSource, catalogStore } from './catalog/appCatalog'
 import { designStore, viewRoom } from './domain/designStore'
 import { budgetForChoice, type SummarySources } from './domain/purchases'
-import { sampleCatalog, sampleOffers, sampleVariantLabels } from './fixtures/sample-catalog'
-import { SampleCatalogSource } from './fixtures/sample-catalog-source'
 import sampleScan from './fixtures/synthetic-bedroom.roomplan.json?raw'
 import { MAX_IMPORT_BYTES, parseRoomPlanJson } from './import/roomplan'
 import { RoomScene } from './scene/RoomScene'
@@ -23,19 +22,29 @@ import { ThemePicker } from './ui/ThemePicker'
 import { TopBar } from './ui/TopBar'
 import { useEditorShortcuts } from './ui/useEditorShortcuts'
 
-const SOURCES: SummarySources = { offers: sampleOffers, variantLabels: sampleVariantLabels }
-const catalogSource = new SampleCatalogSource()
 const sampleResult = parseRoomPlanJson(sampleScan)
 const sampleRoom = sampleResult.ok ? sampleResult.room : null
-const AssetLineup = lazy(() => import('./scene/dev/AssetLineup').then((m) => ({ default: m.AssetLineup })))
-const showLineup = new URLSearchParams(window.location.search).has('lineup')
+const BlockSheet = lazy(() => import('./scene/dev/BlockSheet').then((m) => ({ default: m.BlockSheet })))
+const blocksParam = new URLSearchParams(window.location.search).get('blocks')
+const blocksFilter = (new URLSearchParams(window.location.search).get('v') ?? '').split(',').filter(Boolean)
+const blocksImage = new URLSearchParams(window.location.search).get('img')
+const LineupSheet = lazy(() => import('./scene/dev/LineupSheet').then((m) => ({ default: m.LineupSheet })))
+const lineupParam = new URLSearchParams(window.location.search).get('lineup')
 
 export default function App() {
-  if (showLineup)
+  if (lineupParam !== null)
+    return (
+      <main className="relative h-full w-full overflow-auto">
+        <Suspense fallback={null}>
+          <LineupSheet page={Math.max(1, Number(lineupParam) || 1)} />
+        </Suspense>
+      </main>
+    )
+  if (blocksParam !== null)
     return (
       <main className="relative h-full w-full overflow-hidden">
         <Suspense fallback={null}>
-          <AssetLineup />
+          <BlockSheet only={blocksParam || null} filter={blocksFilter} image={blocksImage} />
         </Suspense>
       </main>
     )
@@ -58,12 +67,26 @@ function Workspace() {
   const [viewRequest, setViewRequest] = useState<ViewRequest>({ action: 'home', sequence: 0 })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const offers = useStore(catalogStore, (state) => state.offers)
+  const variantLabels = useStore(catalogStore, (state) => state.variantLabels)
+  const catalogEntries = useStore(catalogStore, (state) => state.entries)
+  const sources: SummarySources = useMemo(() => ({ offers, variantLabels }), [offers, variantLabels])
+  // Looks only propose pieces the store reports in stock at a known price, so a look's total means something.
+  const lookCatalog = useMemo(
+    () => catalogEntries.filter((entry) => entry.offer.available !== false && entry.offer.price !== null),
+    [catalogEntries],
+  )
+  const hasRoom = committed !== null
+  useEffect(() => {
+    // Fetch the catalog once a room is open; the catalog panel shows any failure and retries.
+    if (hasRoom) catalogStore.getState().load().catch(() => undefined)
+  }, [hasRoom])
   const swapObject = committed?.room.objects.find((object) => object.id === swapId) ?? null
   // What the next choice may cost: a replacement gives the old piece's price back first.
   const swapTargetId = swapObject?.id
   const budgetLeft = useMemo(
-    () => (committed ? budgetForChoice(committed.room, SOURCES, committed.budget, swapTargetId) : null),
-    [committed, swapTargetId],
+    () => (committed ? budgetForChoice(committed.room, sources, committed.budget, swapTargetId) : null),
+    [committed, sources, swapTargetId],
   )
   useEditorShortcuts(!welcome && room !== null)
   function showPanel(next: 'room' | 'catalog') {
@@ -111,7 +134,7 @@ function Workspace() {
           onOpenSample={() => open(sampleScan)}
           onResume={committed ? () => setWelcome(false) : undefined}
         >
-          {sampleRoom && <RoomScene room={sampleRoom} sources={SOURCES} decorative />}
+          {sampleRoom && <RoomScene room={sampleRoom} sources={sources} decorative />}
         </StartScreen>
       </main>
     )
@@ -133,7 +156,7 @@ function Workspace() {
       <div className="studio-body">
         <section className="room-stage" aria-label="Interactive room preview">
           <div className="room-canvas">
-            <RoomScene room={room} sources={SOURCES} viewRequest={viewRequest} onInspect={() => showPanel('room')} />
+            <RoomScene room={room} sources={sources} viewRequest={viewRequest} onInspect={() => showPanel('room')} />
           </div>
           {preview && (
             <div className="stage-preview" role="status">
@@ -172,7 +195,7 @@ function Workspace() {
           </div>
           <div className="pointer-events-none absolute inset-x-4 top-4 bottom-20 z-10 flex items-end justify-center">
             <AnimatePresence>
-              {looksOpen ? <ThemePicker catalog={sampleCatalog} sources={SOURCES} onClose={() => setLooksOpen(false)} /> : null}
+              {looksOpen ? <ThemePicker catalog={lookCatalog} sources={sources} onClose={() => setLooksOpen(false)} /> : null}
             </AnimatePresence>
           </div>
           <NoticeBar />
@@ -202,7 +225,7 @@ function Workspace() {
             ) : selected ? (
               <Inspector
                 object={selected}
-                sources={SOURCES}
+                sources={sources}
                 onClose={() => designStore.getState().select(null)}
                 onBrowseAlternatives={() => {
                   cancelCatalogPreview()
@@ -218,7 +241,7 @@ function Workspace() {
               />
             )}
           </div>
-          <SubtotalBar sources={SOURCES} />
+          <SubtotalBar sources={sources} />
         </aside>
       </div>
       {help && <HelpDialog onClose={() => setHelp(false)} />}

@@ -108,7 +108,7 @@ describe('parseRoomPlanJson — synthetic bedroom', () => {
       keep: true,
       lockPlacement: false,
       quantity: 1,
-      asset: { kind: 'parametric', assemblyId: 'bed' },
+      asset: { kind: 'recipe', recipeId: 'default:bed' },
     })
     expect(bed.dimensions.source).toBe('captured')
   })
