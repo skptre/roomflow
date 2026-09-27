@@ -37,6 +37,8 @@ const DEFAULTS: Readonly<Record<string, Shape>> = {
   planter: { family: 'planter', blocks: { plant: 'none' }, params: {} },
   'wall-art': { family: 'art', blocks: {}, params: {} },
   mirror: { family: 'mirror', blocks: {}, params: {} },
+  // Reserved for a normal-depth closet. RoomPlan door planes use placeholders.
+  closet: { family: 'storage', blocks: { layout: 'doors', handles: 'bar', base: 'plinth' }, params: {} },
   vase: { family: 'vase', blocks: {}, params: {} },
   'decor-object': { family: 'vase', blocks: { profile: 'sphere' }, params: {} },
   curtain: { family: 'curtain', blocks: {}, params: {} },

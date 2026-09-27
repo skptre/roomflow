@@ -25,7 +25,11 @@ export function AssetView({ asset, dimensions, category }: AssetViewProps) {
   switch (asset.kind) {
     case 'recipe': {
       const recipe = recipeForAsset(asset, category)
-      return recipe ? <RecipeMesh recipe={recipe} dimensions={dimensions} colors={asset.colors} /> : <Placeholder dimensions={dimensions} />
+      return recipe ? (
+        <AssetErrorBoundary fallback={<Placeholder dimensions={dimensions} label="Model unavailable" />}>
+          <RecipeMesh recipe={recipe} dimensions={dimensions} colors={asset.colors} />
+        </AssetErrorBoundary>
+      ) : <Placeholder dimensions={dimensions} />
     }
     case 'glb':
       return (

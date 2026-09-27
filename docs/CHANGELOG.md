@@ -2,7 +2,7 @@
 
 ### 2026-09-27 — integration: real catalog renderer with room capture
 
-Merged the demo-ready real-catalog branch into the Designer and native piece-import work. Existing RoomPlan furniture, wall art, Gemini appearance previews, and scanned pieces now use the validated recipe renderer (`web/src/blocks/`) alongside the real catalog. Built-in closet fronts remain measured placeholders because RoomPlan supplies only their thin door plane. The Vite server mounts both the price-refresh API and the local-only Gemini recognition endpoint. No scan evidence, prices, or preview-isolation rules changed.
+Merged the demo-ready real-catalog branch into the Designer and native piece-import work. Existing RoomPlan furniture, wall art, Gemini appearance previews, and scanned pieces now use the validated recipe renderer (`web/src/blocks/`) alongside the real catalog. Built-in closet fronts remain measured placeholders because RoomPlan supplies only their thin door plane; an invalid recipe now also falls back to a visible size placeholder instead of blanking the canvas. The Vite server mounts both the price-refresh API and the local-only Gemini recognition endpoint. No scan evidence, prices, or preview-isolation rules changed.
 
 ### 2026-09-27 — iOS/web: scan and import a single furniture piece
 
