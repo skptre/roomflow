@@ -136,7 +136,7 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `web/src/ui/AutoMatchDialog.tsx` | Post-import offer: exact crops, one consent, progress, applies all matches as one undo step |
 | `web/src/ui/` | Interface components |
 | `web/src/fixtures/` | Sample catalog and synthetic RoomPlan fixtures (`synthetic-bedroom` for tests, `demo-home` for the app's sample) |
-| `web/src/fixtures/demoRoom.ts` | The app's sample bedroom: `demoRoom()` (import `demo-home.roomplan.json` + `furnish`), `furnish()` (names five scanned pieces, chunky `demo:*` recipes, one of each decor, sage/carpet finishes, curtains via `windowSpot`), `DEMO_RECIPES` |
+| `web/src/fixtures/demoRoom.ts` | The app's sample bedroom: `demoRoom()` (import `demo-home.roomplan.json` + `furnish`), `furnish()` (names four scanned pieces, chunky `demo:*` recipes, one of each decor, curtains via `windowSpot`; default finishes), `DEMO_RECIPES` |
 | `web/src/scene/zonePaint.ts` | Room zones → paint: `zoneAt(room, point)`, `wallFaceColors(room, wall)` → `FaceColors` (left/right face; outside faces match inside) |
 | `web/src/blocks/` | Validated recipe renderer for catalog products, captured furniture, wall art, mirrors, and closet fronts. `families/shared.ts`: `PROPORTION` block (`classic`/`chunky`), `hardEdge`, chunky `leg`/`legGrid`/`handle` |
 | `web/scripts/` | Fixture and test-GLB generators (`generate-demo-home.mjs` → the sample home scan) |

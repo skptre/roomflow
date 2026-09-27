@@ -1,5 +1,10 @@
 # Changelog
 
+### 2026-09-27 — web: sample room back to the original bedroom
+
+- `generate-demo-home.mjs` / `demo-home.roomplan.json`: the original sample bedroom's layout (bed's head on the north wall, dresser on the south wall, open door on the south wall, window on the east wall), 4.4 × 3.8 m instead of 4 × 3.5. The desk and chair moved to the west wall so nothing stands under the window's curtains. No armchair.
+- `demoRoom.ts`: four scanned pieces (bed, desk, desk chair, dresser) in chunky recipes, the importer's default finishes (the original colors), and one lamp, painting, rug, plant and curtains. Tests unchanged in intent (sparse, $0 start, no collisions or blocked doorway); checked in the browser.
+
 ### 2026-09-27 — web: simpler sample bedroom; paintings slide along their wall; fixes
 
 - Sample room back to one small bedroom (`generate-demo-home.mjs`, `demoRoom.ts`): 4.6 × 4.0 m, five scanned pieces (bed, nightstand, desk, desk chair, armchair) and one of each decor (lamp, painting, rug, plant, curtains). The bathroom is gone; `Room.zones` stays as a supported, now unused, capability.
