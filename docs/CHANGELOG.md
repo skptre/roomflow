@@ -1,5 +1,9 @@
 # Changelog
 
+### 2026-09-27 — web: no flicker at wall corners
+
+- `web/src/scene/Architecture.tsx`: exterior walls' corner extensions stop 1 mm (`CORNER_TUCK`) short of the neighboring wall's outer face. Before, one wall's end face lay exactly on the other's outer face, and the two z-fought: a flickering zigzag down each outside corner, most visible on cut-away stubs.
+
 ### 2026-09-27 — web: sample room back to the original bedroom
 
 - `generate-demo-home.mjs` / `demo-home.roomplan.json`: the original sample bedroom's layout (bed's head on the north wall, dresser on the south wall, open door on the south wall, window on the east wall), 4.4 × 3.8 m instead of 4 × 3.5. The desk and chair moved to the west wall so nothing stands under the window's curtains. No armchair.
