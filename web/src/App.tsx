@@ -177,7 +177,6 @@ function Workspace() {
           busy={busy}
           onImportFile={importFile}
           onOpenSample={() => open(parseRoomPlanJson(sampleScan))}
-          onPairedScan={(scan) => open(parseRoomPlanJson(scan))}
           onResume={committed ? () => setWelcome(false) : undefined}
         >
           {sampleRoom && <RoomScene room={sampleRoom} sources={sources} decorative />}
