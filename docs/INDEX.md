@@ -7,6 +7,7 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | --- | --- |
 | What every file does, with key types/functions | `docs/ARCHITECTURE.md` |
 | What changed and when | `docs/CHANGELOG.md` |
+| Gemini room-designer design and safety contract | `docs/superpowers/specs/2026-09-27-gemini-room-designer-design.md` |
 | Why a past tradeoff was made | `docs/DECISIONS.md` |
 | When to update which document | `.claude/documentation.md` |
 | Product behavior and scope | `spec.md` |
@@ -46,6 +47,10 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | PR template and CI | `.github/` |
 
 | Web — Gemini photos and furniture discoveries | `docs/ux/gemini-appearance.md`, `web/src/recognition/`, `web/server/` |
+| Web — Gemini room-designer request and intent boundary | `web/src/roomDesigner/contract.ts` |
+| Web — deterministic room-designer proposal resolution | `web/src/roomDesigner/proposal.ts` |
+| Web — Gemini room-design endpoint (`/api/design-room`) and local-only request checks | `web/server/roomDesigner.ts`, `web/server/localAccess.ts`, `web/server/ai.ts` |
+| Web — “Design with Gemini” composer, owned preview and apply | `web/src/ui/RoomDesignerDialog.tsx`, `web/src/ui/roomDesignerActions.ts` |
 
 | iOS — Scan a piece, local saved pieces and selected-object export | `ios/RoomFlow/Views/PieceScanView.swift`, `PieceReviewView.swift`, `ios/RoomFlow/Models/ScannedPiece.swift`, `ios/RoomFlow/Services/PieceArchiveStore.swift` |
 | Web — import one piece into an existing room | `web/src/import/piece.ts`, `web/src/ui/PieceImportDialog.tsx`, `docs/piece-package.md` |

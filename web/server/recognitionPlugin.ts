@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { DEFAULT_MODEL, RATES, recognize, RecognitionError, type RecognitionConfig } from './recognition.ts'
+import { isLocalBrowserRequest, isLocalPeerRequest } from './localAccess.ts'
 
 /** Local development adapter. Do not expose this unauthenticated endpoint on a public host. */
 export function recognitionPlugin(config: RecognitionConfig): Plugin {
@@ -13,12 +14,10 @@ export function recognitionPlugin(config: RecognitionConfig): Plugin {
     res.setHeader('Cache-Control', 'no-store')
     res.setHeader('Content-Type', 'application/json')
     const send = (status: number, value: unknown) => { res.statusCode = status; res.end(JSON.stringify(value)) }
-    const host = req.headers.host ?? ''
-    const peer = req.socket.remoteAddress
-    if (!/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host) || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(peer ?? '')) return send(403, { error: 'Photo recognition is available on this computer only.' })
+    if (!isLocalPeerRequest(req)) return send(403, { error: 'Photo recognition is available on this computer only.' })
     if (req.method === 'GET' && req.url.endsWith('/status')) return send(200, { ready: Boolean(config.key && config.paid && Object.hasOwn(RATES, config.model)), model: config.model || DEFAULT_MODEL })
     if (req.method !== 'POST' || req.url !== '/api/recognize') return send(405, { error: 'Method not allowed.' })
-    if (req.headers.origin !== `http://${host}` || !req.headers['content-type']?.startsWith('application/json')) return send(403, { error: 'Use the Roomflow photo review screen.' })
+    if (!isLocalBrowserRequest(req) || !req.headers['content-type']?.startsWith('application/json')) return send(403, { error: 'Use the Roomflow photo review screen.' })
     if (busy) return send(429, { error: 'Another photo is being analyzed. Please wait.' })
     if (Date.now() - windowStart > 60_000) { windowStart = Date.now(); windowCount = 0 }
     if (windowCount >= 6 || count >= 100) return send(429, { error: 'The local recognition request limit has been reached.' })
