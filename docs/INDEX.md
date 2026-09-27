@@ -22,7 +22,7 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | iOS — matching photos to scanned objects | `ios/RoomFlow/Services/RoomEvidenceProjector.swift`, `Models/RoomAppearanceEvidence.swift` |
 | iOS — wall art detection (judge rectangles, group/confirm/attach to final walls, scan wiring + reference photo crop, save/reopen/review) | `ios/RoomFlow/Services/WallArtDetector.swift`, `WallArtTracker.swift`, `WallArtScanner.swift`, `Models/WallArtItem.swift`, `Services/RoomArchiveStore.swift`, `Views/RoomEvidenceReviewView.swift`, `Views/ScanSummaryView.swift`, `docs/superpowers/plans/2026-09-26-wall-art-detection.md` |
 | iOS — Review room (labels, photo selection) | `ios/RoomFlow/Views/RoomEvidenceReviewView.swift`, `Models/RoomEvidenceSelection.swift` |
-| iOS — `.roomflow.zip` package | `ios/RoomFlow/Services/RoomPackageExport.swift`, `Models/RoomPackageManifest.swift`, `docs/ios-room-package.md` |
+| iOS — `.roomflow.zip` package (incl. `wallArt.json`/`art/`) | `ios/RoomFlow/Services/RoomPackageExport.swift`, `Models/RoomPackageManifest.swift`, `docs/ios-room-package.md` |
 | iOS — top-down plan drawing and tap selection | `ios/RoomFlow/Views/RoomEditorView.swift`, `Services/FloorPlanGeometry.swift` |
 | iOS — screens and navigation | `ios/RoomFlow/Views/HomeView.swift` (entry), `SavedRoomsView.swift`, `ScanSummaryView.swift` |
 | iOS — colors, button style, plan palette | `ios/RoomFlow/Views/Theme.swift` |

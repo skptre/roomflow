@@ -3,6 +3,26 @@
 Newest first. Append an entry after every code change (what changed, why, where); never edit older entries.
 Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/changed functions.
 
+## 2026-09-27
+
+### iOS: wall art in the room package
+- `ios/RoomFlow/Models/WallArtItem.swift`: new optional `worldCenter: [Double]?`/`worldNormal: [Double]?`
+  (RoomPlan native world, meters; normal points into the room). Nil for items saved before this existed.
+- `ios/RoomFlow/Services/WallArtTracker.swift`: `finalize(walls:)` now fills `worldCenter`/`worldNormal` via
+  new private `worldPose(of:)` — median center on the measured plane, normals summed then normalized —
+  computed across every sighting from every group merged into the final item.
+- `ios/RoomFlow/Models/RoomPackageManifest.swift`: new `WallArtPackage` (`Item`) matching
+  `.superpowers/sdd/wall-art-package/format.md`'s `wallArt.json`; `isAllowed(_:)` accepts `wallArt.json` and
+  `art/<uuid>.jpg`; new `wallArtPath` constant.
+- `ios/RoomFlow/Services/RoomPackageExport.swift`: `export` now writes `wallArt.json` (only when at least one
+  item qualifies) and `art/<artId>.jpg` copies, for items still in `archive.wallArt` (Review-room removals
+  already drop them there) that have a resolved world pose. Art photos share the existing photo byte budget;
+  one that doesn't fit is left out (`photoPath` nil) and counted in the existing `omittedPhotoCount`.
+- `docs/ios-room-package.md`: new "wallArt.json" section. Tests: `ios/RoomFlowTests/WallArtTrackerTests.swift`,
+  `ios/RoomFlowTests/RoomPackageExportTests.swift`.
+- Why: "Add detected wall art to the .roomflow.zip and show it on the web walls" — approved by the Designer
+  side 2026-09-27; this is the iOS half (package export). Web rendering is a separate change.
+
 ## 2026-09-26
 
 ### iOS: wall art — review fixes

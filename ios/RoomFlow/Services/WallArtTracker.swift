@@ -116,10 +116,14 @@ nonisolated struct WallArtTracker {
         }
 
         return merged.map { p in
+            let sortedGroups = p.groupIndices.sorted()
+            let contributing = sortedGroups.flatMap { groups[$0].sightings }
+            let (worldCenter, worldNormal) = worldPose(of: contributing)
             let item = WallArtItem(id: UUID(), wallSourceId: p.wall.sourceId, centerX: p.centerX, centerY: p.centerY,
                                     width: p.width, height: p.height, standoff: p.standoff,
-                                    sightingCount: p.sightingCount, photoFileName: nil)
-            return (item, p.groupIndices.sorted())
+                                    sightingCount: p.sightingCount, photoFileName: nil,
+                                    worldCenter: worldCenter, worldNormal: worldNormal)
+            return (item, sortedGroups)
         }
     }
 
@@ -156,6 +160,17 @@ nonisolated struct WallArtTracker {
             if best.map({ abs(local.z) < $0.distance }) ?? true { best = (wall, abs(local.z)) }
         }
         return best?.wall
+    }
+
+    /// RoomPlan-native world center (median per axis, on the measured plane) and unit normal (sightings'
+    /// normals summed then normalized, matching `recomputeMeans`) across every sighting that contributed
+    /// to a final item, for `wallArt.json`. `sightings` is never empty for a confirmed group.
+    private func worldPose(of sightings: [WallArtSighting]) -> (center: [Double], normal: [Double]) {
+        let center = SIMD3<Float>(median(sightings.map(\.center.x)), median(sightings.map(\.center.y)),
+                                   median(sightings.map(\.center.z)))
+        let normalSum = sightings.reduce(SIMD3<Float>.zero) { $0 + simd_normalize($1.normal) }
+        let normal = simd_length(normalSum) > 1e-6 ? simd_normalize(normalSum) : simd_normalize(sightings[0].normal)
+        return ([Double(center.x), Double(center.y), Double(center.z)], [Double(normal.x), Double(normal.y), Double(normal.z)])
     }
 
     private func median(_ values: [Float]) -> Float {

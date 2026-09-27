@@ -16,6 +16,8 @@ One zip named `<capture-id>.roomflow.zip` containing a single top-level folder `
 | `editable.roomflow.json` | yes | RoomFlow's native editor model (`docs/room-json.md`). Different frame; never a substitute for the raw scan |
 | `appearance.json` | no | Approximate sampled colors and user-supplied names |
 | `photos/<photo-id>.jpg` | no | Only photos the user chose to share (Review room), max 12 / 20 MiB |
+| `wallArt.json` | no | Confirmed wall art still in the room's saved list, RoomPlan native world pose |
+| `art/<art-id>.jpg` | no | Straight-on reference photo for a `wallArt.json` item (optional per item) |
 
 No other paths appear. Consumers should still reject anything else, `..`, absolute paths, symlinks and duplicates.
 
@@ -103,9 +105,54 @@ Verified on device (iPhone 15 Pro): boxes landed on the scanned bin and chair.
   (still in `capture.roomplan.json`) and never replace it or change any measurement.
 - A user can't add an object without RoomPlan geometry in v1, so no fabricated IDs or dimensions exist.
 
+## wallArt.json
+
+**Approved by the Designer side 2026-09-27** (`.superpowers/sdd/wall-art-package/format.md` is the binding
+copy of this section; keep them in sync). Present only when at least one confirmed piece of wall art both
+survived Review room (the user didn't mark it "Not wall art") and has a resolved world pose — items saved
+before `WallArtItem.worldCenter`/`worldNormal` existed are left out, never exported with fabricated coordinates.
+
+```json
+{
+  "schemaVersion": 1,
+  "captureId": "AE251557-0000-4000-8000-000000000000",
+  "items": [
+    {
+      "artId": "5B1C9C2E-0000-4000-8000-000000000002",
+      "wallSourceId": "UUID of a RoomPlan wall in capture.roomplan.json (may be absent from the web room; then place anyway)",
+      "center": [1.0, 1.4, -3.0],
+      "normal": [0.0, 0.0, 1.0],
+      "width": 0.38,
+      "height": 0.95,
+      "standoff": 0.0,
+      "sightingCount": 7,
+      "photoPath": "art/5B1C9C2E-0000-4000-8000-000000000002.jpg",
+      "method": "rectangle-lidar-v1",
+      "provenance": "measured-estimate"
+    }
+  ]
+}
+```
+
+- `center`/`normal`: RoomPlan native world coordinates and frame, meters — same as `capture.roomplan.json`
+  and `manifest.json`'s `photos[].cameraToWorld`. `normal` is a unit vector pointing from the wall into the
+  room (the art's front); a consumer should still normalize it defensively.
+- `width`/`height`/`standoff`: meters, measured estimates (never claimed exact); `standoff` is how far the
+  panel sits in front of the wall plane.
+- `photoPath`: `art/<artId>.jpg`, or `null` when no photo was captured, the file went missing, or it didn't
+  fit the package's photo byte budget (art photos share `RoomPackageExport.maxPhotoBytes` with `photos/`).
+- `provenance` is always `"measured-estimate"` in v1 — every wall-art item comes from the same camera+LiDAR
+  detection pipeline (`WallArtTracker`), never a merchant listing or user entry.
+- Malformed or out-of-range items should be dropped by the consumer with one warning; a malformed file drops
+  wall art entirely with a warning, never fails the whole package import (see `format.md`'s validation rule).
+
 ## Limits and failure behavior (iOS side)
 
 - At most 12 photos, 20 MiB of photo bytes; extra selected photos are dropped and counted in `omittedPhotoCount`.
+  Art photos (`art/<artId>.jpg`) share the same 20 MiB budget, filled after regular photos; one that doesn't
+  fit is dropped (`photoPath` becomes `null`, the item itself still exports) and also counted in
+  `omittedPhotoCount` — see `docs/DECISIONS.md` for why art photos yield to regular photos rather than the
+  reverse.
 - Packages are rebuilt from the latest selection each time; excluded photos can't appear in a new package.
 - Packaging failures never affect the saved room or the separate raw RoomPlan export.
 
