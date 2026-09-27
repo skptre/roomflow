@@ -17,6 +17,7 @@ import { AutoMatchDialog } from './ui/AutoMatchDialog'
 import { CatalogPanel } from './ui/CatalogPanel'
 import { evidenceStore } from './ui/evidenceStore'
 import { cancelCatalogPreview } from './ui/catalogActions'
+import { PieceImportDialog } from './ui/PieceImportDialog'
 import { AppearanceDialog } from './ui/AppearanceDialog'
 import { HelpDialog } from './ui/HelpDialog'
 import { Inspector } from './ui/Inspector'
@@ -63,6 +64,7 @@ function Workspace() {
   const [welcome, setWelcome] = useState(true)
   const [panel, setPanel] = useState<'room' | 'catalog'>('room')
   const [swapId, setSwapId] = useState<string | null>(null)
+  const [pieceImport, setPieceImport] = useState(false)
   const [discovery, setDiscovery] = useState(false)
   const [help, setHelp] = useState(false)
   const [viewRequest, setViewRequest] = useState<ViewRequest>({ action: 'home', sequence: 0 })
@@ -257,6 +259,7 @@ function Workspace() {
                 room={committed.room}
                 onSelect={(object) => designStore.getState().select(object.id)}
                 onBrowse={() => showPanel('catalog')}
+                onImportPiece={() => { cancelActivePreview(); setLooksOpen(false); setPieceImport(true) }}
                 onAddPhoto={() => { cancelActivePreview(); setLooksOpen(false); setDiscovery(true) }}
               />
             )}
@@ -264,6 +267,7 @@ function Workspace() {
           <SubtotalBar sources={SOURCES} />
         </aside>
       </div>
+      {pieceImport && <PieceImportDialog onClose={() => setPieceImport(false)} />}
       {discovery && <AppearanceDialog onClose={() => setDiscovery(false)} />}
       {help && <HelpDialog onClose={() => setHelp(false)} />}
       {autoMatch && <AutoMatchDialog items={autoMatch.items} model={autoMatch.model} onClose={() => setAutoMatch(null)} />}

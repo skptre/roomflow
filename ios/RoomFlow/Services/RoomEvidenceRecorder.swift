@@ -142,6 +142,9 @@ final class RoomEvidenceRecorder {
         case staleSession
     }
 
+    /// Piece mode cannot use photos whose calibration became uncertain.
+    var discardInterruptedPhotos = false
+
     private let policy: PhotoCandidatePolicy
     private let encoder: any PhotoEncoding
     private let rootDirectory: URL
@@ -166,6 +169,11 @@ final class RoomEvidenceRecorder {
     }
 
     var maxLongEdge: Int { policy.maxLongEdge }
+
+    /// Counts durable JPEGs only, never in-flight or failed encodes.
+    func completedPhotoCount(for objectID: UUID) -> Int {
+        candidates.filter { $0.focusObjectId == objectID && $0.trackingContinuous }.count
+    }
 
     private func directory(for session: UUID) -> URL {
         rootDirectory.appendingPathComponent(session.uuidString, isDirectory: true)
@@ -207,6 +215,10 @@ final class RoomEvidenceRecorder {
         guard sessionID == self.sessionID else { return }
         interruptions += 1
         for index in candidates.indices { candidates[index].trackingContinuous = false }
+        if discardInterruptedPhotos {
+            candidates.forEach { if let url = $0.fileURL { try? FileManager.default.removeItem(at: url) } }
+            candidates = []
+        }
     }
 
     /// Keeps a deliberate photo of `objectId` now, bypassing the motion gate (the focus tracker decided).
@@ -262,6 +274,10 @@ final class RoomEvidenceRecorder {
         var photo = photo
         photo.byteCount = bytes
         photo.trackingContinuous = interruptions == interruptionsAtCapture
+        if discardInterruptedPhotos && !photo.trackingContinuous {
+            if let url = photo.fileURL { try? FileManager.default.removeItem(at: url) }
+            return
+        }
         candidates.append(photo)
         let (kept, dropped) = policy.thin(candidates)
         candidates = kept
