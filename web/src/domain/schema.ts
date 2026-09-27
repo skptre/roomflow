@@ -4,6 +4,7 @@
  * Coordinate conventions are documented in ./units.ts.
  */
 import { z } from 'zod'
+import { Appearance } from '../recognition/contract'
 
 const Id = z.string().min(1)
 /** Zod 4 numbers already reject NaN and ±Infinity. */
@@ -86,6 +87,20 @@ export type Fidelity = z.infer<typeof Fidelity>
 export const SourceKind = z.enum(['captured', 'product', 'owned', 'found'])
 export type SourceKind = z.infer<typeof SourceKind>
 
+/** Something the user found in person. No merchant link or price is invented. */
+export const FoundItem = z.object({
+  id: Id,
+  name: z.string().min(1),
+  category: z.string().min(1),
+  photoRef: z.string().optional(),
+  dimensions: Dimensions,
+  price: Money.nullable(),
+  store: z.string().optional(),
+  link: z.url().optional(),
+  owned: z.boolean(),
+})
+export type FoundItem = z.infer<typeof FoundItem>
+
 export const RoomObject = z.object({
   id: Id,
   name: z.string(),
@@ -103,6 +118,8 @@ export const RoomObject = z.object({
   /** Lock placement: automated changes may not move or rotate it. */
   lockPlacement: z.boolean(),
   foundItemId: Id.optional(),
+  foundItem: FoundItem.optional(),
+  appearance: z.object({ description: Appearance, model: z.string().max(100), source: z.literal('ai-estimated') }).optional(),
 })
 export type RoomObject = z.infer<typeof RoomObject>
 
@@ -182,17 +199,3 @@ export const Offer = z.object({
   isSample: z.boolean(),
 })
 export type Offer = z.infer<typeof Offer>
-
-/** Something the user found in person. No merchant link or price is invented. */
-export const FoundItem = z.object({
-  id: Id,
-  name: z.string().min(1),
-  category: z.string().min(1),
-  photoRef: z.string().optional(),
-  dimensions: Dimensions,
-  price: Money.nullable(),
-  store: z.string().optional(),
-  link: z.url().optional(),
-  owned: z.boolean(),
-})
-export type FoundItem = z.infer<typeof FoundItem>

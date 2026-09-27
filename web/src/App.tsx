@@ -11,6 +11,7 @@ import { RoomScene } from './scene/RoomScene'
 import type { ViewRequest } from './scene/CameraRig'
 import { CatalogPanel } from './ui/CatalogPanel'
 import { cancelCatalogPreview } from './ui/catalogActions'
+import { AppearanceDialog } from './ui/AppearanceDialog'
 import { HelpDialog } from './ui/HelpDialog'
 import { Inspector } from './ui/Inspector'
 import { cancelActivePreview } from './ui/lookActions'
@@ -54,6 +55,7 @@ function Workspace() {
   const [welcome, setWelcome] = useState(true)
   const [panel, setPanel] = useState<'room' | 'catalog'>('room')
   const [swapId, setSwapId] = useState<string | null>(null)
+  const [discovery, setDiscovery] = useState(false)
   const [help, setHelp] = useState(false)
   const [viewRequest, setViewRequest] = useState<ViewRequest>({ action: 'home', sequence: 0 })
   const [error, setError] = useState<string | null>(null)
@@ -215,12 +217,14 @@ function Workspace() {
                 room={committed.room}
                 onSelect={(object) => designStore.getState().select(object.id)}
                 onBrowse={() => showPanel('catalog')}
+                onAddPhoto={() => { cancelActivePreview(); setLooksOpen(false); setDiscovery(true) }}
               />
             )}
           </div>
           <SubtotalBar sources={SOURCES} />
         </aside>
       </div>
+      {discovery && <AppearanceDialog onClose={() => setDiscovery(false)} />}
       {help && <HelpDialog onClose={() => setHelp(false)} />}
     </main>
   )
