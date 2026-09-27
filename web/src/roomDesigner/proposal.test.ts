@@ -1,0 +1,109 @@
+import { describe, expect, it } from 'vitest'
+import { sampleCatalog } from '../fixtures/sample-catalog'
+import { sampleRoom } from '../test/rooms'
+import { entryToObject, type CatalogEntry } from '../domain/catalog'
+import { applyCommands } from '../domain/commands'
+import type { Money, Room } from '../domain/schema'
+import type { RoomDesignIntent } from './contract'
+import { buildRoomDesignProposal } from './proposal'
+
+const catalog = sampleCatalog.map((entry) => ({ ...entry, offer: { ...entry.offer, available: true } }))
+const usd = (amountMinor: number): Money => ({ amountMinor, currency: 'USD' })
+const intent = (change: Partial<RoomDesignIntent> = {}): RoomDesignIntent => ({ rearrange: 'none', removeObjectIds: [], replace: [], add: [], ...change })
+const build = (change: Partial<RoomDesignIntent>, room = sampleRoom(), entries: CatalogEntry[] = catalog, budget: Money | null = null, baseRevision = 3) =>
+  buildRoomDesignProposal({ intent: intent(change), room, catalog: entries, budget, baseRevision })
+
+describe('buildRoomDesignProposal', () => {
+  it('rearranges movable furniture deterministically and produces auto-applicable commands', () => {
+    const base = sampleRoom()
+    const chair = base.objects.find((object) => object.id === 'OBJ-CHAIR')!
+    const room = { ...base, objects: [{ ...chair, keep: false, lockPlacement: false }] }
+    const first = build({ rearrange: 'full' }, room)
+    const second = build({ rearrange: 'full' }, room)
+    expect(first).toEqual(second)
+    expect(first.baseRevision).toBe(3)
+    expect(first.commands.some((command) => command.type === 'move' || command.type === 'rotate')).toBe(true)
+    expect(applyCommands(room, first.commands, 'auto').ok).toBe(true)
+    expect(build({ rearrange: 'full' }, room, catalog, null, 4).commands).not.toEqual(first.commands)
+  })
+
+  it('restyles to a requested black palette without changing the source room', () => {
+    const room = sampleRoom()
+    const before = structuredClone(room)
+    const proposal = build({ palette: { mode: 'set', color: '#000000' } }, room)
+    expect(proposal.commands).toContainEqual({ type: 'restyle', finishes: { ...room.finishes, wall: '#000000', floor: '#000000', accent: '#000000' } })
+    expect(room).toEqual(before)
+  })
+
+  it('removes, replaces and adds only actual catalog entries, preserving their offer identity', () => {
+    const base = sampleRoom()
+    const room = { ...base, objects: base.objects.map((object) => ['OBJ-CHAIR', 'OBJ-DESK'].includes(object.id) ? { ...object, keep: false } : object) }
+    const proposal = build({ removeObjectIds: ['OBJ-CHAIR'], replace: [{ objectId: 'OBJ-DESK', category: 'desk', count: 1 }], add: [{ category: 'plant', count: 1 }] }, room)
+    expect(proposal.commands.map((command) => command.type)).toEqual(expect.arrayContaining(['remove', 'replace', 'add']))
+    const result = applyCommands(room, proposal.commands, 'auto')
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    for (const object of result.room.objects.filter((item) => item.sourceKind === 'product')) {
+      const source = catalog.find((entry) => entry.variant.id === object.variantId && entry.offer.id === object.offerId)
+      expect(source).toBeDefined()
+      expect(object.name).toBe(source!.product.name)
+      expect(object.dimensions).toEqual(source!.variant.dimensions)
+    }
+  })
+
+  it('prunes over-budget and foreign-currency offers and keeps unknown prices unknown', () => {
+    const plant = catalog.find((entry) => entry.product.category === 'plant')!
+    const eur = { ...plant, offer: { ...plant.offer, id: 'eur', price: { amountMinor: 1, currency: 'EUR' } } }
+    const expensive = { ...plant, offer: { ...plant.offer, id: 'expensive', price: usd(50000) } }
+    const pruned = build({ add: [{ category: 'plant', count: 1 }] }, sampleRoom(), [eur, expensive], usd(100))
+    expect(pruned.commands).toEqual([])
+    expect(pruned.skipped.join(' ')).toMatch(/budget|currency/i)
+    const unknown = { ...plant, offer: { ...plant.offer, id: 'unknown', price: null } }
+    const proposal = build({ add: [{ category: 'plant', count: 1 }] }, sampleRoom(), [unknown], usd(50000))
+    expect(proposal.commands.some((command) => command.type === 'add')).toBe(true)
+    expect(proposal.summary.budget).toBe('unknown')
+  })
+
+  it('refuses keep removal and replacement, and locked moves or replacement nudges', () => {
+    const room = sampleRoom()
+    const chair = room.objects.find((object) => object.id === 'OBJ-CHAIR')!
+    const locked: Room = { ...room, objects: room.objects.map((object) => object.id === chair.id ? { ...object, keep: true, lockPlacement: true } : object) }
+    const protectedProposal = build({ rearrange: 'full', removeObjectIds: [chair.id] }, locked)
+    expect(protectedProposal.commands).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: chair.id, type: 'remove' })]))
+    expect(protectedProposal.skipped.join(' ')).toMatch(/keep/i)
+    const replaceProposal = build({ replace: [{ objectId: chair.id, category: 'lounge-chair', count: 1 }] }, locked)
+    expect(replaceProposal.commands).toEqual([])
+    expect(replaceProposal.skipped.join(' ')).toMatch(/keep/i)
+    const moveProposal = build({ rearrange: 'full' }, { ...room, objects: room.objects.map((object) => ({ ...object, lockPlacement: true })) })
+    expect(moveProposal.commands).toEqual([])
+    const edgeChair = { ...chair, keep: false, lockPlacement: true, pose: { ...chair.pose, position: { x: 1.65, y: 0, z: 0 } } }
+    const edgeRoom = { ...room, objects: [edgeChair] }
+    const sofa = catalog.filter((entry) => entry.product.category === 'sofa')
+    const clamped = build({ replace: [{ objectId: chair.id, category: 'sofa', count: 1 }] }, edgeRoom, sofa)
+    expect(clamped.commands).toEqual([])
+    expect(clamped.skipped.join(' ')).toMatch(/locked|fit/i)
+  })
+
+  it('reports a full-room skip rather than emitting an unsafe addition', () => {
+    const room = sampleRoom()
+    const bed = catalog.find((entry) => entry.variant.id === 'v-alder-bed-king')!
+    const proposal = build({ add: [{ category: 'bed', count: 1 }] }, room, [bed])
+    expect(proposal.commands).toEqual([])
+    expect(proposal.skipped.join(' ')).toMatch(/space|fit|spot/i)
+  })
+
+  it('never adds an out-of-stock entry and reports a missing category', () => {
+    const soldOut = catalog.filter((entry) => entry.product.category === 'plant').map((entry) => ({ ...entry, offer: { ...entry.offer, available: false } }))
+    const proposal = build({ add: [{ category: 'plant', count: 1 }] }, sampleRoom(), soldOut)
+    expect(proposal.commands).toEqual([])
+    expect(proposal.skipped.join(' ')).toMatch(/catalog|stock/i)
+  })
+
+  it('reports incomplete cost when an existing product has an unknown offer', () => {
+    const unpriced = catalog.find((entry) => entry.offer.price === null)!
+    const object = entryToObject(unpriced, { id: 'unpriced', position: { x: 0, z: 0 }, yaw: 0 })
+    const room = { ...sampleRoom(), objects: [object] }
+    const proposal = build({}, room, catalog, usd(50000))
+    expect(proposal.summary.budget).toBe('unknown')
+  })
+})

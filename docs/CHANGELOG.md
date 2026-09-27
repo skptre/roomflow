@@ -1,5 +1,9 @@
 # Changelog
 
+### 2026-09-27 — web: resolve room-design intent locally
+
+Added `web/src/roomDesigner/proposal.ts` and `proposal.test.ts`. `RoomDesignProposalInput`, `RoomDesignProposal`, and `buildRoomDesignProposal` turn validated intent into seeded, deterministic room commands using matching catalog entries and local placement checks. Each accepted command applies with the automated actor and no overlap warning; skipped changes carry a reason. The proposal includes a purchase summary with explicit currency and unknown-price budget status. Tests cover palette, layout, catalog identity, budget, keep/lock constraints, capacity, and auto application.
+
 ### 2026-09-27 — web: author room-design copy locally
 
 Updated `web/src/roomDesigner/contract.ts` and `contract.test.ts` to remove model-generated `summary` and `notes` from `RoomDesignIntent`; strict parsing rejects either field. New `RoomDesignDescription` and `describeRoomDesignIntent` produce neutral browser copy from validated structured intent and allowlisted local category labels, avoiding unbounded prose claims. Updated the Gemini room-designer design spec to match the boundary.

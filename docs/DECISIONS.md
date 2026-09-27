@@ -2,6 +2,10 @@
 
 Non-obvious tradeoffs, each with the alternative that was rejected. Routine "only way to do it" changes don't belong here.
 
+## Partial room-design proposals explain every skipped change
+
+The resolver accepts each safe command against a working room and returns a visible reason when a requested change cannot fit, has no available catalog entry, or violates a user constraint. It can include an unknown-price item when a budget is set, but marks budget status unknown and warns instead of claiming the design is under budget. Rejected: discarding the entire design on one impossible request or treating a missing price as zero.
+
 ## Room-designer descriptions are composed in the browser
 
 The model returns only structured intent; the browser composes summary and notes from validated fields and a fixed category vocabulary. Rejected: accepting short model prose after filtering apparent prices, dimensions, links, coordinates, or commands. Natural language can express the same unsupported claims in unlimited forms, so a regex cannot make those fields a reliable data boundary.
