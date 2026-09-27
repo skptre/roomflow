@@ -6,6 +6,7 @@ import { outwardNormal } from './cutaway'
 import { proceduralTexture } from './materials'
 import { palette, paletteName } from './palette'
 import { slabWallProfile, wallLength, wallShapes, wallThickness } from './wallGeometry'
+import { wallFaceColors, type FaceColors } from './zonePaint'
 
 /** Thickness of the floor slab under the room (reads as an architectural model base). */
 export const SLAB = 0.08
@@ -22,17 +23,22 @@ type ArchitectureProps = {
 /** Floor slab, walls with openings, and door/window frames for a room. */
 export function Architecture({ room, cut, reducedMotion }: ArchitectureProps) {
   // The dev palette toggle (?palette=…) previews its own wall/floor colors over the room's finishes.
-  const finishes = paletteName === 'warm' ? room.finishes : { ...room.finishes, wall: palette.wall, floor: palette.floor }
+  const devPalette = paletteName !== 'warm'
+  const finishes = devPalette ? { ...room.finishes, wall: palette.wall, floor: palette.floor } : room.finishes
+  const zones = devPalette ? [] : (room.zones ?? [])
   return (
     <group>
-      <Floor polygon={room.floorPolygon} color={finishes.floor} plain={finishes.floorTexture === 'plain'} />
+      <Floor polygon={room.floorPolygon} color={finishes.floor} texture={finishes.floorTexture ?? 'woodgrain'} />
+      {zones.map((zone) => (
+        <Floor key={zone.id} polygon={zone.polygon} color={zone.finishes.floor} texture={zone.finishes.floorTexture ?? 'woodgrain'} inlay />
+      ))}
       {room.walls.map((wall) => (
         <WallMesh
           key={wall.id}
           wall={wall}
           openings={room.openings}
           floorPolygon={room.floorPolygon}
-          color={finishes.wall}
+          colors={devPalette ? { left: palette.wall, right: palette.wall } : wallFaceColors(room, wall)}
           cut={cut.has(wall.id)}
           reducedMotion={reducedMotion}
         />
@@ -41,24 +47,32 @@ export function Architecture({ room, cut, reducedMotion }: ArchitectureProps) {
   )
 }
 
-/** `plain`: a matte floor with no wood grain, for a color sampled from the real room. */
-function Floor({ polygon, color, plain }: { polygon: readonly Vec2[]; color: string; plain: boolean }) {
+/** A zone's floor is laid this far over the room's floor, covering it. */
+const INLAY = 0.0015
+
+type FloorTexture = 'woodgrain' | 'plain' | 'tile'
+
+/**
+ * The floor slab, or with `inlay` a zone's floor laid over it. `plain`: a matte
+ * floor with no pattern (a color sampled from the real room, or carpet).
+ */
+function Floor({ polygon, color, texture, inlay = false }: { polygon: readonly Vec2[]; color: string; texture: FloorTexture; inlay?: boolean }) {
   const geometry = useMemo(() => {
     // Shape (x, -z) rotated -90° about X lands on (x, 0, z); extrusion then points up.
     const shape = new Shape(polygon.map((p) => new Vector2(p.x, -p.z)))
-    const extruded = new ExtrudeGeometry(shape, { depth: SLAB, bevelEnabled: false })
-    extruded.translate(0, 0, -SLAB)
+    const extruded = new ExtrudeGeometry(shape, { depth: inlay ? INLAY : SLAB, bevelEnabled: false })
+    if (!inlay) extruded.translate(0, 0, -SLAB)
     return extruded
-  }, [polygon])
-  // Materials are owned here (not by JSX) so unmounting never disposes the shared wood texture.
+  }, [polygon, inlay])
+  // Materials are owned here (not by JSX) so unmounting never disposes the shared textures.
   const materials = useMemo(
     () => [
-      plain
+      texture === 'plain'
         ? new MeshStandardMaterial({ color, roughness: 0.95 })
-        : new MeshStandardMaterial({ color, map: proceduralTexture('woodgrain'), roughness: 0.72 }),
+        : new MeshStandardMaterial({ color, map: proceduralTexture(texture), roughness: texture === 'tile' ? 0.45 : 0.72 }),
       new MeshStandardMaterial({ color: palette.trim, roughness: 0.9 }),
     ],
-    [color, plain],
+    [color, texture],
   )
   useEffect(() => () => geometry.dispose(), [geometry])
   useEffect(() => () => materials.forEach((material) => material.dispose()), [materials])
@@ -97,19 +111,48 @@ function extrudeProfile(wall: Wall, openings: readonly Opening[], placement: Pla
   const polygons = slabWallProfile(wall, openings, { slab: SLAB, extend: placement.extend, maxHeight })
   const geometry = new ExtrudeGeometry(wallShapes(polygons), { depth: placement.thickness, bevelEnabled: false })
   geometry.translate(0, 0, placement.zOffset)
+  splitFaces(geometry)
   return geometry
+}
+
+/**
+ * Regroup an extruded wall so its two faces can take different paint:
+ * 0 = the right face (local −Z), 1 = cut edges (top, ends, reveals), 2 = the
+ * left face (local +Z). ExtrudeGeometry puts both faces in one group (0).
+ */
+function splitFaces(geometry: ExtrudeGeometry) {
+  const normal = geometry.getAttribute('normal')
+  const groups = geometry.groups
+  const faces = groups.find((group) => group.materialIndex === 0)
+  if (!faces || geometry.index) return
+  const right: number[] = []
+  const left: number[] = []
+  const edges: number[] = []
+  for (const group of groups) {
+    for (let v = group.start; v < group.start + group.count; v += 3) {
+      const triangle = [v, v + 1, v + 2]
+      if (group.materialIndex !== 0) edges.push(...triangle)
+      else if (normal.getZ(v) > 0) left.push(...triangle)
+      else right.push(...triangle)
+    }
+  }
+  geometry.setIndex([...right, ...edges, ...left])
+  geometry.clearGroups()
+  geometry.addGroup(0, right.length, 0)
+  geometry.addGroup(right.length, edges.length, 1)
+  geometry.addGroup(right.length + edges.length, left.length, 2)
 }
 
 type WallMeshProps = {
   wall: Wall
   openings: readonly Opening[]
   floorPolygon: readonly Vec2[]
-  color: string
+  colors: FaceColors
   cut: boolean
   reducedMotion: boolean
 }
 
-function WallMesh({ wall, openings, floorPolygon, color, cut, reducedMotion }: WallMeshProps) {
+function WallMesh({ wall, openings, floorPolygon, colors, cut, reducedMotion }: WallMeshProps) {
   const invalidate = useThree((state) => state.invalidate)
   const placement = useMemo(() => placementOf(wall, floorPolygon), [wall, floorPolygon])
   const own = useMemo(() => openings.filter((o) => o.wallId === wall.id), [openings, wall.id])
@@ -146,14 +189,16 @@ function WallMesh({ wall, openings, floorPolygon, color, cut, reducedMotion }: W
     mesh.position.y = SLAB * (scale - 1)
   })
 
-  // ExtrudeGeometry groups: 0 = wall faces, 1 = cut edges (top, ends, reveals) in a darker section tone.
+  // Groups (see splitFaces): 0 = right face, 1 = cut edges in a darker section tone, 2 = left face.
   // Owned here (not by JSX) so unmounting never disposes the shared plaster texture.
+  const { left, right } = colors
   const materials = useMemo(
     () => [
-      new MeshStandardMaterial({ color, map: proceduralTexture('plaster'), roughness: 0.92 }),
+      new MeshStandardMaterial({ color: right, map: proceduralTexture('plaster'), roughness: 0.92 }),
       new MeshStandardMaterial({ color: palette.wallSection, roughness: 0.95 }),
+      new MeshStandardMaterial({ color: left, map: proceduralTexture('plaster'), roughness: 0.92 }),
     ],
-    [color],
+    [left, right],
   )
   useEffect(() => () => materials.forEach((material) => material.dispose()), [materials])
   const showStub = settled && cut

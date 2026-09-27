@@ -2,7 +2,7 @@
 import { Vector3 } from 'three'
 import { defineFamily } from '../family'
 import { align, arcBand, cushion, cylinder, lathe, place, slab, sphere, tube } from '../kit'
-import { HARD, leg, type LegStyle } from './shared'
+import { PROPORTION, hardEdge, leg, legHalfWidth, type LegStyle } from './shared'
 
 export const diningChair = defineFamily({
   id: 'dining-chair',
@@ -12,6 +12,7 @@ export const diningChair = defineFamily({
     back: { options: ['slats', 'spindle', 'solid', 'upholstered', 'open-frame', 'none'], default: 'slats' },
     base: { options: ['four-legs', 'sled', 'pedestal', 'pedestal-star'], default: 'four-legs' },
     legStyle: { options: ['tapered', 'straight', 'block', 'metal'], default: 'tapered' },
+    proportion: PROPORTION,
   },
   params: {
     // Backless stools sit at their full height; chairs at a standard 46 cm (bar/counter stools set it).
@@ -30,6 +31,9 @@ export const diningChair = defineFamily({
     const legStyle = ctx.block('legStyle') as LegStyle
     if (seatStyle !== 'flat') ctx.suggest('seat', 'fabric', '#c9bfae')
     if (base === 'sled' || base === 'pedestal-star' || legStyle === 'metal') ctx.suggest('frame', 'metal', '#2b2b2c')
+    // Chunky: fat legs, a deeper, rounder pad and a thick cushioned back.
+    const chunky = ctx.block('proportion') === 'chunky'
+    const HARD = hardEdge(chunky)
 
     const hasBack = backStyle !== 'none' && h > 0.2
     const seatH = hasBack ? Math.min(ctx.param('seatHeight'), h - 0.18) : h
@@ -43,22 +47,22 @@ export const diningChair = defineFamily({
     if (seatStyle === 'flat') {
       ctx.add('seat', slab(-w / 2, w / 2, seatH - st, seatH, seatZ0, d / 2, 0.008))
     } else {
-      const padT = seatStyle === 'upholstered' ? Math.min(0.08, seatH * 0.15) : Math.min(0.05, seatH * 0.1)
+      const padT = chunky ? Math.min(0.1, seatH * 0.2) : seatStyle === 'upholstered' ? Math.min(0.08, seatH * 0.15) : Math.min(0.05, seatH * 0.1)
       ctx.add('frame', slab(-w / 2 + 0.01, w / 2 - 0.01, seatH - padT - 0.02, seatH - padT + 0.002, seatZ0 + 0.01, d / 2 - 0.01, HARD))
-      ctx.add('seat', align(cushion(w, padT, d / 2 - seatZ0, Math.min(0.025, padT / 2.5), 0.01), { cx: 0, y0: seatH - padT, z0: seatZ0 }))
+      ctx.add('seat', align(cushion(w, padT, d / 2 - seatZ0, chunky ? padT / 2.2 : Math.min(0.025, padT / 2.5), chunky ? 0.02 : 0.01), { cx: 0, y0: seatH - padT, z0: seatZ0 }))
     }
 
     // Base.
-    const post = legStyle === 'metal' ? 0.009 : 0.02
-    const lx = w / 2 - 0.03
-    const zf = d / 2 - 0.035
-    const zr = zBack + 0.03
+    const post = legStyle === 'metal' ? 0.009 : chunky ? legHalfWidth(legStyle, true) : 0.02
+    const lx = w / 2 - (chunky ? 0.045 : 0.03)
+    const zf = d / 2 - (chunky ? 0.05 : 0.035)
+    const zr = zBack + (chunky ? 0.045 : 0.03)
     // Rear legs rise into back posts when the back style needs posts.
     const posts = hasBack && (backStyle === 'slats' || backStyle === 'spindle' || backStyle === 'open-frame')
     if (base === 'four-legs') {
       for (const x of [-lx, lx]) {
-        ctx.add('frame', leg(legStyle, seatBottom + 0.002, x, zf))
-        ctx.add('frame', leg(legStyle, posts ? h : seatBottom + 0.002, x, zr))
+        ctx.add('frame', leg(legStyle, seatBottom + 0.002, x, zf, chunky))
+        ctx.add('frame', leg(legStyle, posts ? h : seatBottom + 0.002, x, zr, chunky))
       }
       if (seatH > 0.6) {
         // Stools: a footrest ring of rails.
@@ -124,12 +128,12 @@ export const diningChair = defineFamily({
         const bottom = seatH + Math.min(0.14, (top - seatH) * 0.35)
         ctx.add('seat', place(arcBand(R, 0.018, Math.PI / 2 - sweep, Math.PI / 2 + sweep, top - bottom, 0.006), { y: bottom, z: zBack + R }))
         if (base !== 'four-legs') for (const x of [-px, px]) ctx.add('frame', place(cylinder(post, post, bottom - seatH + 0.03, 12), { x, y: seatH + (bottom - seatH + 0.03) / 2 - 0.01, z: zr + 0.012 }))
-        else for (const x of [-px, px]) ctx.add('frame', leg(legStyle, bottom + 0.03, x, zr))
+        else for (const x of [-px, px]) ctx.add('frame', leg(legStyle, bottom + 0.03, x, zr, chunky))
         break
       }
       case 'upholstered': {
-        const thickness = Math.min(0.07, d * 0.14)
-        ctx.add('seat', align(place(cushion(w - 0.02, thickness, backTop - backBottom, 0.025, 0.012), { rx: Math.PI / 2 - 0.08 }), { cx: 0, y1: backTop, z0: zBack }))
+        const thickness = chunky ? Math.min(0.11, d * 0.2) : Math.min(0.07, d * 0.14)
+        ctx.add('seat', align(place(cushion(w - 0.02, thickness, backTop - backBottom, chunky ? thickness / 2.2 : 0.025, chunky ? 0.025 : 0.012), { rx: Math.PI / 2 - 0.08 }), { cx: 0, y1: backTop, z0: zBack }))
         if (base !== 'four-legs') for (const x of [-px + 0.04, px - 0.04]) ctx.add('frame', place(cylinder(post, post, 0.12, 12), { x, y: seatH + 0.04, z: zBack + thickness / 2 }))
         break
       }

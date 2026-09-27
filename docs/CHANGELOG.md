@@ -1,5 +1,17 @@
 # Changelog
 
+### 2026-09-27 — web: demo sample home (two rooms, chunky models, room zones)
+
+"Explore sample room" now opens a furnished two-room home built for the live demo instead of the bare synthetic bedroom.
+- `web/scripts/generate-demo-home.mjs` → `web/src/fixtures/demo-home.roomplan.json`: synthetic RoomPlan-shaped scan of an L-shaped plan, a 4.8 × 4.2 m bedroom and a 2.6 × 3.2 m bathroom joined by a door in the wall between them. Goes through the real importer. `synthetic-bedroom.roomplan.json` stays as the test fixture.
+- `web/src/fixtures/demoRoom.ts`: `demoRoom()`, `furnish()`, `DEMO_RECIPES`. Names scanned pieces (nightstand, dresser, desk, desk chair, armchair, vanity), draws them with chunky `demo:*` recipes in one palette, adds owned decor (lamps, plants, art, rug, bench, bath mat, mirror, curtains via `windowSpot`), sage/carpet bedroom finishes and a white-tile bathroom zone. Everything is `captured`/`owned`, so the subtotal starts at $0. `App.tsx` uses it for the sample and the welcome preview.
+- `web/src/domain/schema.ts`: new optional `Room.zones` (`Zone`: name, polygon, wall/floor/`floorTexture` incl. `'tile'`). Rooms without zones render as before; looks still restyle `room.finishes`.
+- `web/src/scene/zonePaint.ts`: `zoneAt`, `wallFaceColors`, `FaceColors`. `Architecture.tsx` lays zone floors over the slab and paints each wall face for the room it looks into (`splitFaces` regroups extruded wall caps). `materials.ts`: `'tile'` texture.
+- `web/src/scene/cutaway.ts`: `wallsToCut` now also cuts interior partitions that face the camera (either side), so the wall between rooms drops to a stub.
+- Blocks: new `proportion` block (`PROPORTION`, `CHUNKY_EDGE`, `hardEdge` in `families/shared.ts`; `leg`, `legGrid`, `legHalfWidth`, `handle` take `chunky`) on bed, storage, table, dining-chair, sofa, chair: fat rounded legs, soft edges, big knobs, plump bedding. Bed `throw` block + slot; art `motif` block (`arches`, `sun`, `shapes`) with `accent`/`accent2` slots. All default to today's look, so catalog models are unchanged.
+- `web/src/shop/recipeGemini.ts`: `proportion`, `throw`, `motif` blocks and art `accent*` slots are left out of the Gemini prompt, so prompt text and the answer cache are unchanged.
+- Tests: `demoRoom.test.ts` (clean import, rooms/zones, pieces in the right room, $0 start, every recipe builds, no collisions or blocked doorways), `zonePaint.test.ts`, updated `cutaway.test.ts`. Checked in the browser: overview, four orbits, and preview → commit → undo of an armchair swap ($1,344 → $0).
+
 ### 2026-09-27 — integration: real catalog renderer with room capture
 
 Merged the demo-ready real-catalog branch into the Designer and native piece-import work. Existing RoomPlan furniture, wall art, Gemini appearance previews, and scanned pieces now use the validated recipe renderer (`web/src/blocks/`) alongside the real catalog. Built-in closet fronts remain measured placeholders because RoomPlan supplies only their thin door plane; an invalid recipe now also falls back to a visible size placeholder instead of blanking the canvas. The Vite server mounts both the price-refresh API and the local-only Gemini recognition endpoint. No scan evidence, prices, or preview-isolation rules changed.

@@ -139,6 +139,24 @@ export const Finishes = z.object({
 })
 export type Finishes = z.infer<typeof Finishes>
 
+/**
+ * A named area of the floor with its own floor and wall paint (a bathroom off
+ * a bedroom). Everything outside every zone uses the room's `finishes`, which
+ * is also what looks restyle. The wall color paints each wall face that looks
+ * into the zone. Polygon in app meters, same frame as `floorPolygon`.
+ */
+export const Zone = z.object({
+  id: Id,
+  name: z.string().max(60),
+  polygon: z.array(Vec2).min(3).max(64),
+  finishes: z.object({
+    wall: HexColor,
+    floor: HexColor,
+    floorTexture: z.enum(['woodgrain', 'plain', 'tile']).optional(),
+  }),
+})
+export type Zone = z.infer<typeof Zone>
+
 export const Room = z
   .object({
     id: Id,
@@ -148,6 +166,8 @@ export const Room = z
     openings: z.array(Opening),
     objects: z.array(RoomObject),
     finishes: Finishes,
+    /** Areas finished differently from the rest of the room. Absent = one finish throughout. */
+    zones: z.array(Zone).max(16).optional(),
     source: z.object({
       kind: z.enum(['roomplan', 'synthetic']),
       importedAt: IsoTimestamp,

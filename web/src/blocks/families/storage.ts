@@ -1,10 +1,11 @@
 /** Case goods: dressers, nightstands, credenzas, cabinets, bookcases. A carcass, fronts, pulls, and a base. */
 import { defineFamily } from '../family'
 import { slab } from '../kit'
-import { HARD, handle, leg, legGrid, type HandleStyle, type LegStyle } from './shared'
+import { PROPORTION, handle, hardEdge, leg, legGrid, type HandleStyle, type LegStyle } from './shared'
 
-const FRONT = 0.018
-const REVEAL = 0.004
+/** Drawer/door front thickness and the gap between fronts (chunky: thicker, with a wider soft reveal). */
+const FRONT = { classic: 0.018, chunky: 0.024 } as const
+const REVEAL = { classic: 0.004, chunky: 0.007 } as const
 
 export const storage = defineFamily({
   id: 'storage',
@@ -14,6 +15,7 @@ export const storage = defineFamily({
     handles: { options: ['knob', 'bar', 'edge', 'none'], default: 'knob' },
     base: { options: ['legs', 'plinth', 'feet', 'none'], default: 'legs' },
     legStyle: { options: ['tapered', 'straight', 'block', 'metal'], default: 'tapered' },
+    proportion: PROPORTION,
   },
   params: {
     rows: { min: 1, max: 7, integer: true, default: (size) => Math.round((size.height - 0.15) / 0.22) },
@@ -37,6 +39,10 @@ export const storage = defineFamily({
     const baseKind = ctx.block('base')
     const style = ctx.block('legStyle') as LegStyle
     const pulls = ctx.block('handles') as HandleStyle
+    const chunky = ctx.block('proportion') === 'chunky'
+    const HARD = hardEdge(chunky)
+    const FRONT_T = chunky ? FRONT.chunky : FRONT.classic
+    const GAP_W = chunky ? REVEAL.chunky : REVEAL.classic
     if (style === 'metal' && baseKind === 'legs') ctx.suggest('base', 'metal', '#2b2b2c')
     const baseH = baseKind === 'none' ? 0 : Math.min(ctx.param('baseHeight'), h * 0.4)
     const t = Math.min(ctx.param('topThickness'), (h - baseH) * 0.2)
@@ -61,35 +67,35 @@ export const storage = defineFamily({
       }
     } else {
       // A drawer over an open cubby builds its own carcass (below) so the cubby stays open.
-      if (layout !== 'drawer-shelf') ctx.add('body', slab(-w / 2 + 0.003, w / 2 - 0.003, baseH, top + 0.001, -d / 2, face - FRONT, HARD))
+      if (layout !== 'drawer-shelf') ctx.add('body', slab(-w / 2 + 0.003, w / 2 - 0.003, baseH, top + 0.001, -d / 2, face - FRONT_T, HARD))
       // Fronts fill the carcass face, leaving a thin frame at the sides and bottom.
       const x0 = -w / 2 + 0.012
       const x1 = w / 2 - 0.012
       const y0 = baseH + 0.012
-      const y1 = top - REVEAL
+      const y1 = top - GAP_W
       const drawer = (fx0: number, fx1: number, fy0: number, fy1: number, vertical = false, pullX?: number) => {
-        ctx.add('fronts', slab(fx0, fx1, fy0, fy1, face - FRONT, face, 0.003))
+        ctx.add('fronts', slab(fx0, fx1, fy0, fy1, face - FRONT_T, face, chunky ? 0.011 : 0.003))
         const px = pullX ?? (fx0 + fx1) / 2
         const py = vertical ? (fy0 + fy1) / 2 + Math.min(0.1, (fy1 - fy0) * 0.15) : fy1 - Math.min(0.06, (fy1 - fy0) * 0.35)
         const length = vertical ? Math.min(0.2, (fy1 - fy0) * 0.35) : Math.min(0.14, (fx1 - fx0) * 0.35)
-        const pull = handle(pulls, px, py, face, vertical, pulls === 'edge' ? Math.min(0.08, (fx1 - fx0) * 0.3) : length)
+        const pull = handle(pulls, px, py, face, vertical, pulls === 'edge' ? Math.min(0.08, (fx1 - fx0) * 0.3) : length, chunky)
         if (pull) ctx.add('handles', pull)
       }
       const grid = (gx0: number, gx1: number, gy0: number, gy1: number, rows: number, cols: number) => {
-        const cw = (gx1 - gx0 - REVEAL * (cols - 1)) / cols
-        const rh = (gy1 - gy0 - REVEAL * (rows - 1)) / rows
+        const cw = (gx1 - gx0 - GAP_W * (cols - 1)) / cols
+        const rh = (gy1 - gy0 - GAP_W * (rows - 1)) / rows
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
-            const fx0 = gx0 + c * (cw + REVEAL)
-            const fy0 = gy0 + r * (rh + REVEAL)
+            const fx0 = gx0 + c * (cw + GAP_W)
+            const fy0 = gy0 + r * (rh + GAP_W)
             drawer(fx0, fx0 + cw, fy0, fy0 + rh)
           }
         }
       }
       const doors = (gx0: number, gx1: number, gy0: number, gy1: number, count: number) => {
-        const cw = (gx1 - gx0 - REVEAL * (count - 1)) / count
+        const cw = (gx1 - gx0 - GAP_W * (count - 1)) / count
         for (let c = 0; c < count; c++) {
-          const fx0 = gx0 + c * (cw + REVEAL)
+          const fx0 = gx0 + c * (cw + GAP_W)
           // Pulls sit near the meeting edge of each pair of doors.
           const pullX = count === 1 ? fx0 + cw - 0.05 : c % 2 === 0 ? fx0 + cw - 0.04 : fx0 + 0.04
           drawer(fx0, fx0 + cw, gy0, gy1, true, pullX)
@@ -107,20 +113,20 @@ export const storage = defineFamily({
           break
         case 'mixed':
           grid(x0, x1, y1 - drawerRow, y1, 1, cols)
-          doors(x0, x1, y0, y1 - drawerRow - REVEAL, Math.max(1, cols))
+          doors(x0, x1, y0, y1 - drawerRow - GAP_W, Math.max(1, cols))
           break
         case 'drawer-shelf': {
           // One drawer between the side panels, over an open cubby: sides, floor and back, open at the front.
           const side = 0.02
           const ix0 = -w / 2 + 0.002 + side
           const ix1 = w / 2 - 0.002 - side
-          const split = y1 - drawerRow - REVEAL
+          const split = y1 - drawerRow - GAP_W
           ctx.add('body', slab(-w / 2 + 0.002, ix0, baseH, top + 0.001, -d / 2, face, HARD))
           ctx.add('body', slab(ix1, w / 2 - 0.002, baseH, top + 0.001, -d / 2, face, HARD))
-          ctx.add('body', slab(ix0 - 0.001, ix1 + 0.001, split, top + 0.001, -d / 2, face - FRONT, HARD))
+          ctx.add('body', slab(ix0 - 0.001, ix1 + 0.001, split, top + 0.001, -d / 2, face - FRONT_T, HARD))
           ctx.add('body', slab(ix0 - 0.001, ix1 + 0.001, baseH, baseH + side, -d / 2 + 0.01, face, HARD))
           ctx.add('body', slab(-w / 2 + 0.004, w / 2 - 0.004, baseH, split + 0.001, -d / 2, -d / 2 + 0.01, 0.002))
-          grid(ix0 + REVEAL, ix1 - REVEAL, y1 - drawerRow, y1, 1, 1)
+          grid(ix0 + GAP_W, ix1 - GAP_W, y1 - drawerRow, y1, 1, 1)
           break
         }
       }
@@ -133,7 +139,7 @@ export const storage = defineFamily({
     } else if (baseKind === 'feet') {
       for (const [x, z] of legGrid(-w / 2, w / 2, -d / 2, d / 2, 'block', 0.01)) ctx.add('base', slab(x - 0.03, x + 0.03, 0, baseH + 0.001, z - 0.03, z + 0.03, HARD))
     } else {
-      for (const [x, z] of legGrid(-w / 2, w / 2, -d / 2, d / 2, style, 0.02)) ctx.add('base', leg(style, baseH + 0.001, x, z))
+      for (const [x, z] of legGrid(-w / 2, w / 2, -d / 2, d / 2, style, 0.02, chunky)) ctx.add('base', leg(style, baseH + 0.001, x, z, chunky))
     }
   },
 })
