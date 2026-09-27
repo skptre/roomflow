@@ -30,6 +30,8 @@ export const Recipe = z.strictObject({
    * variant over defaultColors. One value can paint several slots ("Ivory / Walnut").
    */
   optionColors: z.record(z.string().min(1).max(100), z.record(z.string().min(1).max(200), z.record(Name, Hex))).optional(),
+  /** Store option → option value → block choices that value makes ("Arm Style: Round" → rolled arms). */
+  optionBlocks: z.record(z.string().min(1).max(100), z.record(z.string().min(1).max(200), z.record(Name, Name))).optional(),
   /** The product's own photo, for families that show it (art canvas, rug top). https only. */
   image: z.strictObject({ url: z.url({ protocol: /^https$/ }) }).optional(),
   tier: z.enum(['default', 'rules', 'gemini']),
@@ -53,7 +55,11 @@ export function validateRecipe(input: unknown): RecipeResult {
   const family = getFamily(recipe.family)
   if (!family) return { ok: false, error: `Unknown family "${recipe.family}"` }
 
-  for (const [name, value] of Object.entries(recipe.blocks)) {
+  const blockChoices = [
+    ...Object.entries(recipe.blocks),
+    ...Object.values(recipe.optionBlocks ?? {}).flatMap((values) => Object.values(values).flatMap((blocks) => Object.entries(blocks))),
+  ]
+  for (const [name, value] of blockChoices) {
     const spec = Object.hasOwn(family.blocks, name) ? family.blocks[name] : undefined
     if (!spec) return { ok: false, error: `${family.id} has no block "${name}"` }
     if (!spec.options.includes(value)) return { ok: false, error: `${family.id} block "${name}" has no option "${value}"` }
@@ -93,4 +99,24 @@ export function variantColors(
     if (values && value !== undefined && Object.hasOwn(values, value)) Object.assign(colors, values[value])
   })
   return Object.keys(colors).length > 0 ? colors : undefined
+}
+
+/** The recipe's blocks with one variant's option choices applied, or undefined when they change nothing. */
+export function variantBlocks(
+  recipe: Pick<Recipe, 'blocks' | 'optionBlocks'>,
+  optionNames: readonly string[],
+  optionValues: readonly string[],
+): Record<string, string> | undefined {
+  let changed = false
+  const blocks: Record<string, string> = { ...recipe.blocks }
+  optionNames.forEach((name, index) => {
+    const values = recipe.optionBlocks && Object.hasOwn(recipe.optionBlocks, name) ? recipe.optionBlocks[name] : undefined
+    const value = optionValues[index]
+    if (!values || value === undefined || !Object.hasOwn(values, value)) return
+    for (const [block, option] of Object.entries(values[value]!)) {
+      if (blocks[block] !== option) changed = true
+      blocks[block] = option
+    }
+  })
+  return changed ? blocks : undefined
 }

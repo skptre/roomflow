@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validateRecipe, variantColors, type Recipe } from './recipe'
+import { validateRecipe, variantBlocks, variantColors, type Recipe } from './recipe'
 
 const base = {
   schemaVersion: 1,
@@ -45,6 +45,10 @@ describe('validateRecipe', () => {
   it('rejects a slot the family lacks', () => expect(error({ ...base, defaultColors: { cape: '#000000' } })).toMatch(/cape/))
   it('rejects an option color mapped to an unknown slot', () =>
     expect(error({ ...base, optionColors: { Fabric: { Red: { cape: '#aa0000' } } } })).toMatch(/cape/))
+  it('accepts per-value block choices the family declares', () =>
+    expect(validateRecipe({ ...base, optionBlocks: { 'Arm Style': { Block: { arm: 'track' }, Round: { arm: 'rolled' } } } }).ok).toBe(true))
+  it('rejects a per-value block option the family lacks', () =>
+    expect(error({ ...base, optionBlocks: { 'Arm Style': { Wing: { arm: 'wing' } } } })).toMatch(/arm/))
   it('rejects an image on a family without an image slot', () =>
     expect(error({ ...base, image: { url: 'https://cdn.shopify.com/a.jpg' } })).toMatch(/image/))
   it('rejects a non-https image', () =>
@@ -84,5 +88,20 @@ describe('variantColors', () => {
 
   it('is undefined when the recipe names no colors at all', () => {
     expect(variantColors({ ...recipe, defaultColors: undefined, optionColors: undefined }, [], [])).toBeUndefined()
+  })
+})
+
+describe('variantBlocks', () => {
+  const recipe = {
+    blocks: { arm: 'track', back: 'channel' },
+    optionBlocks: { 'Arm Style': { Round: { arm: 'rolled' } }, Size: { "8' Round": { shape: 'round' } } },
+  } as Pick<Recipe, 'blocks' | 'optionBlocks'>
+
+  it('overrides the recipe blocks with the chosen values', () => {
+    expect(variantBlocks(recipe, ['Arm Style'], ['Round'])).toEqual({ arm: 'rolled', back: 'channel' })
+  })
+
+  it('is undefined when no chosen value changes a block', () => {
+    expect(variantBlocks(recipe, ['Arm Style'], ['Block'])).toBeUndefined()
   })
 })
