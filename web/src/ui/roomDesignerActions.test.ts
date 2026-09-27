@@ -218,6 +218,17 @@ describe('room design request', () => {
     expect(result.ok).toBe(false)
     expect(fetchImpl).not.toHaveBeenCalled()
   })
+
+  it('explains a room that cannot be summarized separately from a bad brief', async () => {
+    const fetchImpl = vi.fn()
+    const base = request()
+    const broken = await requestRoomDesign({ ...base, roomSummary: { ...base.roomSummary, floorPolygon: base.roomSummary.floorPolygon.slice(0, 2) } }, designStore.getState().committed!.room, { fetchImpl })
+    expect(broken).toEqual({ ok: false, error: 'This room can’t be sent for design ideas. Your room is unchanged.' })
+    const blank = await requestRoomDesign({ ...base, brief: '' }, designStore.getState().committed!.room, { fetchImpl })
+    expect(blank.ok).toBe(false)
+    if (!blank.ok) expect(blank.error).toMatch(/describe the room/i)
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
 })
 
 describe('parseBudgetInput', () => {

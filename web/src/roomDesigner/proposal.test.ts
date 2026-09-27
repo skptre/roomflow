@@ -60,8 +60,26 @@ describe('buildRoomDesignProposal', () => {
     const room = sampleRoom()
     const before = structuredClone(room)
     const proposal = build({ palette: { mode: 'set', color: '#000000' } }, room)
-    expect(proposal.commands).toContainEqual({ type: 'restyle', finishes: { ...room.finishes, wall: '#000000', floor: '#000000', accent: '#000000' } })
+    expect(proposal.commands).toHaveLength(1)
+    const restyle = proposal.commands[0]!
+    expect(restyle).toMatchObject({ type: 'restyle', finishes: { wall: '#000000', accent: '#000000' } })
+    if (restyle.type !== 'restyle') return
+    expect(restyle.finishes.floor).not.toBe('#000000')
+    expect(proposal.notes).toContain('Furniture colors aren’t changed; replace pieces to change them.')
     expect(room).toEqual(before)
+  })
+
+  it.each(['#000000', '#ffffff', '#808080', '#7f7f7f', '#ff0000', '#101828', '#f5f0e6'])('keeps a set floor color %s readable and distinct from the walls', (color) => {
+    const proposal = build({ palette: { mode: 'set', color } })
+    const restyle = proposal.commands[0]!
+    if (restyle.type !== 'restyle') throw new Error('expected restyle')
+    const lightness = (hex: string) => [1, 3, 5].reduce((sum, start) => sum + parseInt(hex.slice(start, start + 2), 16), 0) / (3 * 255)
+    expect(restyle.finishes.wall).toBe(color)
+    expect(restyle.finishes.accent).toBe(color)
+    expect(restyle.finishes.floor).toMatch(/^#[0-9a-f]{6}$/)
+    expect(Math.abs(lightness(restyle.finishes.floor) - lightness(color))).toBeGreaterThanOrEqual(0.1)
+    expect(lightness(restyle.finishes.floor)).toBeGreaterThanOrEqual(0.12)
+    expect(lightness(restyle.finishes.floor)).toBeLessThanOrEqual(0.88)
   })
 
   it('removes, replaces and adds only actual catalog entries, preserving their offer identity', () => {

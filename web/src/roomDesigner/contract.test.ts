@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sampleRoom } from '../test/rooms'
-import { RoomDesignRequest, describeRoomDesignIntent, parseRoomDesignIntent, parseRoomDesignResponse, roomSummary } from './contract'
+import { z } from 'zod'
+import { RoomDesignIntentWire, RoomDesignRequest, describeRoomDesignIntent, parseRoomDesignIntent, parseRoomDesignResponse, roomSummary } from './contract'
 
 const room = sampleRoom()
 const intent = () => ({
@@ -50,7 +51,14 @@ describe('room designer contract', () => {
     const objectId = room.objects[0]!.id
     expect(() => parseRoomDesignIntent({ ...intent(), removeObjectIds: ['missing'] }, room)).toThrow()
     expect(() => parseRoomDesignIntent({ ...intent(), removeObjectIds: [objectId, objectId] }, room)).toThrow()
-    expect(() => parseRoomDesignIntent({ ...intent(), removeObjectIds: [objectId], replace: [{ objectId, category: 'sofa', count: 1 }] }, room)).toThrow()
+  })
+
+  it('keeps the replacement when the model sends one ID to both remove and replace', () => {
+    const objectId = room.objects[0]!.id
+    const other = room.objects[1]!.id
+    const parsed = parseRoomDesignIntent({ ...intent(), removeObjectIds: [objectId, other], replace: [{ objectId, category: 'sofa', count: 1 }] }, room)
+    expect(parsed.removeObjectIds).toEqual([other])
+    expect(parsed.replace).toEqual([{ objectId, category: 'sofa', count: 1 }])
   })
 
   it('rejects unsupported categories and generated facts or commands', () => {
@@ -61,10 +69,22 @@ describe('room designer contract', () => {
     expect(() => parseRoomDesignIntent({ ...intent(), add: [{ category: 'sofa', count: 1, dimensions: { width: 2 } }] }, room)).toThrow()
   })
 
-  it('requires a color only for set palette', () => {
-    expect(() => parseRoomDesignIntent({ ...intent(), palette: { mode: 'set' } }, room)).toThrow()
-    expect(() => parseRoomDesignIntent({ ...intent(), palette: { mode: 'darken', color: '#000000' } }, room)).toThrow()
-    expect(parseRoomDesignIntent({ ...intent(), palette: { mode: 'set', color: '#000000' } }, room).palette).toEqual({ mode: 'set', color: '#000000' })
+  it('requires a valid color for set palette and normalizes harmless variations', () => {
+    const palette = (value: unknown) => parseRoomDesignIntent({ ...intent(), palette: value }, room).palette
+    expect(() => palette({ mode: 'set' })).toThrow()
+    for (const color of ['black', '#12345', '#GGGGGG', '000000', '#0000000', '']) expect(() => palette({ mode: 'set', color })).toThrow()
+    expect(() => palette({ mode: 'blacken' })).toThrow()
+    expect(palette({ mode: 'set', color: '#000000' })).toEqual({ mode: 'set', color: '#000000' })
+    expect(palette({ mode: 'set', color: '#000' })).toEqual({ mode: 'set', color: '#000000' })
+    expect(palette({ mode: 'set', color: '#AbC' })).toEqual({ mode: 'set', color: '#aabbcc' })
+    expect(palette({ mode: 'set', color: '#1A2B3C' })).toEqual({ mode: 'set', color: '#1a2b3c' })
+    expect(palette({ mode: 'darken', color: '#000000' })).toEqual({ mode: 'darken' })
+    expect(palette({ mode: 'preserve', color: 'not a color' })).toEqual({ mode: 'preserve' })
+  })
+
+  it('exposes a wire schema without keywords Gemini ignores', () => {
+    const encoded = JSON.stringify(z.toJSONSchema(RoomDesignIntentWire))
+    for (const keyword of ['oneOf', 'anyOf', 'allOf', '"not"', '"const"', '"pattern"', 'minLength', 'maxLength']) expect(encoded).not.toContain(keyword)
   })
 
   it('bounds serialized model output', () => {
