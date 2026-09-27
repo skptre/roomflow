@@ -325,7 +325,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = PairingInfo.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = RoomFlow;
 				INFOPLIST_KEY_NSCameraUsageDescription = "RoomFlow uses the camera and LiDAR scanner to measure your room.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -359,7 +358,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = PairingInfo.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = RoomFlow;
 				INFOPLIST_KEY_NSCameraUsageDescription = "RoomFlow uses the camera and LiDAR scanner to measure your room.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

@@ -11,7 +11,7 @@ npm test
 npm run build
 ```
 
-To connect an iPhone scan directly, open **Open my scan** and scan its code from the Roomflow iPhone app. See [direct scan handoff](../docs/scan-pairing.md) for local network setup and the saved-file fallback.
+To open a room scanned on iPhone, share its RoomPlan JSON or RoomFlow room package to your computer, then choose **Open my scan** in the browser.
 
 Design tokens: `src/index.css` (`@theme`) and `src/scene/palette.ts`. Pure domain logic: `src/domain/` (no React, no three).
 
