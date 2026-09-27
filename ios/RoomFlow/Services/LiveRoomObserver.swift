@@ -3,6 +3,16 @@ import OSLog
 import RoomPlan
 import simd
 
+/// A wall, door, window or opening detected so far in the live scan (RoomPlan world frame, meters).
+/// `transform` is the surface center pose (local Z = surface normal); `dimensions.x` width, `.y` height.
+nonisolated struct LiveSurface: Equatable, Sendable {
+    enum Kind: String, Sendable { case wall, door, window, opening }
+    var sourceId: UUID
+    var kind: Kind
+    var transform: simd_float4x4
+    var dimensions: SIMD3<Float>
+}
+
 /// Live-object feed: takes `RoomCaptureSession.delegate`, forwards every callback unchanged to the
 /// previous delegate, and keeps the newest detected objects for the focus tracker. Debug builds also
 /// log detections and whether live IDs survive into the final room.
@@ -20,6 +30,7 @@ nonisolated final class LiveRoomObserver: NSObject, RoomCaptureSessionDelegate {
     private var current: Set<UUID> = []
     private var updateCount = 0
     private var latest: [LiveObject] = []
+    private var latestStructure: [LiveSurface] = []
 
     /// Takes over `session.delegate`, remembering and forwarding to the previous one.
     /// Call on the main actor before `session.run`; calling twice keeps the original forward target.
@@ -56,7 +67,15 @@ nonisolated final class LiveRoomObserver: NSObject, RoomCaptureSessionDelegate {
         current = []
         updateCount = 0
         latest = []
+        latestStructure = []
         lock.unlock()
+    }
+
+    /// Walls, doors, windows and openings in the newest live room update. Safe from any thread.
+    func latestSurfaces() -> [LiveSurface] {
+        lock.lock()
+        defer { lock.unlock() }
+        return latestStructure
     }
 
     /// The objects in the newest live room update (empty before the first update). Safe from any thread.
@@ -82,6 +101,10 @@ nonisolated final class LiveRoomObserver: NSObject, RoomCaptureSessionDelegate {
             return LiveObject(sourceId: object.identifier, category: Self.name(object.category),
                               transform: object.transform, dimensions: object.dimensions, center: SIMD3(c.x, c.y, c.z))
         }
+        let surface = { (kind: LiveSurface.Kind) in { (s: CapturedRoom.Surface) in
+            LiveSurface(sourceId: s.identifier, kind: kind, transform: s.transform, dimensions: s.dimensions) } }
+        latestStructure = room.walls.map(surface(.wall)) + room.doors.map(surface(.door))
+            + room.windows.map(surface(.window)) + room.openings.map(surface(.opening))
         #if DEBUG
         let now = Date()
         // Log every membership change, otherwise at most once a second.
