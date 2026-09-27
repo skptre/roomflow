@@ -70,20 +70,39 @@ export const ROOM_DESIGN_CATEGORIES = [
   'throw', 'vase', 'wall-art',
 ] as const
 const Category = z.enum(ROOM_DESIGN_CATEGORIES)
+const PaletteMode = z.enum(['preserve', 'darken', 'lighten', 'set'])
+const Count = z.number().int().min(1).max(12)
+
+/**
+ * Model-facing intent shape sent to Gemini as `responseJsonSchema`. Deliberately flat and free of
+ * keywords Gemini does not enforce (oneOf/anyOf/allOf/not/const/pattern/minLength/maxLength); ID length,
+ * hex syntax, palette/color pairing and cross-list rules are checked by `parseRoomDesignIntent`.
+ */
+export const RoomDesignIntentWire = z.strictObject({
+  palette: z.strictObject({
+    mode: PaletteMode.describe('preserve = keep current finishes; darken / lighten = shift existing wall, floor and accent colors; set = paint walls and accents one color'),
+    color: z.string().describe('Only with mode "set"; 6-digit hex like "#000000"').optional(),
+  }).optional(),
+  rearrange: z.enum(['none', 'gentle', 'full']),
+  removeObjectIds: z.array(z.string().describe('Exact roomSummary.objects[].id')).max(100),
+  replace: z.array(z.strictObject({ objectId: z.string().describe('Exact roomSummary.objects[].id'), category: Category, count: Count })).max(12),
+  add: z.array(z.strictObject({ category: Category, count: Count })).max(12),
+})
+
 const Palette = z.discriminatedUnion('mode', [
   z.strictObject({ mode: z.literal('preserve') }),
   z.strictObject({ mode: z.literal('darken') }),
   z.strictObject({ mode: z.literal('lighten') }),
-  z.strictObject({ mode: z.literal('set'), color: HexColor }),
+  z.strictObject({ mode: z.literal('set'), color: z.string().regex(/^#[0-9a-f]{6}$/) }),
 ])
-const PlannedItem = z.strictObject({ category: Category, count: z.number().int().min(1).max(12) })
+const PlannedItem = z.strictObject({ category: Category, count: Count })
 
-/** Model output is intent only. It contains no coordinates, dimensions, prices, URLs, room fields, or executable commands; deterministic browser code resolves all edits. */
+/** Normalized, validated model intent. It contains no coordinates, dimensions, prices, URLs, room fields, or executable commands; deterministic browser code resolves all edits. */
 export const RoomDesignIntent = z.strictObject({
   palette: Palette.optional(),
   rearrange: z.enum(['none', 'gentle', 'full']),
   removeObjectIds: z.array(Id).max(100),
-  replace: z.array(z.strictObject({ objectId: Id, category: Category, count: z.number().int().min(1).max(12) })).max(12),
+  replace: z.array(z.strictObject({ objectId: Id, category: Category, count: Count })).max(12),
   add: z.array(PlannedItem).max(12),
 }).superRefine((intent, ctx) => {
   const total = [...intent.replace, ...intent.add].reduce((sum, item) => sum + item.count, 0)
@@ -154,11 +173,38 @@ export function parseRoomDesignResponse(value: unknown, room: { objects: readonl
   return { intent: parseRoomDesignIntent(envelope.intent, room) }
 }
 
-/** Validates bounded model JSON against the current room; throws for stale identities, duplicates, fabricated fields, or oversized output. */
+/** Lowercases a model hex color and expands `#rgb` to `#rrggbb`; returns null for anything else. */
+function normalizeHex(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(value)
+  if (short) return `#${short.slice(1).map((digit) => digit + digit).join('')}`.toLowerCase()
+  return /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : null
+}
+
+/**
+ * Validates bounded model JSON against the current room; throws for stale identities, duplicates, fabricated fields,
+ * or oversized output. Harmless model variations are normalized deterministically: a color with a non-`set` palette
+ * mode is dropped, colors are lowercased and `#rgb` expanded (`set` without a valid color throws), and an ID listed
+ * in both `removeObjectIds` and `replace` keeps only the replacement.
+ */
 export function parseRoomDesignIntent(value: unknown, room: { objects: readonly { id: string }[] }): RoomDesignIntent {
   const json = JSON.stringify(value)
   if (!json || new TextEncoder().encode(json).byteLength > 24 * 1024) throw new Error('Room design intent exceeds 24 KB')
-  const intent = RoomDesignIntent.parse(value)
+  const wire = RoomDesignIntentWire.parse(value)
+  let palette: RoomDesignIntent['palette']
+  if (wire.palette?.mode === 'set') {
+    const color = normalizeHex(wire.palette.color)
+    if (!color) throw new Error('Room design palette "set" needs a 6-digit hex color')
+    palette = { mode: 'set', color }
+  } else if (wire.palette) palette = { mode: wire.palette.mode }
+  const replaced = new Set(wire.replace.map((item) => item.objectId))
+  const intent = RoomDesignIntent.parse({
+    ...(palette ? { palette } : {}),
+    rearrange: wire.rearrange,
+    removeObjectIds: wire.removeObjectIds.filter((id) => !replaced.has(id)),
+    replace: wire.replace,
+    add: wire.add,
+  })
   const known = new Set(room.objects.map((object) => object.id))
   const referenced = [...intent.removeObjectIds, ...intent.replace.map((item) => item.objectId)]
   if (referenced.some((id) => !known.has(id))) throw new Error('Room design intent references an unknown object')

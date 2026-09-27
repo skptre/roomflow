@@ -4,6 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Ledger, type LedgerEvent } from '../src/ai/ledger'
 import { createAiContext, type AiContext, type PaidCall, type PaidResult } from './ai'
 import { createRoomDesignerHandler, ROOM_DESIGN_SYSTEM_INSTRUCTION, type RoomDesignerDeps } from './roomDesigner'
+import type { RoomDesignIntent } from '../src/roomDesigner/contract'
+import { sampleCatalog } from '../src/fixtures/sample-catalog'
+import { readFileSync } from 'node:fs'
+import { parseRoomPlanJson } from '../src/import/roomplan'
+import { prepareRoomDesign } from '../src/ui/roomDesignerActions'
 
 const intent = { rearrange: 'none', removeObjectIds: [], replace: [], add: [] }
 const sofa = {
@@ -244,6 +249,53 @@ describe('local room design endpoint: prompt and output boundary', () => {
     const response = await post(JSON.stringify({ ...request, brief: 'Sensitive brief' }))
     expect(response.status).toBe(502)
     expect(await response.text()).not.toMatch(/Sensitive brief|HTTP 400/)
+  })
+
+  it('sends Gemini a response schema without keywords it does not enforce', async () => {
+    const { post, call } = await setup()
+    expect((await post(JSON.stringify(request))).status).toBe(200)
+    const forbidden = new Set(['oneOf', 'anyOf', 'allOf', 'not', 'const', 'pattern', 'minLength', 'maxLength'])
+    const found: string[] = []
+    const walk = (node: unknown, path: string): void => {
+      if (Array.isArray(node)) { node.forEach((item, index) => walk(item, `${path}[${index}]`)); return }
+      if (!node || typeof node !== 'object') return
+      for (const [key, value] of Object.entries(node)) {
+        if (forbidden.has(key)) found.push(`${path}.${key}`)
+        walk(value, `${path}.${key}`)
+      }
+    }
+    const paid = call.mock.calls[0]![0]
+    walk(paid.schema, '$')
+    expect(found).toEqual([])
+    const palette = (paid.schema as { properties: { intent: { properties: { palette: { properties: Record<string, unknown> } } } } }).properties.intent.properties.palette
+    expect(Object.keys(palette.properties).sort()).toEqual(['color', 'mode'])
+    expect(paid.textChars).toBeGreaterThanOrEqual(ROOM_DESIGN_SYSTEM_INSTRUCTION.length + sentPrompt(call).length + JSON.stringify(paid.schema).length)
+  })
+
+  it.each([
+    { mode: 'set', color: '#000000' },
+    { mode: 'set', color: '#000' },
+    { mode: 'set', color: '#0A0A0A' },
+    { mode: 'darken', color: '#000000' },
+  ])('accepts a "turn everything black" palette %o and prepares one restyle', async (palette) => {
+    const { post } = await setup({ intent: { ...intent, palette } })
+    const budget = { amountMinor: 50000, currency: 'USD' }
+    const response = await post(JSON.stringify({ ...request, brief: 'Turn everything black', budget }))
+    expect(response.status).toBe(200)
+    const body = await response.json() as { intent: RoomDesignIntent }
+    const entries = sampleCatalog.map((entry) => ({ ...entry, offer: { ...entry.offer, available: true } }))
+    const parsedRoom = parseRoomPlanJson(readFileSync(new URL('../src/fixtures/synthetic-bedroom.roomplan.json', import.meta.url), 'utf8'), { now: '2026-09-26T00:00:00.000Z' })
+    if (!parsedRoom.ok) throw new Error(parsedRoom.error)
+    const prepared = prepareRoomDesign(body.intent, { room: parsedRoom.room, catalog: entries, budget, baseRevision: 2, sources: { offers: new Map(entries.map((entry) => [entry.offer.id, entry.offer])) } })
+    expect(prepared.proposal.commands.map((command) => command.type)).toEqual(['restyle'])
+  })
+
+  it('resolves an ID sent to both remove and replace to the replacement', async () => {
+    const plan = { ...intent, removeObjectIds: ['sofa-1'], replace: [{ objectId: 'sofa-1', category: 'sectional', count: 1 }] }
+    const { post } = await setup({ intent: plan })
+    const response = await post(JSON.stringify(request))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ intent: { ...intent, replace: plan.replace } })
   })
 
   it('never logs request bodies, prompts or model output', async () => {

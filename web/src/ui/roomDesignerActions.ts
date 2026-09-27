@@ -147,7 +147,11 @@ export async function requestRoomDesign(
   options: { signal?: AbortSignal; fetchImpl?: typeof fetch } = {},
 ): Promise<RoomDesignRequestResult> {
   const parsed = RoomDesignRequest.safeParse(request)
-  if (!parsed.success) return { ok: false, error: 'Describe the room you want (up to 600 characters) and agree to send it.' }
+  if (!parsed.success) {
+    // A room-summary problem is not the user's wording; don't ask them to rewrite the brief.
+    if (parsed.error.issues.some((issue) => issue.path[0] === 'roomSummary')) return { ok: false, error: `This room can’t be sent for design ideas. ${UNCHANGED}` }
+    return { ok: false, error: 'Describe the room you want (up to 600 characters) and agree to send it.' }
+  }
   const fetchImpl = options.fetchImpl ?? fetch
   let response: Response
   try {

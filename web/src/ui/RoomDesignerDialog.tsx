@@ -160,10 +160,11 @@ export function RoomDesignerDialog({
             />
           </label>
           <fieldset className="designer-budget" disabled={busy}>
-            <legend>Spending limit (optional)</legend>
+            <legend>Room budget (optional)</legend>
+            <p className="designer-budget-hint" id="designer-budget-hint">Total for everything priced in the room</p>
             <label>
               Amount
-              <input inputMode="decimal" value={amount} placeholder="No limit" onChange={(event) => setAmount(event.target.value)} />
+              <input inputMode="decimal" aria-describedby="designer-budget-hint" value={amount} placeholder="No limit" onChange={(event) => setAmount(event.target.value)} />
             </label>
             <label>
               Currency
@@ -173,7 +174,7 @@ export function RoomDesignerDialog({
             </label>
           </fieldset>
           <p className="appearance-disclosure">
-            Your words, the spending limit, and a room summary (room shape, doors and windows, and each piece’s type, size, color and position) go to Google Gemini. <strong>No photos are sent.</strong> Names, prices and store links stay on this computer. One request, no automatic retries; a typical request costs a fraction of a cent.
+            Your words, the room budget, and a room summary (room shape, doors and windows, and each piece’s type, size, color and position) go to Google Gemini. <strong>No photos are sent.</strong> Names, prices and store links stay on this computer. One request, no automatic retries; a typical request costs a fraction of a cent.
           </p>
           <label className="appearance-consent">
             <input type="checkbox" checked={consent} disabled={busy} onChange={(event) => setConsent(event.target.checked)} />

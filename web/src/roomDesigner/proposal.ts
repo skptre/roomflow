@@ -38,6 +38,19 @@ function recolor(color: string, mode: 'darken' | 'lighten'): string {
   return `#${channels.map((value) => Math.round(mode === 'darken' ? value * 0.7 : value + (255 - value) * 0.3).toString(16).padStart(2, '0')).join('')}`
 }
 
+/**
+ * Floor finish for a single requested room color: walls and accents take the color, the floor takes a readable
+ * variant so furniture does not vanish into it. Very dark and very light colors (lightness <= 1/6 or >= 5/6) blend
+ * 30% toward mid gray; other colors shift 30% toward black (lighter half) or white (darker half). Either way the
+ * floor's mean-channel lightness differs from the wall's by about 0.1 or more and stays within about 0.15-0.85.
+ */
+function readableFloor(color: string): string {
+  const channels = [1, 3, 5].map((start) => parseInt(color.slice(start, start + 2), 16))
+  const lightness = channels.reduce((sum, value) => sum + value, 0) / (3 * 255)
+  const target = Math.abs(lightness - 0.5) >= 1 / 3 ? 128 : lightness >= 0.5 ? 0 : 255
+  return `#${channels.map((value) => Math.round(value + (target - value) * 0.3).toString(16).padStart(2, '0')).join('')}`
+}
+
 function validEntry(entry: CatalogEntry): boolean {
   return Product.safeParse(entry.product).success && Variant.safeParse(entry.variant).success && Offer.safeParse(entry.offer).success &&
     entry.variant.productId === entry.product.id && entry.offer.variantId === entry.variant.id
@@ -83,10 +96,11 @@ export function buildRoomDesignProposal(input: RoomDesignProposalInput): RoomDes
   }
 
   if (intent.palette && intent.palette.mode !== 'preserve') {
-    const color = intent.palette.mode === 'set' ? intent.palette.color : null
-    const recolored = (original: string) => color ?? recolor(original, intent.palette!.mode as 'darken' | 'lighten')
-    const finishes = { ...working.finishes, wall: recolored(working.finishes.wall), floor: recolored(working.finishes.floor), accent: recolored(working.finishes.accent ?? working.finishes.wall) }
-    if (tryCommand({ type: 'restyle', finishes })) notes.push('Updated the room palette.')
+    const palette = intent.palette
+    const finishes = palette.mode === 'set'
+      ? { ...working.finishes, wall: palette.color, floor: readableFloor(palette.color), accent: palette.color }
+      : { ...working.finishes, wall: recolor(working.finishes.wall, palette.mode), floor: recolor(working.finishes.floor, palette.mode), accent: recolor(working.finishes.accent ?? working.finishes.wall, palette.mode) }
+    if (tryCommand({ type: 'restyle', finishes })) notes.push('Updated the room palette.', 'Furniture colors aren’t changed; replace pieces to change them.')
   }
 
   for (const id of intent.removeObjectIds) {
