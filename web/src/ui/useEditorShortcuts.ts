@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { cancelCatalogPreview } from './catalogActions'
+import { cancelActivePreview } from './lookActions'
 import { designStore } from '../domain/designStore'
 import { redo, removeSelected, rotateSelected, undo } from './editorActions'
 
@@ -42,7 +42,7 @@ export function useEditorShortcuts(enabled = true) {
         event.preventDefault()
         removeSelected()
       } else if (key === 'escape') {
-        if (designStore.getState().preview) cancelCatalogPreview()
+        if (designStore.getState().preview) cancelActivePreview()
         else if (hasSelection) designStore.getState().select(null)
       }
     }
