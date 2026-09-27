@@ -4,7 +4,6 @@ import simd
 /// Groups `WallArtSighting`s seen across a scan by position/orientation, decides which groups are
 /// confirmed (seen enough, from different-enough spots to triangulate), and attaches confirmed groups to
 /// the final room's walls to produce `WallArtItem`s. Pure/deterministic; no I/O, no model inference.
-/// See `docs/superpowers/plans/2026-09-26-wall-art-detection.md` for the rule derivation.
 nonisolated struct WallArtTracker {
     /// One candidate piece of art: sightings judged to be the same physical rectangle.
     private struct Group {

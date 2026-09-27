@@ -1,6 +1,5 @@
 # iOS room evidence — verification report
 
-Plan: `docs/superpowers/plans/2026-09-26-ios-room-evidence-handoff.md` (Task 6).
 Records what was actually checked, on what, and what is still open. No room photos, scan payloads,
 or private details are included; identifiers are shortened.
 

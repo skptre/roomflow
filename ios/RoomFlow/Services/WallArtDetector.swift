@@ -57,9 +57,8 @@ nonisolated enum WallArtVerdict: Equatable, Sendable {
 }
 
 /// Pure judge: decides whether one image rectangle is plausibly art hanging on a scanned wall. Deterministic
-/// geometry and depth checks only; no model inference, no state, no I/O. See
-/// `docs/superpowers/plans/2026-09-26-wall-art-detection.md` for the rule derivation; this type applies
-/// those rules in order and returns the first rejection reached.
+/// geometry and depth checks only; no model inference, no state, no I/O. Applies the rules in order and
+/// returns the first rejection reached.
 nonisolated enum WallArtDetector {
     /// Judges `quad` (normalized, top-left-origin image corners: top-left, top-right, bottom-right,
     /// bottom-left) seen from `camera` against the live `surfaces` and `objects`. `depthAt(u, v)` returns

@@ -126,24 +126,11 @@ roomflow/
 │   │   └── ui/          Panels, dialogs and editor actions
 │   ├── server/          Local-only API: Gemini calls, price refresh, spend caps
 │   └── public/catalog/  Product snapshot and furniture recipes
-├── docs/                Architecture, decisions, file formats, changelog
-└── spec.md              Product specification
+└── docs/                Architecture, decisions, file formats, changelog
 ```
 
 **Stack:** React 19, TypeScript, Three.js with React Three Fiber and Drei, Zustand, Zod, Tailwind, Vite and Vitest on the web; Swift, SwiftUI and RoomPlan on iOS.
 
 **Checks** (from `web/`): `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`. CI runs them on every push.
 
-More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) describes every file, [`docs/DECISIONS.md`](docs/DECISIONS.md) records the tradeoffs, [`docs/ios-room-package.md`](docs/ios-room-package.md) and [`docs/room-json.md`](docs/room-json.md) define the file formats, and [`spec.md`](spec.md) is the full product spec.
-
-## Honest limits
-
-- Furniture models are stylized to match a product's size, shape and color, not photoreal replicas.
-- A photo of an item found in person gives an approximate preview. One photo can't establish size, so fit conclusions rely on the dimensions you enter.
-- Prices are from a catalog snapshot taken September 26, 2026. Refreshing a price re-reads it from the store.
-- The footprint check doesn't prove a piece fits through a door or up a stairwell.
-- AI features run through a local development server and are not set up for public hosting.
-
-## Team
-
-Built by **Yash Singh** (web app) and **Keshav Tyagi** (iOS capture).
+More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) describes every file, [`docs/DECISIONS.md`](docs/DECISIONS.md) records the tradeoffs, and [`docs/ios-room-package.md`](docs/ios-room-package.md) and [`docs/room-json.md`](docs/room-json.md) define the file formats.

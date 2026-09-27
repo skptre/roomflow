@@ -1,6 +1,6 @@
 # Roomflow web
 
-Browser workspace for Roomflow. See `../spec.md` (product) and `../CLAUDE.md` (engineering rules).
+Browser workspace for Roomflow. See the [project README](../README.md) for an overview.
 
 ```
 npm install

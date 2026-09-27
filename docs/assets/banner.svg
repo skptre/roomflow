@@ -15,16 +15,10 @@
   <rect width="1280" height="440" fill="url(#bg)"/>
   <rect width="1280" height="440" fill="url(#halo)"/>
   <g font-family="'Helvetica Neue', Helvetica, Arial, sans-serif">
-    <text x="92" y="96" font-size="15" font-weight="700" letter-spacing="3.2" fill="#96513f">SCAN · TRY · MAKE IT YOURS</text>
-    <text x="88" y="190" font-size="92" font-weight="700" letter-spacing="-3.5" fill="#493c34">Roomflow</text>
-    <text x="92" y="244" font-size="31" letter-spacing="-0.6" fill="#493c34">Your room, with anything you find.</text>
-    <text x="92" y="286" font-size="17" fill="#716e63">Scan your real room on iPhone, try real furniture in 3D,</text>
-    <text x="92" y="310" font-size="17" fill="#716e63">and see what it costs before you buy.</text>
-    <g transform="translate(92,346)" font-size="13.5" font-weight="600" fill="#96513f">
-      <rect width="132" height="32" rx="16" fill="#f0e4db"/><text x="66" y="21" text-anchor="middle">RoomPlan scan</text>
-      <rect x="142" width="116" height="32" rx="16" fill="#f0e4db"/><text x="200" y="21" text-anchor="middle">3D editor</text>
-      <rect x="268" width="170" height="32" rx="16" fill="#f0e4db"/><text x="353" y="21" text-anchor="middle">2,246 real products</text>
-    </g>
+    <text x="88" y="198" font-size="96" font-weight="700" letter-spacing="-3.5" fill="#493c34">Roomflow</text>
+    <text x="92" y="258" font-size="32" letter-spacing="-0.6" fill="#493c34">Your room, with anything you find.</text>
+    <text x="92" y="304" font-size="18" fill="#716e63">Scan your real room on iPhone, try real furniture in 3D,</text>
+    <text x="92" y="330" font-size="18" fill="#716e63">and see what it costs before you buy.</text>
     <ellipse cx="922.6" cy="328.7" rx="250" ry="58" fill="url(#shadow)"/>
 <polygon points="712.6,288.8 940.2,420.2 940.2,410.9 712.6,279.5" fill="#e2d3c0"/>
 <polygon points="1132.5,309.1 940.2,420.2 940.2,410.9 1132.5,299.8" fill="#d5c3ad"/>

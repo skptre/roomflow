@@ -1,5 +1,11 @@
 # Changelog
 
+### 2026-09-27 — repo: remove AI-assistant files; simpler README and banner
+
+- Removed from the repository: `.claude/` (agent rules, plans, settings), `CLAUDE.md`, `AGENTS.md`, `spec.md`, `docs/superpowers/` and `docs/plans/` (agent-written plans). `.gitignore` now keeps these local-only.
+- References updated: `docs/ARCHITECTURE.md` (repository table, piece-package row), `docs/INDEX.md`, `docs/ios-room-evidence-verification.md`, `web/README.md`, and doc comments in `ios/RoomFlow/Services/WallArtDetector.swift` and `WallArtTracker.swift` (comment-only).
+- `README.md`: dropped the Honest limits and Team sections and the `spec.md` mentions. `docs/assets/banner.svg`: text only — no eyebrow line or feature chips.
+
 ### 2026-09-27 — docs: project README for submission
 
 - `README.md` (new): banner, what Roomflow is, how capture → import → recipes → shopping fits together, features with fresh app screenshots, quick start (web, optional Gemini, iOS), usage table with shortcuts, project layout, honest limits, team.

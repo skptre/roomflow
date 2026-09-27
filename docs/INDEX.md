@@ -1,7 +1,7 @@
 # Index
 
 Quick lookup: where to find something without opening files to check. Read this first.
-Keep it current (see `.claude/documentation.md`). One line per row; this is a lookup table, not a description.
+Keep it current. One line per row; this is a lookup table, not a description.
 
 | Looking for… | Go to |
 | --- | --- |
@@ -9,11 +9,7 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | README banner and app screenshots | `docs/assets/` (banner source: hand-built isometric SVG) |
 | What every file does, with key types/functions | `docs/ARCHITECTURE.md` |
 | What changed and when | `docs/CHANGELOG.md` |
-| Gemini room-designer design and safety contract | `docs/superpowers/specs/2026-09-27-gemini-room-designer-design.md` |
 | Why a past tradeoff was made | `docs/DECISIONS.md` |
-| When to update which document | `.claude/documentation.md` |
-| Product behavior and scope | `spec.md` |
-| Engineering rules (coordinates, money, evidence, verification) | `CLAUDE.md` |
 | **iOS** — scan flow (RoomPlan session, camera permission, sampling loop) | `ios/RoomFlow/Services/RoomScanService.swift`, `Views/RoomScanView.swift` |
 | iOS — raw `.roomplan.json` export (untouched `CapturedRoom`) | `ios/RoomFlow/Services/RoomPlanFileExport.swift` |
 | iOS — saved rooms on the phone (storage layout, atomic save) | `ios/RoomFlow/Services/RoomArchiveStore.swift`, `Models/SavedRoomRecord.swift` |
@@ -23,7 +19,7 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | iOS — reference photos (capture, limits, sessions) | `ios/RoomFlow/Services/RoomEvidenceRecorder.swift`, `Models/RoomPhotoEvidence.swift` |
 | iOS — furniture-aware photos (live objects, focus hint, coverage) | `ios/RoomFlow/Services/LiveRoomObserver.swift`, `ObjectFocusTracker.swift`, `ios/RoomFlow/Views/ScanFocusHintView.swift`, `ios/RoomFlow/Models/PhotoCoverage.swift` |
 | iOS — matching photos to scanned objects | `ios/RoomFlow/Services/RoomEvidenceProjector.swift`, `Models/RoomAppearanceEvidence.swift` |
-| iOS — wall art detection (judge rectangles, group/confirm/attach to final walls, scan wiring + reference photo crop, save/reopen/review) | `ios/RoomFlow/Services/WallArtDetector.swift`, `WallArtTracker.swift`, `WallArtScanner.swift`, `Models/WallArtItem.swift`, `Services/RoomArchiveStore.swift`, `Views/RoomEvidenceReviewView.swift`, `Views/ScanSummaryView.swift`, `docs/superpowers/plans/2026-09-26-wall-art-detection.md` |
+| iOS — wall art detection (judge rectangles, group/confirm/attach to final walls, scan wiring + reference photo crop, save/reopen/review) | `ios/RoomFlow/Services/WallArtDetector.swift`, `WallArtTracker.swift`, `WallArtScanner.swift`, `Models/WallArtItem.swift`, `Services/RoomArchiveStore.swift`, `Views/RoomEvidenceReviewView.swift`, `Views/ScanSummaryView.swift` |
 | iOS — Review room (labels, photo selection) | `ios/RoomFlow/Views/RoomEvidenceReviewView.swift`, `Models/RoomEvidenceSelection.swift` |
 | iOS — `.roomflow.zip` package (incl. `wallArt.json`/`art/`) | `ios/RoomFlow/Services/RoomPackageExport.swift`, `Models/RoomPackageManifest.swift`, `docs/ios-room-package.md` |
 | iOS — top-down plan drawing and tap selection | `ios/RoomFlow/Views/RoomEditorView.swift`, `Services/FloorPlanGeometry.swift` |
@@ -44,9 +40,7 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | Web — original tiny bedroom on the landing page | `web/src/fixtures/originalRoom.ts`, `web/src/scene/HeroBed.tsx` |
 | Web — room zones (per-area floor and wall paint) | `web/src/domain/schema.ts` (`Zone`), `web/src/scene/zonePaint.ts` |
 | Web — moving hung pieces along their wall | `web/src/domain/layout.ts` (`slideOnWall`), `web/src/scene/FurnitureObject.tsx`, `web/src/ui/editorActions.ts` (`nudgeOnWall`) |
-| Web — run/test commands | `web/README.md`, `AGENTS.md` |
-| Plans (web) | `.claude/plans/` |
-| Plans (iOS, Gemini designer) | `docs/superpowers/plans/` |
+| Web — run/test commands | `web/README.md` |
 | PR template and CI | `.github/` |
 
 | Web — Gemini photos and furniture discoveries | `docs/ux/gemini-appearance.md`, `web/src/recognition/`, `web/server/` |

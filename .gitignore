@@ -1,5 +1,5 @@
 # Roomflow — React/TypeScript, Convex, and native Swift capture
-# Commit source code, spec.md, AGENTS.md, shared configuration, and lockfiles.
+# Commit source code, shared configuration, and lockfiles.
 
 # JavaScript dependencies and package-manager caches
 node_modules/
@@ -76,10 +76,14 @@ xcuserdata/
 *.mobileprovision
 *.provisionprofile
 
-# Local agent state — keep shared instructions/settings tracked
-.claude/worktrees/
-.claude/settings.local.json
+# Local AI-assistant files — kept out of the repository
+.claude/
+.superpowers/
+docs/superpowers/
+CLAUDE.md
 CLAUDE.local.md
+AGENTS.md
+spec.md
 .codex/auth.json
 .codex/sessions/
 .codex/log/

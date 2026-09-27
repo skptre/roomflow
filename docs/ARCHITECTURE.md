@@ -2,18 +2,13 @@
 
 Every file and what it's for. iOS entries list the key types and functions so they can be found without searching.
 Web entries (owned by Yash) are indexed at file/folder level. Update this file whenever a file is added, removed,
-or changes purpose, or a public type/function is added (see `.claude/documentation.md`).
+or changes purpose, or a public type/function is added.
 
 ## Repository
 
 | Path | Purpose |
 | --- | --- |
-| `CLAUDE.md` | Engineering rules for every agent; includes the documentation rules |
-| `AGENTS.md` | Codex entry point; defers to `CLAUDE.md` and `spec.md` |
-| `spec.md` | Product specification |
-| `.claude/documentation.md`, `.claude/index.md` | When to update which document; read `docs/INDEX.md` first |
-| `.claude/plans/` | Web implementation plans |
-| `.claude/settings.json` | Shared Claude Code settings |
+| `README.md` | Project overview, setup and usage |
 | `.github/` | PR template, web CI workflow |
 | `docs/` | Project records, contracts, UX notes, screenshots |
 | `ios/` | Native iOS capture app (Swift/SwiftUI, RoomPlan) |
@@ -196,4 +191,4 @@ Commands: see `web/README.md` (`npm ci`, `npm run dev`, `typecheck`, `lint`, `te
 | `web/src/import/piece.ts` | `MAX_PIECE_BYTES`, `PiecePackage`, `parsePiece`, `verifyPiecePhotos`, `pieceAsset`, `pieceObject`: validated transport and deterministic placement |
 | `web/src/import/piece.test.ts` | Package bounds, invalid data, fresh placement IDs, isolated previews and reversible financial changes |
 | `web/src/ui/PieceImportDialog.tsx` | Revision-bound file loading, duplicate notice, local photo review and owned preview lifecycle |
-| `docs/piece-package.md`, `docs/plans/scan-piece.md` | New single-piece transport contract and approved implementation scope |
+| `docs/piece-package.md` | Single-piece transport contract |
