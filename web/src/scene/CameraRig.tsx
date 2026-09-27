@@ -15,6 +15,7 @@ export type ViewRequest = { action: 'home' | 'top' | 'zoom-in' | 'zoom-out' | 'l
 type CameraRigProps = {
   viewRequest?: ViewRequest
   room: Room
+  framing?: 'hero' | 'editor'
   /** Horizontal part of the unit vector from target to camera, reported on every camera change. */
   onViewChange: (cameraDir: Vec2) => void
 }
@@ -24,7 +25,7 @@ type CameraRigProps = {
  * changes and panel resizes never reset the user's orbit), with a clamped,
  * damped orbit.
  */
-export function CameraRig({ room, onViewChange, viewRequest }: CameraRigProps) {
+export function CameraRig({ room, onViewChange, viewRequest, framing = 'editor' }: CameraRigProps) {
   const camera = useThree((state) => state.camera)
   const size = useThree((state) => state.size)
   const invalidate = useThree((state) => state.invalidate)
@@ -50,7 +51,7 @@ export function CameraRig({ room, onViewChange, viewRequest }: CameraRigProps) {
     const aspect = sizeRef.current.width / Math.max(1, sizeRef.current.height)
     const vFov = (camera.fov * Math.PI) / 180
     const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect)
-    const distance = (radius / Math.sin(Math.min(vFov, hFov) / 2)) * MARGIN
+    const distance = (radius / Math.sin(Math.min(vFov, hFov) / 2)) * (framing === 'hero' ? 0.9 : MARGIN)
     camera.position.set(
       center[0] + distance * Math.cos(ELEVATION) * Math.sin(AZIMUTH),
       center[1] + distance * Math.sin(ELEVATION),

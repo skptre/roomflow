@@ -16,8 +16,6 @@ import { FurnitureObject } from './FurnitureObject'
 import { disposeIdleModels } from '../blocks/build'
 import { disposeBlockMaterials } from '../blocks/materials'
 import { disposeSharedMaterials } from './materials'
-import { palette } from './palette'
-import { roomSphere } from './roomBounds'
 
 function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>) {
   return a.size === b.size && [...a].every((id) => b.has(id))
@@ -50,7 +48,6 @@ export function RoomScene({
   )
   const reducedMotion = useReducedMotion() ?? false
   const [cut, setCut] = useState<ReadonlySet<string>>(() => new Set())
-  const { radius } = roomSphere(room)
 
   const onViewChange = useCallback(
     (cameraDir: Vec2) => {
@@ -104,12 +101,7 @@ export function RoomScene({
             onSelect={onSelect}
           />
         ))}
-        {/* Shadow catcher: the model sits on the plain backdrop and only its shadow darkens it. */}
-        <mesh rotation-x={-Math.PI / 2} position-y={-0.081} receiveShadow>
-          <circleGeometry args={[radius * 4, 64]} />
-          <shadowMaterial color={palette.shadow} opacity={0.22} />
-        </mesh>
-        <CameraRig room={room} onViewChange={onViewChange} viewRequest={viewRequest} />
+        <CameraRig room={room} onViewChange={onViewChange} viewRequest={viewRequest} framing={decorative ? 'hero' : 'editor'} />
         <Effects />
       </Selection>
     </Canvas>

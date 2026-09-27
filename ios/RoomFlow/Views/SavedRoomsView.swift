@@ -26,7 +26,7 @@ struct SavedRoomsView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(record.name)
                             .font(.headline)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color.rfInk)
                         Label(evidenceText(record), systemImage: record.evidenceStatus == .photos ? "photo" : "cube")
                             .font(.caption)
                             .foregroundStyle(Color.rfSecondaryText)
