@@ -106,10 +106,10 @@ function Workspace() {
     setSwapId(null)
     setPanel(next)
   }
-  function open(result: ImportResult | PackageImportResult) {
+  function open(result: ImportResult | PackageImportResult): boolean {
     if (!result.ok) {
       setError(result.error)
-      return
+      return false
     }
     setError(null)
     cancelCatalogPreview()
@@ -120,6 +120,7 @@ function Workspace() {
     setSwapId(null)
     announceImport(result)
     offerAutoMatch(result.room)
+    return true
   }
   /** After a package opens, offers to match every photographed item (nothing is sent without consent). */
   function offerAutoMatch(opened: Room) {
@@ -176,6 +177,7 @@ function Workspace() {
           busy={busy}
           onImportFile={importFile}
           onOpenSample={() => open(parseRoomPlanJson(sampleScan))}
+          onPairedScan={(scan) => open(parseRoomPlanJson(scan))}
           onResume={committed ? () => setWelcome(false) : undefined}
         >
           {sampleRoom && <RoomScene room={sampleRoom} sources={sources} decorative />}

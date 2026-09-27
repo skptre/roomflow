@@ -9,7 +9,7 @@ import { palette } from './palette'
 export function Effects() {
   return (
     <EffectComposer multisampling={0} autoClear={false}>
-      <N8AO aoRadius={0.5} distanceFalloff={0.5} intensity={3} halfRes quality="medium" />
+      <N8AO aoRadius={0.28} distanceFalloff={0.75} intensity={1.25} halfRes quality="medium" />
       <Outline visibleEdgeColor={palette.selection} hiddenEdgeColor={palette.selection} edgeStrength={4} blur />
       <SMAA />
       <ToneMapping mode={ToneMappingMode.NEUTRAL} />
