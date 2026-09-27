@@ -148,6 +148,95 @@ struct RoomPackageExportTests {
         #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("out/\(captureID.uuidString).roomflow.zip").path))
     }
 
+    @Test func wallArtWithPhotoIsExported() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        var archive = try makeArchive(root: root, photoCount: 0)
+        let artDirectory = root.appendingPathComponent("art", isDirectory: true)
+        try FileManager.default.createDirectory(at: artDirectory, withIntermediateDirectories: true)
+        let item = WallArtItem(id: UUID(), wallSourceId: UUID(), centerX: 0.2, centerY: 0.3, width: 0.4,
+                               height: 0.3, standoff: 0.01, sightingCount: 5, photoFileName: "art.jpg",
+                               worldCenter: [1, 1.4, -3], worldNormal: [0, 0, 1])
+        try Data("art-photo".utf8).write(to: artDirectory.appendingPathComponent("art.jpg"))
+        archive.wallArt = [item]
+        archive.wallArtDirectory = artDirectory
+
+        let result = try await export(archive, archive.selection, to: root)
+        let files = try ZipReader.files(in: result.url)
+        let manifest = try RoomPackageManifest.decoder.decode(RoomPackageManifest.self, from: try #require(files["manifest.json"]))
+
+        let wallArtData = try #require(files["wallArt.json"])
+        let wallArtPackage = try RoomPackageManifest.decoder.decode(WallArtPackage.self, from: wallArtData)
+        #expect(wallArtPackage.captureId == captureID)
+        #expect(wallArtPackage.items.count == 1)
+        let exported = try #require(wallArtPackage.items.first)
+        #expect(exported.artId == item.id)
+        #expect(exported.wallSourceId == item.wallSourceId)
+        #expect(exported.center == [1, 1.4, -3])
+        #expect(exported.normal == [0, 0, 1])
+        #expect(abs(exported.width - 0.4) < 0.0001)
+        #expect(exported.photoPath == "art/\(item.id.uuidString).jpg")
+
+        #expect(files["art/\(item.id.uuidString).jpg"] == Data("art-photo".utf8))
+        let fileEntry = try #require(manifest.files.first { $0.path == "wallArt.json" })
+        #expect(fileEntry.byteCount == wallArtData.count)
+        #expect(fileEntry.sha256 == SHA256.hash(data: wallArtData).map { String(format: "%02x", $0) }.joined())
+        let photoEntry = try #require(manifest.files.first { $0.path == "art/\(item.id.uuidString).jpg" })
+        #expect(photoEntry.mediaType == "image/jpeg")
+    }
+
+    @Test func wallArtWithoutWorldPoseIsSkipped() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        var archive = try makeArchive(root: root, photoCount: 0)
+        // Simulates an item saved before worldCenter/worldNormal existed.
+        archive.wallArt = [WallArtItem(id: UUID(), wallSourceId: UUID(), centerX: 0, centerY: 0, width: 0.4,
+                                       height: 0.3, standoff: 0, sightingCount: 3, photoFileName: nil)]
+
+        let result = try await export(archive, archive.selection, to: root)
+        let files = try ZipReader.files(in: result.url)
+        #expect(files["wallArt.json"] == nil)
+    }
+
+    @Test func removedWallArtIsNotExported() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = RoomArchiveStore(root: root.appendingPathComponent("store"))
+        let kept = WallArtItem(id: UUID(), wallSourceId: UUID(), centerX: 0, centerY: 0, width: 0.4, height: 0.3,
+                               standoff: 0, sightingCount: 3, photoFileName: nil, worldCenter: [0, 1, -3], worldNormal: [0, 0, 1])
+        let removed = WallArtItem(id: UUID(), wallSourceId: UUID(), centerX: 1, centerY: 0, width: 0.4, height: 0.3,
+                                  standoff: 0, sightingCount: 3, photoFileName: nil, worldCenter: [1, 1, -3], worldNormal: [0, 0, 1])
+        try await store.saveCapture(id: captureID, rawData: rawBytes, editableData: Data(#"{"revision":0}"#.utf8),
+                                    wallArt: [kept, removed])
+        // Review room's "Not wall art" persists the reduced list.
+        try await store.saveWallArt(id: captureID, items: [kept])
+        let archive = try await store.load(id: captureID)
+
+        let result = try await export(archive, archive.selection, to: root.appendingPathComponent("out"))
+        let files = try ZipReader.files(in: result.url)
+        let wallArtPackage = try RoomPackageManifest.decoder.decode(WallArtPackage.self, from: try #require(files["wallArt.json"]))
+        #expect(wallArtPackage.items.map(\.artId) == [kept.id])
+    }
+
+    @Test func noWallArtWritesNoFile() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let archive = try makeArchive(root: root, photoCount: 1)
+
+        let result = try await export(archive, archive.selection, to: root)
+        let files = try ZipReader.files(in: result.url)
+        #expect(files["wallArt.json"] == nil)
+        #expect(!files.keys.contains { $0.hasPrefix("art/") })
+    }
+
+    @Test func allowedPathsIncludeWallArtAndArtPhotos() {
+        #expect(RoomPackageManifest.isAllowed("wallArt.json"))
+        #expect(RoomPackageManifest.isAllowed("art/\(UUID().uuidString).jpg"))
+        #expect(!RoomPackageManifest.isAllowed("art/cat.jpg"))
+        #expect(!RoomPackageManifest.isAllowed("art/\(UUID().uuidString)/x.jpg"))
+        #expect(!RoomPackageManifest.isAllowed("../art/\(UUID().uuidString).jpg"))
+    }
+
     @Test func changedSelectionCreatesFreshPackage() async throws {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }

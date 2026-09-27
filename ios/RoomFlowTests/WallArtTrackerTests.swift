@@ -63,7 +63,7 @@ struct WallArtTrackerTests {
         #expect(tracker2.confirmedCount == 1)
     }
 
-    @Test func finalizeAttachesToNearestContainingWall() {
+    @Test func finalizeAttachesToNearestContainingWall() throws {
         var tracker = WallArtTracker()
         for x: Float in [0, 0.15, 0.3] {
             _ = tracker.add(sighting(center: [0.5, 1.4, -3], camera: [x, 1.5, 0]))
@@ -76,9 +76,14 @@ struct WallArtTrackerTests {
         #expect(abs(item.centerY - 0.1) < 0.02)
         #expect(abs(item.width - 0.4) < 0.02)
         #expect(item.wallSourceId == targetWall.sourceId)
+        let worldCenter = try #require(item.worldCenter)
+        let worldNormal = try #require(item.worldNormal)
+        #expect(worldCenter.count == 3 && worldNormal.count == 3)
+        #expect(abs(worldCenter[0] - 0.5) < 0.001 && abs(worldCenter[1] - 1.4) < 0.001 && abs(worldCenter[2] - (-3)) < 0.001)
+        #expect(abs(worldNormal[0]) < 0.001 && abs(worldNormal[1]) < 0.001 && abs(worldNormal[2] - 1) < 0.001)
     }
 
-    @Test func mergesOverlappingItemsOnSameWall() {
+    @Test func mergesOverlappingItemsOnSameWall() throws {
         var tracker = WallArtTracker()
         for x: Float in [0, 0.15, 0.3] {
             _ = tracker.add(sighting(center: [0, 1.3, -3], width: 0.38, height: 0.3, camera: [x, 1.5, 0]))
@@ -91,6 +96,13 @@ struct WallArtTrackerTests {
         #expect(results.count == 1)
         #expect(abs(results[0].item.width - 0.81) < 0.02)
         #expect(results[0].groups.count == 2)
+        // Merged: median center across all 6 contributing sightings (x = 0 and 0.43, three each).
+        let worldCenter = try #require(results[0].item.worldCenter)
+        #expect(abs(worldCenter[0] - 0.215) < 0.001)
+        #expect(abs(worldCenter[1] - 1.3) < 0.001)
+        #expect(abs(worldCenter[2] - (-3)) < 0.001)
+        let worldNormal = try #require(results[0].item.worldNormal)
+        #expect(abs(worldNormal[2] - 1) < 0.001)
     }
 
     @Test func groupFarInFrontOfEveryWallIsDropped() {
@@ -109,5 +121,16 @@ struct WallArtTrackerTests {
         let data = try JSONEncoder().encode(item)
         let decoded = try JSONDecoder().decode(WallArtItem.self, from: data)
         #expect(decoded == item)
+    }
+
+    /// An item saved before `worldCenter`/`worldNormal` existed decodes with both nil.
+    @Test func oldWallArtItemDecodesWithNilWorldPose() throws {
+        let legacyJSON = """
+        {"id":"\(UUID().uuidString)","wallSourceId":"\(UUID().uuidString)","centerX":0.5,"centerY":0.1,
+         "width":0.4,"height":0.3,"standoff":0.02,"sightingCount":3,"method":"rectangle-lidar-v1"}
+        """
+        let decoded = try JSONDecoder().decode(WallArtItem.self, from: Data(legacyJSON.utf8))
+        #expect(decoded.worldCenter == nil)
+        #expect(decoded.worldNormal == nil)
     }
 }

@@ -138,3 +138,17 @@ already captures. The corrected crop is still a measured estimate (camera + LiDA
 `WallArtItem.method` continues to record that provenance. Cost accepted: the perspective warp can introduce
 minor resampling softness versus the source frame, judged worth it for a photo that actually reads as "the
 art," and the crop is capped at a 1024 px long edge to bound its size regardless.
+
+## Art photos yield to regular photos in the package's byte budget
+`RoomPackageExport` fills the existing 20 MiB photo budget with the user's selected Review-room photos first,
+then adds `art/<artId>.jpg` reference photos afterward from whatever budget remains; an art photo that doesn't
+fit is dropped (`photoPath: null`, the `wallArt.json` item itself still exports) rather than displacing an
+already-selected photo. Rejected: giving art photos priority over regular photos, or a separate budget for
+them. The user explicitly chose which regular photos to share in Review room — that's a deliberate decision
+this feature shouldn't silently override — while wall-art photos are an automatic, best-effort extra a
+consumer can live without (the geometry item still carries full pose/size/photo-provenance data). Rejected: a
+dedicated size budget for `art/`, which would need its own limit to tune and defend, for a case (many
+high-sighting-count art pieces in one scan) that hasn't shown up as a real problem yet. Dropped art photos are
+counted in the existing `omittedPhotoCount` rather than a new field, since it already means "a photo we would
+have liked to include didn't make it," and a second counter would fragment that one user-facing number for no
+real benefit.
