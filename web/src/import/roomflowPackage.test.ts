@@ -189,7 +189,7 @@ describe('parseRoomflowPackage', () => {
       const art = room.objects.find((o) => o.id === ART)!
       expect(art).toMatchObject({
         category: 'wall-art', name: 'Wall art', sourceKind: 'captured', fidelity: 'approximate', keep: true, lockPlacement: true, quantity: 1,
-        asset: { kind: 'parametric', assemblyId: 'wall-art' },
+        asset: { kind: 'recipe', recipeId: 'default:wall-art' },
       })
       expect(art.dimensions).toEqual({ width: 0.38, height: 0.95, depth: 0.03, source: 'captured' })
       // nativeToApp for the fixture is (-3.2, 1.4, -2.45). Back on the wall (native z 4.2), middle 1.5 cm in front.

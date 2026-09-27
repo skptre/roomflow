@@ -1,5 +1,9 @@
 # Changelog
 
+### 2026-09-27 — integration: real catalog renderer with room capture
+
+Merged the demo-ready real-catalog branch into the Designer and native piece-import work. Existing RoomPlan furniture, wall art, closet fronts, Gemini appearance previews, and scanned pieces now use the validated recipe renderer (`web/src/blocks/`) alongside the real catalog. The Vite server mounts both the price-refresh API and the local-only Gemini recognition endpoint. No scan evidence, prices, or preview-isolation rules changed.
+
 ### 2026-09-27 — iOS/web: scan and import a single furniture piece
 
 Added `PieceSelection` (`select`, `allowsPhoto`, `finalID`) and `RoomScanService.Mode.piece` with `selectFramedPiece`, `piecePhotoCount`, `pieceSelection`. Focused shots are recorded only for the chosen object; `RoomEvidenceRecorder.completedPhotoCount` drives saved-view progress. New `PieceScanView` reuses `RoomCaptureViewContainer`; `HomeView` exposes Scan a Piece and Saved Pieces. `ScannedPiece` (`Dimensions`, `Photo`, `validate`, `encoded`, `photo`, `uprightQuarterTurns`) creates bounded, metadata-stripped upright photo exports. `PieceArchiveStore` (`shared`, `defaultRoot`, `init`, `save`, `url(for:)`, `list`) retains files through canceled sharing. `PieceReviewView` and `SavedPiecesView` review/correct dimensions and choose photo inclusion.

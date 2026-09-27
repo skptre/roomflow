@@ -133,7 +133,8 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `web/src/recognition/cropPhoto.ts` | Browser crops for auto-match: `cropPhotoRegion` (padded, upright, ≤1024 px JPEG), `prepareAutoMatch` (status check + plan + crops; sends nothing) |
 | `web/src/ui/AutoMatchDialog.tsx` | Post-import offer: exact crops, one consent, progress, applies all matches as one undo step |
 | `web/src/ui/` | Interface components |
-| `web/src/fixtures/` | Sample catalog, assemblies (incl. `closet-front` in `assemblies/decor.ts`), synthetic RoomPlan fixture |
+| `web/src/fixtures/` | Sample catalog and synthetic RoomPlan fixture |
+| `web/src/blocks/` | Validated recipe renderer for catalog products, captured furniture, wall art, mirrors, and closet fronts |
 | `web/scripts/` | Fixture and test-GLB generators |
 
 Commands: see `web/README.md` (`npm ci`, `npm run dev`, `typecheck`, `lint`, `test`, `build`).
@@ -161,7 +162,7 @@ Commands: see `web/README.md` (`npm ci`, `npm run dev`, `typecheck`, `lint`, `te
 | `web/server/` | Bounded Gemini adapter and local-only Vite middleware with boundary tests |
 | `web/src/ui/AppearanceDialog.tsx` | Local image preparation, disclosure, consent and recognition review |
 | `web/src/ui/DiscoveryDetails.tsx` | Dimensions/price form, isolated preview and atomic addition |
-| `web/src/fixtures/assemblies/scannedSeating.ts` | Neutral approximate chair/loveseat/sofa geometry |
+| `web/src/recognition/appearanceAsset.ts` | Maps an appearance result to a safe default recipe and material slots; never an asserted product match |
 | `web/src/domain/schema.ts`, `designStore.ts`, `commands.ts` | Embedded found-item evidence and appearance command in reversible room snapshots |
 | `web/.env.example`, `docs/ux/gemini-appearance.md` | Server-only configuration, privacy and verification limits |
 

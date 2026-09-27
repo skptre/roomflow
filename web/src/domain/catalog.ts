@@ -29,7 +29,7 @@ export type CatalogResult = {
   baseRevision: number
   entries: CatalogEntry[]
   /** Where the entries came from. Sample data is always labeled as such in the UI. */
-  source: 'sample' | 'live'
+  source: 'sample' | 'snapshot' | 'live'
 }
 
 /** Anything that can answer catalog queries: the sample fixture now, live search later. */

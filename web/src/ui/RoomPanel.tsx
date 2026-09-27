@@ -47,7 +47,7 @@ export function RoomPanel({
         {room.objects.map((object) => (
           <li key={object.id}>
             <button onClick={() => onSelect(object)} aria-label={`Edit ${object.name}`}>
-              <FurnitureThumbnail asset={object.asset} dimensions={object.dimensions} />
+              <FurnitureThumbnail asset={object.asset} dimensions={object.dimensions} category={object.category} />
               <span className="inventory-label">
                 <strong>{object.name}</strong>
                 <span>

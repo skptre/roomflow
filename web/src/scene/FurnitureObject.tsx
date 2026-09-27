@@ -280,7 +280,7 @@ export const FurnitureObject = memo(function FurnitureObject({
             onPointerDown={(event) => beginGesture(event, 'move')}
             onClick={handleClick}
           >
-            <AssetView asset={object.asset} dimensions={object.dimensions} />
+            <AssetView asset={object.asset} dimensions={object.dimensions} category={object.category} />
             {object.category === 'wall-art' ? <ArtPhoto objectId={object.id} dimensions={object.dimensions} /> : null}
           </group>
         </Select>

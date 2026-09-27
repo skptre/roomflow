@@ -66,7 +66,7 @@ export function Inspector({
         All my furniture
       </button>
       <div className="inspector-hero">
-        <FurnitureThumbnail asset={object.asset} dimensions={object.dimensions} />
+        <FurnitureThumbnail asset={object.asset} dimensions={object.dimensions} category={object.category} />
         <span>{price.text}</span>
       </div>
       <div className="inspector-title">

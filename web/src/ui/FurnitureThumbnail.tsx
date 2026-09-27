@@ -6,9 +6,12 @@ import { StudioIcon } from './StudioIcon'
 export function FurnitureThumbnail({
   asset,
   dimensions,
+  category,
   className = '',
 }: {
   asset: AssetRef
+  /** Draws the category's default recipe when the asset's own recipe isn't known. */
+  category: string
   dimensions: Pick<Dimensions, 'width' | 'height' | 'depth'>
   className?: string
 }) {
@@ -19,7 +22,7 @@ export function FurnitureThumbnail({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          frame = requestAnimationFrame(() => setUrl(thumbnail(asset, dimensions)))
+          frame = requestAnimationFrame(() => setUrl(thumbnail(asset, dimensions, category)))
           observer.disconnect()
         }
       },
@@ -30,7 +33,7 @@ export function FurnitureThumbnail({
       observer.disconnect()
       cancelAnimationFrame(frame)
     }
-  }, [asset, dimensions])
+  }, [asset, dimensions, category])
   return (
     <span ref={ref} className={`furniture-thumbnail ${className}`} aria-hidden="true">
       {url ? <img src={url} alt="" /> : <StudioIcon name="chair" size={36} />}
