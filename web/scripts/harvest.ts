@@ -8,6 +8,7 @@
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { guardedFetch } from '../src/ai/egress'
 import { CATEGORIES } from '../src/domain/categories'
 import { MAX_VARIANTS, normalizeProduct } from '../src/shop/normalize'
 import { selectForSnapshot } from '../src/shop/select'
@@ -16,6 +17,7 @@ import { Snapshot, type SnapshotProduct } from '../src/shop/snapshot'
 import { STORES } from '../src/shop/stores'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const outbound = guardedFetch(fetch)
 const outDir = join(root, 'public', 'catalog')
 const rawDir = join(root, '.data', 'raw')
 
@@ -61,7 +63,7 @@ for (const store of STORES) {
   } else {
     console.log(`harvesting ${store.domain} …`)
     const retrievedAt = new Date().toISOString()
-    result = { ...(await harvestStore(store.domain, { fetch, maxPages })), retrievedAt }
+    result = { ...(await harvestStore(store.domain, { fetch: outbound, maxPages })), retrievedAt }
     writeFileSync(cache, JSON.stringify(result))
   }
   retrievals.push(result.retrievedAt)
