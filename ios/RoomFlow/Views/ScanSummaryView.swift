@@ -151,9 +151,9 @@ struct ScanSummaryView: View {
                         Button("Retry RoomPlan export", systemImage: "arrow.clockwise", action: makeRawExport)
                     }
                 } header: {
-                    Text("For the web importer")
+                    Text("Backup transfer")
                 } footer: {
-                    Text("Original scan for the web importer: the unmodified RoomPlan file (\(rawExportURL?.lastPathComponent ?? "<room>.roomplan.json")).")
+                    Text("The unmodified RoomPlan scan (\(rawExportURL?.lastPathComponent ?? "<room>.roomplan.json")) is available if browser pairing is unavailable.")
                 }
             }
 
@@ -181,7 +181,7 @@ struct ScanSummaryView: View {
                 } header: {
                     Text("Room package (preview format)")
                 } footer: {
-                    Text("One file with the original scan, the editable room, your names and the photos chosen in Review room. The web importer doesn't read packages yet; use Share RoomPlan JSON for it today.")
+                    Text("One file with the original scan, the editable room, your names and the photos chosen in Review room. The browser can import this package from a saved file.")
                 }
             }
 

@@ -1,5 +1,6 @@
 import AVFoundation
 import SwiftUI
+import Vision
 import VisionKit
 
 /// Scan the code shown in the browser, then connect or send the saved raw RoomPlan scan.
