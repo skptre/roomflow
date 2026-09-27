@@ -45,6 +45,26 @@ describe('buildProposal', () => {
     for (const essential of ['floor-lamp', 'rug', 'plant', 'wall-art']) expect(categories).toContain(essential)
   })
 
+  it('dresses a scanned window with a curtain, and adds none where there is no window', () => {
+    const art = sampleCatalog.find((e) => e.product.category === 'wall-art')!
+    const curtain = {
+      ...art,
+      product: { ...art.product, id: 'p-curtain', name: 'Linen Curtain', category: 'curtain' },
+      variant: { ...art.variant, id: 'v-curtain', productId: 'p-curtain', dimensions: { width: 1.27, height: 2.13, depth: 0.05, source: 'merchant' as const } },
+      offer: { ...art.offer, id: 'o-curtain', variantId: 'v-curtain' },
+    }
+    const catalog = [...sampleCatalog, curtain]
+    const room = sampleRoom()
+    const after = applied(room, buildProposal(room, warm!, catalog, null, 1))
+    const hung = after.objects.find((o) => o.category === 'curtain')!
+    const window = room.openings.find((o) => o.kind === 'window')!
+    const wall = room.walls.find((w) => w.id === window.wallId)!
+    // Centered on the window along its wall (the sample window is on a wall running along Z).
+    expect(hung.pose.position.z).toBeCloseTo(wall.start.z + window.offsetAlongWall, 6)
+    const windowless = { ...room, openings: room.openings.filter((o) => o.kind !== 'window') }
+    expect(applied(windowless, buildProposal(windowless, warm!, catalog, null, 1)).objects.some((o) => o.category === 'curtain')).toBe(false)
+  })
+
   it('never moves locked items or removes kept ones (RF6)', () => {
     const base = roomWithReplaceable()
     const locked: Room = {

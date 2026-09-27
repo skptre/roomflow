@@ -8,7 +8,7 @@
 import type { Command } from './commands'
 import { footprintBounds } from './geometry'
 import { categoryInfo } from './categories'
-import { freeSpot, surfaceSpot, wallSpot } from './layout'
+import { freeSpot, surfaceSpot, wallSpot, windowSpot } from './layout'
 import type { Money, Offer, Product, Room, RoomObject, Variant, Vec2 } from './schema'
 
 /** One purchasable choice: a product, one of its variants, and the offer that prices it. */
@@ -130,10 +130,13 @@ export function placementCommands(room: Room, entry: CatalogEntry, target: Place
   }
   const id = newObjectId(room, entry)
   const info = categoryInfo(entry.product.category)
-  // Wall pieces hang on a wall; tabletop pieces stand on furniture; everything else goes on the floor.
+  // Curtains hang at a window; wall pieces hang on a wall; tabletop pieces stand on furniture; everything else goes on the floor.
   if (info?.mount === 'wall' || info?.mount === 'surface') {
     const candidate = entryToObject(entry, { id, position: { x: 0, z: 0 }, yaw: 0 }, quantity)
-    const placed = info.mount === 'wall' ? wallSpot(room, candidate, info.mountHeight ?? 1.2) : surfaceSpot(room, candidate)
+    const placed =
+      info.mount === 'surface'
+        ? surfaceSpot(room, candidate)
+        : ((entry.product.category === 'curtain' ? windowSpot(room, candidate) : null) ?? wallSpot(room, candidate, info.mountHeight ?? 1.2))
     return placed ? [{ type: 'add', object: placed }] : null
   }
   const pose = freeSpot(room, entry.variant.dimensions, { near: target.near })
