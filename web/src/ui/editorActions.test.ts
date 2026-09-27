@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { designStore } from '../domain/designStore'
 import { lamp, sampleRoom } from '../test/rooms'
-import { rotateObject, rotateSelected } from './editorActions'
+import { nudgeOnWall, rotateObject, rotateSelected } from './editorActions'
+import { wallSpot } from '../domain/layout'
 import { noticeStore } from './noticeStore'
 
 beforeEach(() => {
@@ -66,5 +67,35 @@ describe('rotateSelected', () => {
     designStore.getState().select('art')
     expect(rotateSelected(1)).toBe(false)
     expect(noticeStore.getState().notice?.text).toMatch(/wall/i)
+  })
+})
+
+describe('nudgeOnWall', () => {
+  function hangArt() {
+    const room = sampleRoom()
+    const candidate = { ...lamp('art'), name: 'Art', category: 'wall-art', dimensions: { width: 0.6, height: 0.8, depth: 0.04, source: 'merchant' as const } }
+    const placed = wallSpot(room, candidate, 1.2)!
+    designStore.getState().loadRoom({ ...room, objects: [...room.objects, placed] })
+    return placed
+  }
+  const art = () => designStore.getState().committed!.room.objects.find((object) => object.id === 'art')!
+
+  it('moves a painting to the right as seen facing it, and up, staying on its wall', () => {
+    const before = hangArt()
+    // Facing the painting, your right is its local +X: (cos yaw, −sin yaw).
+    const right = { x: Math.cos(before.pose.yaw), z: -Math.sin(before.pose.yaw) }
+    expect(nudgeOnWall('art', 0.1, 0.1)).toBe(true)
+    const after = art()
+    const moved = (after.pose.position.x - before.pose.position.x) * right.x + (after.pose.position.z - before.pose.position.z) * right.z
+    expect(moved).toBeCloseTo(0.1, 6)
+    expect(after.pose.position.y).toBeCloseTo(before.pose.position.y + 0.1, 6)
+    expect(after.pose.yaw).toBeCloseTo(before.pose.yaw, 6)
+  })
+
+  it('undoes as one step', () => {
+    const before = hangArt()
+    nudgeOnWall('art', 0.1, 0)
+    designStore.getState().undo()
+    expect(art().pose).toEqual(before.pose)
   })
 })

@@ -37,7 +37,9 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | Web — photo matching (Gemini) and auto-match from scan photos | `web/src/recognition/`, `web/src/ui/AutoMatchDialog.tsx`, `web/server/recognition.ts` |
 | Web — domain logic (geometry, money, commands, themes) | `web/src/domain/` |
 | Web — 3D scene / UI | `web/src/scene/`, `web/src/ui/` |
-| Web — demo sample home (layout, decor, chunky recipes, room zones) | `web/scripts/generate-demo-home.mjs`, `web/src/fixtures/demoRoom.ts`, `web/src/scene/zonePaint.ts` |
+| Web — demo sample room (layout, decor, chunky recipes) | `web/scripts/generate-demo-home.mjs`, `web/src/fixtures/demoRoom.ts` |
+| Web — room zones (per-area floor and wall paint) | `web/src/domain/schema.ts` (`Zone`), `web/src/scene/zonePaint.ts` |
+| Web — moving hung pieces along their wall | `web/src/domain/layout.ts` (`slideOnWall`), `web/src/scene/FurnitureObject.tsx`, `web/src/ui/editorActions.ts` (`nudgeOnWall`) |
 | Web — run/test commands | `web/README.md`, `AGENTS.md` |
 | Plans (web) | `.claude/plans/` |
 | Plans (iOS, local, untracked) | `docs/superpowers/plans/` |

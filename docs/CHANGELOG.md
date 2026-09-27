@@ -1,5 +1,13 @@
 # Changelog
 
+### 2026-09-27 — web: simpler sample bedroom; paintings slide along their wall; fixes
+
+- Sample room back to one small bedroom (`generate-demo-home.mjs`, `demoRoom.ts`): 4.6 × 4.0 m, five scanned pieces (bed, nightstand, desk, desk chair, armchair) and one of each decor (lamp, painting, rug, plant, curtains). The bathroom is gone; `Room.zones` stays as a supported, now unused, capability.
+- Hung pieces (paintings, mirrors) now drag along their own wall, left/right and up/down, instead of refusing to move ("remove it and add it again"). New `wallPlacement`, `slideOnWall`, `coversOpening` (`domain/layout.ts`), `wallPoint` (`scene/floorPointer.ts`); `FurnitureObject` slides on the wall and refuses covering a window or door. The `move` command takes an optional `y` (bottom height), so a slide is one undoable step; `moveObject(id, position, y?)`. Inspector arrows on a hung piece slide it on the wall (`nudgeOnWall` in `ui/editorActions.ts`).
+- Prints sold in many sizes started at the first listed (smallest, 25 cm), so every painting landed tiny and identical: `defaultVariantIndex` (`domain/catalog.ts`) starts wall pieces at the listed size nearest a typical one; `ProductCard` uses it. Art without listed sizes still shows the category's estimated size.
+- Barrel armchair legs were near the rim, outside its rounded bottom, and looked detached: now tucked under the seat (`families/seating.ts`).
+- Tests: wall slide/clamp/opening cover, `move` with a height, nudge direction and undo, default variant, the smaller sample room. Checked in the browser: sample room, armchair legs close up, dragging the painting along the wall, arrow nudges.
+
 ### 2026-09-27 — web: demo sample home (two rooms, chunky models, room zones)
 
 "Explore sample room" now opens a furnished two-room home built for the live demo instead of the bare synthetic bedroom.

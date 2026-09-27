@@ -6,6 +6,7 @@
 import { isWallHung } from '../domain/categories'
 import { applyCommands, type Command } from '../domain/commands'
 import { designStore, type ApplyResult } from '../domain/designStore'
+import { coversOpening, slideOnWall, wallPlacement } from '../domain/layout'
 import type { RoomObject, Vec2 } from '../domain/schema'
 import { noticeStore } from './noticeStore'
 
@@ -30,8 +31,32 @@ function selectedObject(): RoomObject | null {
   return committed?.room.objects.find((object) => object.id === selectedId) ?? null
 }
 
-export function moveObject(id: string, position: Vec2): boolean {
-  return run([{ type: 'move', id, position }])
+/** Move an object on the floor plan; `y` also sets its bottom height (a piece slid up or down its wall). */
+export function moveObject(id: string, position: Vec2, y?: number): boolean {
+  return run([y === undefined ? { type: 'move', id, position } : { type: 'move', id, position, y }])
+}
+
+/**
+ * Slide a hung piece on its own wall: `right` and `up` in meters, as seen by
+ * someone facing it. It stays on the wall; refused if it would cover a window or door.
+ */
+export function nudgeOnWall(id: string, right: number, up: number): boolean {
+  const room = designStore.getState().committed?.room
+  const object = room ? objectById(id) : null
+  const placement = room && object ? wallPlacement(room, object) : null
+  if (!room || !object || !placement) return false
+  const { wall } = placement
+  const length = Math.hypot(wall.end.x - wall.start.x, wall.end.z - wall.start.z) || 1
+  // Facing the piece (looking at its front), your right is its local +X: (cos yaw, −sin yaw).
+  const localX = { x: Math.cos(object.pose.yaw), z: -Math.sin(object.pose.yaw) }
+  const sign = ((wall.end.x - wall.start.x) * localX.x + (wall.end.z - wall.start.z) * localX.z) / length > 0 ? 1 : -1
+  const slid = slideOnWall(room, object, placement.along + sign * right, placement.bottom + up)
+  if (!slid) return false
+  if (coversOpening(room, slid)) {
+    noticeStore.getState().show(`${object.name} would cover a window or door.`, 'warning')
+    return false
+  }
+  return moveObject(id, { x: slid.pose.position.x, z: slid.pose.position.z }, slid.pose.position.y)
 }
 
 function objectById(id: string): RoomObject | null {

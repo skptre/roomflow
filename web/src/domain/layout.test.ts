@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { sampleRoom } from '../test/rooms'
 import { collisions } from './commands'
 import { footprintsOverlap, insideRoom } from './geometry'
-import { blocksDoorway, freeSpot, hostWall, windowSpot } from './layout'
+import { applyCommands } from './commands'
+import { blocksDoorway, coversOpening, freeSpot, hostWall, inwardNormal, slideOnWall, wallPlacement, wallSpot, windowSpot } from './layout'
 
 describe('freeSpot', () => {
   it('finds a spot inside the room that overlaps nothing', () => {
@@ -117,5 +118,72 @@ describe('windowSpot', () => {
   it('finds nothing in a room without windows', () => {
     const room = sampleRoom()
     expect(windowSpot({ ...room, openings: room.openings.filter((o) => o.kind !== 'window') }, curtain(2.13))).toBeNull()
+  })
+})
+
+describe('slideOnWall', () => {
+  const art = () => {
+    const room = sampleRoom()
+    const candidate = { ...room.objects[0]!, id: 'art', category: 'wall-art', sourceKind: 'product' as const, dimensions: { width: 0.6, height: 0.8, depth: 0.04, source: 'merchant' as const } }
+    const placed = wallSpot(room, candidate, 1.2)!
+    return { room: { ...room, objects: [...room.objects, placed] }, placed }
+  }
+
+  it('slides a painting along and up its own wall, keeping its size and facing', () => {
+    const { room, placed } = art()
+    const start = wallPlacement(room, placed)!
+    const slid = slideOnWall(room, placed, start.along + 0.4, start.bottom + 0.1)!
+    const after = wallPlacement(room, slid)!
+    expect(after.wall.id).toBe(start.wall.id)
+    expect(after.along).toBeCloseTo(start.along + 0.4, 6)
+    expect(slid.pose.position.y).toBeCloseTo(start.bottom + 0.1, 6)
+    expect(slid.pose.yaw).toBeCloseTo(placed.pose.yaw, 6)
+    expect(slid.dimensions).toEqual(placed.dimensions)
+  })
+
+  it('never slides a painting off the end of its wall, below the floor, or past the top', () => {
+    const { room, placed } = art()
+    const { wall } = wallPlacement(room, placed)!
+    const length = Math.hypot(wall.end.x - wall.start.x, wall.end.z - wall.start.z)
+    const far = slideOnWall(room, placed, length + 5, 10)!
+    const near = slideOnWall(room, placed, -5, -3)!
+    expect(wallPlacement(room, far)!.along).toBeLessThanOrEqual(length - 0.3)
+    expect(wallPlacement(room, near)!.along).toBeGreaterThanOrEqual(0.3)
+    expect(near.pose.position.y).toBe(0)
+    expect(far.pose.position.y + 0.8).toBeLessThanOrEqual(wall.height)
+    expect(hostWall(room, far)).toBe(wall.id)
+  })
+
+  it('knows when a painting would cover a window', () => {
+    const room = sampleRoom()
+    const window = room.openings.find((o) => o.kind === 'window')!
+    const wall = room.walls.find((w) => w.id === window.wallId)!
+    const length = Math.hypot(wall.end.x - wall.start.x, wall.end.z - wall.start.z)
+    const dir = { x: (wall.end.x - wall.start.x) / length, z: (wall.end.z - wall.start.z) / length }
+    const inward = inwardNormal(room, wall)
+    const hungAt = (along: number) => ({
+      ...room.objects[0]!,
+      id: 'art',
+      category: 'wall-art',
+      dimensions: { width: 0.4, height: 0.5, depth: 0.04, source: 'merchant' as const },
+      pose: {
+        position: { x: wall.start.x + dir.x * along + inward.x * 0.022, y: window.bottom, z: wall.start.z + dir.z * along + inward.z * 0.022 },
+        yaw: Math.atan2(inward.x, inward.z),
+      },
+    })
+    expect(coversOpening(room, hungAt(window.offsetAlongWall))).toBe(true)
+    const clear = window.offsetAlongWall > length / 2 ? 0.3 : length - 0.3
+    expect(coversOpening(room, hungAt(clear))).toBe(false)
+  })
+})
+
+describe('move with a height', () => {
+  it('sets the bottom height with the position, and undo-able as one command', () => {
+    const room = sampleRoom()
+    const object = room.objects[0]!
+    const result = applyCommands(room, [{ type: 'move', id: object.id, position: { x: object.pose.position.x, z: object.pose.position.z }, y: 0.5 }], 'user')
+    expect(result.ok && result.room.objects[0]!.pose.position.y).toBe(0.5)
+    const kept = applyCommands(room, [{ type: 'move', id: object.id, position: { x: object.pose.position.x, z: object.pose.position.z } }], 'user')
+    expect(kept.ok && kept.room.objects[0]!.pose.position.y).toBe(object.pose.position.y)
   })
 })

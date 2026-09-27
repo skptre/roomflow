@@ -8,12 +8,12 @@
       "category": {
         "wall": {}
       },
-      "identifier": "WALL-SOUTH-BED",
+      "identifier": "WALL-SOUTH",
       "confidence": {
         "high": {}
       },
       "dimensions": [
-        4.8,
+        4.6,
         2.6,
         0
       ],
@@ -30,7 +30,7 @@
         0,
         1,
         0,
-        1.6,
+        1.5,
         0,
         1.1,
         1
@@ -43,136 +43,31 @@
       "category": {
         "wall": {}
       },
-      "identifier": "WALL-SOUTH-BATH",
+      "identifier": "WALL-EAST",
       "confidence": {
         "high": {}
       },
       "dimensions": [
-        2.6000000000000005,
-        2.6,
-        0
-      ],
-      "transform": [
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        5.3,
-        0,
-        1.1,
-        1
-      ],
-      "parentIdentifier": null,
-      "completedEdges": [],
-      "polygonCorners": []
-    },
-    {
-      "category": {
-        "wall": {}
-      },
-      "identifier": "WALL-EAST-BATH",
-      "confidence": {
-        "high": {}
-      },
-      "dimensions": [
-        3.2,
-        2.6,
-        0
-      ],
-      "transform": [
-        0,
-        0,
-        1,
-        0,
-        0,
-        1,
-        0,
-        0,
-        -1,
-        0,
-        0,
-        0,
-        6.6,
-        0,
-        2.7,
-        1
-      ],
-      "parentIdentifier": null,
-      "completedEdges": [],
-      "polygonCorners": []
-    },
-    {
-      "category": {
-        "wall": {}
-      },
-      "identifier": "WALL-NORTH-BATH",
-      "confidence": {
-        "high": {}
-      },
-      "dimensions": [
-        2.6000000000000005,
-        2.6,
-        0
-      ],
-      "transform": [
-        -1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        -1,
-        0,
-        5.3,
-        0,
-        4.3,
-        1
-      ],
-      "parentIdentifier": null,
-      "completedEdges": [],
-      "polygonCorners": []
-    },
-    {
-      "category": {
-        "wall": {}
-      },
-      "identifier": "WALL-EAST-BED",
-      "confidence": {
-        "high": {}
-      },
-      "dimensions": [
-        1,
-        2.6,
-        0
-      ],
-      "transform": [
-        0,
-        0,
-        1,
-        0,
-        0,
-        1,
-        0,
-        0,
-        -1,
-        0,
-        0,
-        0,
         4,
+        2.6,
+        0
+      ],
+      "transform": [
         0,
-        4.8,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0,
+        3.8,
+        0,
+        3.1,
         1
       ],
       "parentIdentifier": null,
@@ -183,12 +78,12 @@
       "category": {
         "wall": {}
       },
-      "identifier": "WALL-NORTH-BED",
+      "identifier": "WALL-NORTH",
       "confidence": {
         "high": {}
       },
       "dimensions": [
-        4.8,
+        4.6,
         2.6,
         0
       ],
@@ -205,9 +100,9 @@
         0,
         -1,
         0,
-        1.6,
+        1.5,
         0,
-        5.3,
+        5.1,
         1
       ],
       "parentIdentifier": null,
@@ -223,7 +118,7 @@
         "high": {}
       },
       "dimensions": [
-        4.2,
+        4,
         2.6,
         0
       ],
@@ -242,42 +137,7 @@
         0,
         -0.8,
         0,
-        3.2,
-        1
-      ],
-      "parentIdentifier": null,
-      "completedEdges": [],
-      "polygonCorners": []
-    },
-    {
-      "category": {
-        "wall": {}
-      },
-      "identifier": "WALL-BETWEEN",
-      "confidence": {
-        "high": {}
-      },
-      "dimensions": [
-        3.2,
-        2.6,
-        0
-      ],
-      "transform": [
-        0,
-        0,
-        -1,
-        0,
-        0,
-        1,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        4,
-        0,
-        2.7,
+        3.1,
         1
       ],
       "parentIdentifier": null,
@@ -314,49 +174,12 @@
         0,
         -1,
         0,
-        2.8,
+        2.7,
         -0.275,
-        5.3,
+        5.1,
         1
       ],
-      "parentIdentifier": "WALL-NORTH-BED",
-      "completedEdges": [],
-      "polygonCorners": []
-    },
-    {
-      "category": {
-        "door": {
-          "isOpen": true
-        }
-      },
-      "identifier": "DOOR-BATH",
-      "confidence": {
-        "high": {}
-      },
-      "dimensions": [
-        0.8,
-        2,
-        0
-      ],
-      "transform": [
-        0,
-        0,
-        -1,
-        0,
-        0,
-        1,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        4,
-        -0.3,
-        3.7,
-        1
-      ],
-      "parentIdentifier": "WALL-BETWEEN",
+      "parentIdentifier": "WALL-NORTH",
       "completedEdges": [],
       "polygonCorners": []
     }
@@ -390,45 +213,10 @@
         0,
         -0.8,
         0.2,
-        2.5,
+        3,
         1
       ],
       "parentIdentifier": "WALL-WEST",
-      "completedEdges": [],
-      "polygonCorners": []
-    },
-    {
-      "category": {
-        "window": {}
-      },
-      "identifier": "WINDOW-BATH",
-      "confidence": {
-        "high": {}
-      },
-      "dimensions": [
-        1,
-        0.85,
-        0
-      ],
-      "transform": [
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        4.95,
-        0.375,
-        1.1,
-        1
-      ],
-      "parentIdentifier": "WALL-SOUTH-BATH",
       "completedEdges": [],
       "polygonCorners": []
     }
@@ -461,7 +249,7 @@
         0,
         1,
         0,
-        1.4,
+        1.5,
         -0.775,
         2.15,
         1
@@ -472,7 +260,7 @@
       "category": {
         "storage": {}
       },
-      "identifier": "OBJ-NIGHTSTAND-L",
+      "identifier": "OBJ-NIGHTSTAND",
       "confidence": {
         "high": {}
       },
@@ -494,40 +282,7 @@
         0,
         1,
         0,
-        0.05,
-        -1.02,
-        1.31,
-        1
-      ],
-      "parentIdentifier": null
-    },
-    {
-      "category": {
-        "storage": {}
-      },
-      "identifier": "OBJ-NIGHTSTAND-R",
-      "confidence": {
-        "high": {}
-      },
-      "dimensions": [
-        0.5,
-        0.56,
-        0.42
-      ],
-      "transform": [
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        2.75,
+        2.6,
         -1.02,
         1.31,
         1
@@ -562,7 +317,7 @@
         0,
         -0.5,
         -0.925,
-        2.5,
+        3,
         1
       ],
       "parentIdentifier": null
@@ -595,40 +350,7 @@
         0,
         0.15,
         -0.87,
-        2.5,
-        1
-      ],
-      "parentIdentifier": null
-    },
-    {
-      "category": {
-        "storage": {}
-      },
-      "identifier": "OBJ-DRESSER",
-      "confidence": {
-        "high": {}
-      },
-      "dimensions": [
-        1,
-        0.82,
-        0.46
-      ],
-      "transform": [
-        0,
-        0,
-        -1,
-        0,
-        0,
-        1,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        -0.57,
-        -0.89,
-        4.2,
+        3,
         1
       ],
       "parentIdentifier": null
@@ -647,120 +369,21 @@
         0.8
       ],
       "transform": [
-        0.453596,
+        0.731689,
         0,
-        0.891207,
+        0.681639,
         0,
         0,
         1,
         0,
         0,
-        -0.891207,
+        -0.681639,
         0,
-        0.453596,
+        0.731689,
         0,
-        3.35,
+        3.2,
         -0.9,
-        2.3,
-        1
-      ],
-      "parentIdentifier": null
-    },
-    {
-      "category": {
-        "bathtub": {}
-      },
-      "identifier": "OBJ-TUB",
-      "confidence": {
-        "high": {}
-      },
-      "dimensions": [
-        1.7,
-        0.58,
-        0.76
-      ],
-      "transform": [
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        4.96,
-        -1.01,
-        1.5,
-        1
-      ],
-      "parentIdentifier": null
-    },
-    {
-      "category": {
-        "sink": {}
-      },
-      "identifier": "OBJ-VANITY",
-      "confidence": {
-        "high": {}
-      },
-      "dimensions": [
-        0.7,
-        0.86,
-        0.48
-      ],
-      "transform": [
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        6.2,
-        -0.87,
-        1.35,
-        1
-      ],
-      "parentIdentifier": null
-    },
-    {
-      "category": {
-        "toilet": {}
-      },
-      "identifier": "OBJ-TOILET",
-      "confidence": {
-        "high": {}
-      },
-      "dimensions": [
-        0.4,
-        0.78,
-        0.68
-      ],
-      "transform": [
-        0,
-        0,
-        1,
-        0,
-        0,
-        1,
-        0,
-        0,
-        -1,
-        0,
-        0,
-        0,
-        6.25,
-        -0.91,
-        2.7,
+        2.15,
         1
       ],
       "parentIdentifier": null
