@@ -1,5 +1,9 @@
 # Changelog
 
+### 2026-09-27 — web: dragging in the room no longer selects text
+
+- `web/src/index.css`: `.room-stage` and `.welcome-room` are `user-select: none`, so a drag to orbit or move furniture never starts a text selection over the hint, hover tags or notices.
+
 ### 2026-09-27 — web: no flicker at wall corners
 
 - `web/src/scene/Architecture.tsx`: exterior walls' corner extensions stop 1 mm (`CORNER_TUCK`) short of the neighboring wall's outer face. Before, one wall's end face lay exactly on the other's outer face, and the two z-fought: a flickering zigzag down each outside corner, most visible on cut-away stubs.
