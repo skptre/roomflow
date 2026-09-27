@@ -46,14 +46,23 @@ function objectIndex(room: Room, id: string): number {
   return index
 }
 
+/** A curtain hangs against its wall and falls behind whatever stands in front (a desk under the window). */
+const hangsBehind = (object: RoomObject) => object.category === 'curtain'
+
 /**
  * Objects that occupy the same space: overlapping footprints at overlapping
- * heights (a vase on a desk or art above a bed is fine). Floor coverings never collide.
+ * heights (a vase on a desk or art above a bed is fine). Floor coverings never
+ * collide; a curtain only collides with another curtain.
  */
 export function collisions(room: Room, object: RoomObject): RoomObject[] {
   if (!blocksFloor(object)) return []
   return room.objects.filter(
-    (other) => other.id !== object.id && blocksFloor(other) && verticalOverlap(object, other) && footprintsOverlap(object, other),
+    (other) =>
+      other.id !== object.id &&
+      blocksFloor(other) &&
+      hangsBehind(other) === hangsBehind(object) &&
+      verticalOverlap(object, other) &&
+      footprintsOverlap(object, other),
   )
 }
 

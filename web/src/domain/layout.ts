@@ -190,6 +190,46 @@ export function wallSpot(room: Room, candidate: RoomObject, mountHeight: number)
   return null
 }
 
+/** How far above a window's top a curtain rod goes, and how far the curtain hangs off the wall (clear of the frame). */
+const ROD_ABOVE_WINDOW = 0.15
+const CURTAIN_GAP = 0.03
+
+/**
+ * A curtain hung at a scanned window: centered on it, in front of the wall,
+ * its top (the rod) a little above the window, falling toward the floor.
+ * Widest windows first; a window that already has a curtain is skipped. The
+ * curtain keeps its listed size (a different size is a different variant).
+ */
+export function windowSpot(room: Room, candidate: RoomObject): RoomObject | null {
+  const { height, depth } = candidate.dimensions
+  const windows = room.openings.filter((opening) => opening.kind === 'window').sort((a, b) => b.width - a.width || a.id.localeCompare(b.id))
+  for (const opening of windows) {
+    const wall = room.walls.find((w) => w.id === opening.wallId)
+    if (!wall) continue
+    const dx = wall.end.x - wall.start.x
+    const dz = wall.end.z - wall.start.z
+    const length = Math.hypot(dx, dz) || 1
+    const dir = { x: dx / length, z: dz / length }
+    const inward = inwardNormal(room, wall)
+    const rod = Math.min(opening.bottom + opening.height + ROD_ABOVE_WINDOW, wall.height - 0.02)
+    // A curtain longer than the rod is high rests on the floor instead.
+    const y = Math.max(0, rod - height)
+    if (y + height > wall.height) continue
+    const center = {
+      x: wall.start.x + dir.x * opening.offsetAlongWall,
+      z: wall.start.z + dir.z * opening.offsetAlongWall,
+    }
+    const dressed = room.objects.some(
+      (object) => object.category === 'curtain' && Math.hypot(object.pose.position.x - center.x, object.pose.position.z - center.z) < Math.max(opening.width / 2, 0.3),
+    )
+    if (dressed) continue
+    const position = { x: center.x + inward.x * (depth / 2 + CURTAIN_GAP), z: center.z + inward.z * (depth / 2 + CURTAIN_GAP) }
+    const placed = placedAt(candidate, position, Math.atan2(inward.x, inward.z), y)
+    if (fitsAt(room, placed)) return placed
+  }
+  return null
+}
+
 /** Furniture with a top that small things can stand on. */
 const SUPPORT_CATEGORIES = new Set(['nightstand', 'dresser', 'desk', 'table', 'coffee-table', 'storage'])
 
