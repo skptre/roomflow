@@ -2,9 +2,7 @@ import RoomPlan
 import SwiftUI
 
 struct HomeView: View {
-    @EnvironmentObject private var pairing: BrowserPairingManager
     @State private var isScanning = false
-    @State private var showPairing = false
     @State private var isScanningPiece = false
     @State private var showUnsupported = false
     @State private var pendingScan: ScanCaptureResult?
@@ -55,19 +53,12 @@ struct HomeView: View {
                         .minimumScaleFactor(0.75)
                         .foregroundStyle(Color.rfInk)
                         .padding(.top, 15)
-                    Text("Scan here. Arrange and try new pieces in your browser.")
+                    Text("Scan here, then share your room file to open it in the browser.")
                         .font(.body)
                         .foregroundStyle(Color.rfSecondaryText)
                         .padding(.top, 16)
 
                     Spacer(minLength: 38)
-
-                    if let connected = pairing.pairing {
-                        Label("Connected to \(connected.displayHost). Your next scan will open there.", systemImage: "checkmark.circle.fill")
-                            .font(.footnote)
-                            .foregroundStyle(Color.rfAccent)
-                            .padding(.bottom, 15)
-                    }
 
                     Button("Scan my room", systemImage: "viewfinder") {
                         if RoomScanService.isSupported {
@@ -78,10 +69,6 @@ struct HomeView: View {
                     }
                     .buttonStyle(RFButtonStyle())
                     .padding(.bottom, 10)
-
-                    Button("Connect to browser", systemImage: "qrcode.viewfinder") { showPairing = true }
-                        .buttonStyle(RFButtonStyle(prominent: false))
-                        .padding(.bottom, 20)
 
                     Button("Scan a Piece", systemImage: "scope") {
                         if RoomScanService.isSupported { isScanningPiece = true }
@@ -139,7 +126,6 @@ struct HomeView: View {
                 isScanning = false
             }
         }
-        .sheet(isPresented: $showPairing) { BrowserPairingView() }
         .preferredColorScheme(.light)
         .tint(Color.rfAccent)
         .fullScreenCover(isPresented: $isScanningPiece) {
@@ -149,7 +135,6 @@ struct HomeView: View {
             Button("Retry") { Task { await saveAndOpenLatest() } }
             Button("Continue Without Saving", role: .cancel) {
                 showEditor = true
-                sendIfPaired()
             }
         } message: {
             Text("\(saveError ?? "") The scan is still open and can be shared, but it won't appear in Saved Rooms.")
@@ -203,16 +188,10 @@ struct HomeView: View {
                 temporarySessions.forEach { RoomEvidenceRecorder.removeTemporaryFiles(sessionID: $0) }
             }
             showEditor = true
-            sendIfPaired()
         } catch {
             saveError = error.localizedDescription
             showSaveError = true
         }
-    }
-
-    private func sendIfPaired() {
-        guard let raw = latestRawCapture, pairing.pairing != nil else { return }
-        Task { await pairing.send(raw.data) }
     }
 
     #if DEBUG
@@ -258,5 +237,4 @@ struct HomeView: View {
 
 #Preview {
     HomeView()
-        .environmentObject(BrowserPairingManager())
 }

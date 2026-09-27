@@ -1,21 +1,18 @@
 import { useId, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { StudioIcon, Wordmark } from './StudioIcon'
-import { PairScanDialog } from './PairScanDialog'
 
 type StartScreenProps = {
   onImportFile: (file: File) => void
   onOpenSample: () => void
-  onPairedScan: (scan: string) => boolean
   onResume?: () => void
   error?: string | null
   busy?: boolean
   children: ReactNode
 }
 
-export function StartScreen({ onImportFile, onOpenSample, onPairedScan, onResume, error, busy = false, children }: StartScreenProps) {
+export function StartScreen({ onImportFile, onOpenSample, onResume, error, busy = false, children }: StartScreenProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
-  const [pairing, setPairing] = useState(false)
   const errorId = useId()
   function handleDrop(event: DragEvent) {
     event.preventDefault()
@@ -57,15 +54,14 @@ export function StartScreen({ onImportFile, onOpenSample, onPairedScan, onResume
             <button
               className="welcome-import"
               disabled={busy}
-              onClick={() => setPairing(true)}
+              aria-describedby={error ? errorId : undefined}
+              onClick={() => inputRef.current?.click()}
             >
-              <StudioIcon name="grid" size={18} />
+              <StudioIcon name="upload" size={18} />
               Open my scan
               <StudioIcon name="arrow" size={17} />
             </button>
-            <p className="scan-handoff">Connect the Roomflow iPhone app. Your scan appears here when it finishes.</p>
-            <button className="saved-scan-link" disabled={busy} aria-describedby={error ? errorId : undefined}
-              onClick={() => inputRef.current?.click()}>Use a saved scan file</button>
+            <p className="scan-handoff">Share a RoomPlan .json scan or RoomFlow .zip package from your iPhone, then open the saved file here.</p>
             <input
               ref={inputRef}
               type="file"
@@ -96,7 +92,6 @@ export function StartScreen({ onImportFile, onOpenSample, onPairedScan, onResume
           <p>Drop your RoomPlan .json scan or RoomFlow .zip package to begin.</p>
         </div>
       )}
-      {pairing && <PairScanDialog onClose={() => setPairing(false)} onReceive={onPairedScan} />}
     </div>
   )
 }
