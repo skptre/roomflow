@@ -246,3 +246,11 @@ describe('mergeGemini — option parts', () => {
     expect(recipe.defaultColors?.frame).toBe('#3b302a')
   })
 })
+
+describe('prompt — art', () => {
+  it('asks for no second frame when the chosen photo is already framed', () => {
+    const art = product('p2', 'wall-art', 'Print', [], [[[], undefined]])
+    const family = getFamily('art')!
+    expect(promptText(art, family, {}, promptImages(art, family, [], {}))).toMatch(/already shows the frame, choose frame "none"/)
+  })
+})

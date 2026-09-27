@@ -12,7 +12,8 @@ const cache = new Map<string, Material>()
 function create(kind: MaterialKind, color: string): Material {
   switch (kind) {
     case 'fabric':
-      return new MeshPhysicalMaterial({ color, roughness: 0.92, sheen: 0.3, sheenRoughness: 0.8, sheenColor: '#ffffff' })
+      // Sheen in the fabric's own color: a white sheen washes dark fabrics (navy, charcoal) out to grey.
+      return new MeshPhysicalMaterial({ color, roughness: 0.92, sheen: 0.3, sheenRoughness: 0.8, sheenColor: color })
     case 'leather':
       return new MeshPhysicalMaterial({ color, roughness: 0.55, clearcoat: 0.12, clearcoatRoughness: 0.5 })
     case 'wood':

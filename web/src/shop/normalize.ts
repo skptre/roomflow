@@ -86,6 +86,10 @@ export function normalizeProduct(raw: ShopifyProduct, store: StoreInfo): Normali
   const productUrl = `https://${store.domain}/products/${raw.handle}`
   const productImage = https(raw.images[0]?.src)
   const kind = sizeKind(category)
+  // Which way a two-number size hangs: lumbar pillows lie on their long side; prints filed as
+  // horizontal/landscape hang long side across. Otherwise the listed order stands (8x10 = 8 wide).
+  const words = `${raw.product_type} ${raw.title} ${raw.tags.join(' ')}`.toLowerCase()
+  const landscape = (kind === 'pillow' && /lumbar/.test(words)) || (kind === 'art' && /\b(horizontal|landscape)\b/.test(words))
   const described = plausible(parseOverallDimensions(stripHtml(raw.body_html ?? ''))) ?? {}
   // Furniture names often state the width ("Sofa 86\"", "Aspen 39\" Modular Corner").
   const titleWidth = kind === 'furniture' ? /(?:^|\s)(\d{2,3}(?:\.\d+)?)(?:"|”|″|&quot;)(?!\s*x)/.exec(raw.title) : null
@@ -95,7 +99,8 @@ export function normalizeProduct(raw: ShopifyProduct, store: StoreInfo): Normali
     const optionValues = options.map((_, index) => [variant.option1, variant.option2, variant.option3][index] ?? '')
     // A size option describes this variant; the description describes the product.
     let listed: ListedSize = { ...described }
-    let estimate = typical
+    // A typical lumbar is about 26 × 14 in; a landscape print swaps the typical portrait.
+    let estimate = !landscape ? typical : kind === 'pillow' ? { ...typical, width: 0.66, height: 0.36 } : { ...typical, width: Math.max(typical.width, typical.height), height: Math.min(typical.width, typical.height) }
     options.forEach((option, index) => {
       if (!SIZE_OPTION.test(option.name)) return
       const value = optionValues[index]!
@@ -107,6 +112,9 @@ export function normalizeProduct(raw: ShopifyProduct, store: StoreInfo): Normali
     })
     const price = store.listsPrices ? moneyFromDecimalString(variant.price, store.currency) : null
     const image = variantImage(raw, variant)
+    if (landscape && listed.width !== undefined && listed.height !== undefined && listed.width < listed.height) {
+      listed = { ...listed, width: listed.height, height: listed.width }
+    }
     const dimensions = completeDimensions(listed, estimate)
     return {
       sid: variant.id,

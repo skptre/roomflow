@@ -1,6 +1,6 @@
 # Catalog harvest report
 
-Retrieved 2026-09-26T19:28:27.651Z (earliest store) from 17 stores' public product feeds. 2251 products, 24434 variants,
+Retrieved 2026-09-26T19:28:27.651Z (earliest store) from 17 stores' public product feeds. 2246 products, 24426 variants,
 chosen from 11251 room-ready listings: at most 30 per store and category, one of each design before a second.
 Prices are what each store listed at that time (USD). Unknown prices are shown as unknown, never zero.
 Loloi's feed lists placeholder prices (99999.00), so its offers are unknown-price.
@@ -16,7 +16,7 @@ Loloi's feed lists placeholder prices (99999.00), so its offers are unknown-pric
 | [Thuma](https://thuma.co) | 122 | — |
 | [Maiden Home](https://maidenhome.com) | 218 | — |
 | [Sixpenny](https://sixpenny.com) | 216 | — |
-| [Lulu and Georgia](https://luluandgeorgia.com) | 627 | — |
+| [Lulu and Georgia](https://luluandgeorgia.com) | 622 | — |
 | [Schoolhouse](https://schoolhouse.com) | 77 | — |
 | [Loloi](https://loloirugs.com) | 93 | — |
 | [Half Price Drapes](https://halfpricedrapes.com) | 30 | — |
@@ -35,11 +35,11 @@ Loloi's feed lists placeholder prices (99999.00), so its offers are unknown-pric
 | Sofa | 174 | 3762 | 7% | 99% | 96% |
 | Lounge chair | 170 | 2915 | 3% | 98% | 96% |
 | Ottoman | 154 | 3284 | 6% | 100% | 98% |
-| Pillow | 151 | 404 | 0% | 80% | 78% |
+| Pillow | 154 | 460 | 0% | 82% | 79% |
 | Bed | 151 | 3363 | 1% | 100% | 98% |
 | Rug | 132 | 674 | 0% | 76% | 82% |
 | Dining chair | 105 | 1118 | 2% | 100% | 99% |
-| Throw | 98 | 208 | 0% | 95% | 77% |
+| Throw | 90 | 144 | 0% | 92% | 80% |
 | Bench | 86 | 784 | 3% | 100% | 98% |
 | Coffee table | 85 | 205 | 10% | 95% | 91% |
 | Side table | 81 | 147 | 20% | 100% | 92% |
@@ -143,7 +143,7 @@ Most common unmapped product types:
 
 ## Option names
 
-- Color: 1065
+- Color: 1060
 - Size: 526
 - Material/Color Name: 215
 - Fabric: 189
@@ -153,9 +153,9 @@ Most common unmapped product types:
 - Finish: 77
 - Leg Finish: 50
 - Upholstery: 43
-- Style: 32
 - Cover Type: 30
 - Material: 30
+- Style: 28
 - Quantity: 25
 - Planter: 24
 - color: 23

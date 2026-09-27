@@ -187,12 +187,28 @@ const VASES: Record<string, Array<[number, number]>> = {
 export const vase = defineFamily({
   id: 'vase',
   label: 'Vase',
-  blocks: { profile: { options: ['bud', 'amphora', 'cylinder', 'bowl', 'bottle', 'sphere'], default: 'amphora' } },
+  blocks: { profile: { options: ['bud', 'amphora', 'cylinder', 'bowl', 'bottle', 'sphere', 'tray'], default: 'amphora' } },
   params: {},
   slots: { body: { kind: 'ceramic', color: '#d9cdb8' } },
   build(ctx) {
+    const profile = ctx.block('profile')
+    if (profile === 'tray') {
+      // A shallow tray: floor and a low rim, as wide and deep as the box.
+      const H = Math.min(ctx.h, 0.06, Math.min(ctx.w, ctx.d) * 0.3)
+      const wall = Math.min(0.008, Math.min(ctx.w, ctx.d) * 0.06)
+      const x = ctx.w / 2
+      const z = ctx.d / 2
+      ctx.add('body', slab(-x, x, 0, Math.min(0.01, H * 0.4), -z, z, 0.002))
+      ctx.add('body', slab(-x, x, 0, H, z - wall, z, 0.002))
+      ctx.add('body', slab(-x, x, 0, H, -z, -z + wall, 0.002))
+      ctx.add('body', slab(-x, -x + wall, 0, H, -z, z, 0.002))
+      ctx.add('body', slab(x - wall, x, 0, H, -z, z, 0.002))
+      return
+    }
     const R = Math.min(ctx.w, ctx.d) / 2
-    ctx.add('body', vessel(VASES[ctx.block('profile')]!, R, ctx.h, Math.min(0.006, R * 0.1), ctx.h * 0.08))
+    // Bowls and spheres keep their own proportions when the box is taller (often an estimated size).
+    const H = profile === 'bowl' ? Math.min(ctx.h, R) : profile === 'sphere' ? Math.min(ctx.h, R * 2.1) : ctx.h
+    ctx.add('body', vessel(VASES[profile]!, R, H, Math.min(0.006, R * 0.1), H * 0.08))
   },
 })
 
@@ -214,7 +230,9 @@ export const rug = defineFamily({
     const { w, h, d } = ctx
     const t = Math.max(0.004, h)
     if (ctx.block('shape') === 'round') {
-      const shape = new Shape().absellipse(0, 0, w / 2, d / 2, 0, Math.PI * 2, false, 0)
+      // A round rug is a circle (a round size lists one diameter; an estimated box may not be square).
+      const r = Math.min(w, d) / 2
+      const shape = new Shape().absellipse(0, 0, r, r, 0, Math.PI * 2, false, 0)
       ctx.add('top', extrudeShape(shape, t, Math.min(0.003, t / 3), 64).rotateX(-Math.PI / 2))
       return
     }

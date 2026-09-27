@@ -3,7 +3,7 @@ import { validateRecipe, variantBlocks, variantColors } from '../blocks/recipe'
 import fixtures from './__fixtures__/shopify-products.json'
 import { COLOR_LEXICON } from './colors'
 import { normalizeProduct } from './normalize'
-import { rulesRecipe } from './recipeRules'
+import { rulesRecipe, rulesTrace } from './recipeRules'
 import { ShopifyProduct } from './shopify'
 import type { SnapshotProduct } from './snapshot'
 import { storeByDomain } from './stores'
@@ -164,5 +164,17 @@ describe('rulesRecipe — families without the block', () => {
   it('ignores a leg-style option on a family that has no leg style (Burrow bed)', () => {
     const bed = rulesRecipe(listing('bed', 'Bed', { 'Leg Style': ['Tapered', 'Straight'] }))
     expect(bed.optionBlocks).toBeUndefined()
+  })
+})
+
+describe('rulesRecipe — decor and planters', () => {
+  it('draws trays as trays', () => {
+    expect(rulesRecipe(listing('decor-object', 'Stacking Tray Set')).blocks.profile).toBe('tray')
+  })
+
+  it('a planter is sold empty: the plant choice is decided by the listing, not a photo', () => {
+    const { recipe, fired } = rulesTrace(listing('planter', 'Isabella Ceramic Planter'))
+    expect(recipe.blocks.plant).toBe('none')
+    expect(fired.has('plant')).toBe(true)
   })
 })
