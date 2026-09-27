@@ -5,6 +5,23 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### iOS: group wall-art sightings and attach them to final walls
+- New `ios/RoomFlow/Services/WallArtTracker.swift`: pure `WallArtTracker` (`add(_:) -> (group:isNewBest:)`,
+  `confirmedCount`, `finalize(walls:) -> [(item:groups:)]`). Groups `WallArtSighting`s by running-mean center
+  (≤0.15 m) and normal agreement (dot > 0.9), keeping ≤30 sightings per group; a group is confirmed at ≥3
+  sightings with camera positions spanning ≥0.2 m (enough to triangulate, not repeated frames from one spot).
+  `finalize` takes median width/height/standoff/center per confirmed group, attaches to the final wall with
+  the nearest plane within 0.4 m whose extents (+0.1 m slack) contain the center (unattached groups dropped),
+  then merges items on the same wall whose wall-local boxes overlap or sit within 0.10 m into one item.
+- New `ios/RoomFlow/Models/WallArtItem.swift`: `WallArtItem` (Codable/Equatable/Identifiable/Sendable) — a
+  confirmed piece of wall art in its wall's local frame (`centerX`/`centerY` meters from wall center, +x
+  along the wall, +y up), with `width`/`height`/`standoff`/`sightingCount`/`photoFileName`/`method`.
+- New `ios/RoomFlowTests/WallArtTrackerTests.swift`: 6 tests covering grouping by position/normal, the
+  confirmed threshold (sighting count + camera spread), wall attachment, merging two overlapping confirmed
+  panels into one item, dropping a group with no attaching wall, and `WallArtItem` round-tripping JSON.
+- Why: Task 2 of the wall-art-detection plan turns Task 1's per-frame `WallArtSighting`s into stable,
+  scan-wide items attached to the room's final geometry, so a later task can turn them into saved room data.
+
 ### iOS: judge rectangles as possible wall art
 - New `ios/RoomFlow/Services/WallArtDetector.swift`: pure `WallArtDetector.judge(quad:camera:surfaces:objects:depthAt:)`,
   extracted and TDD-tested from `WallArtSpike`'s judging logic (the spike itself is untouched; it is deleted in a
