@@ -23,6 +23,8 @@ nonisolated final class WallArtSpike: @unchecked Sendable {
         var cameraPositions: [SIMD3<Float>] = []
         /// Seconds into the scan when first accepted, to match a group with what was being pointed at.
         var firstSeen: TimeInterval = 0
+        /// Panel corners (world) from the latest sighting, for merging panels into pieces.
+        var corners: [SIMD3<Float>] = []
     }
 
     private struct Camera {
@@ -101,6 +103,31 @@ nonisolated final class WallArtSpike: @unchecked Sendable {
                         n + 1, status, cluster.firstSeen, w * 100, h * 100, cluster.center.y - floorY,
                         cluster.sizes.count, spread, wall))
         }
+
+        // Panels of one artwork (layered/multi-panel canvases) show up as separate groups: merge groups on
+        // the same final wall whose rectangles overlap or sit within 10 cm, and report each piece's outline.
+        var pieces: [(wall: CapturedRoom.Surface, min: SIMD2<Float>, max: SIMD2<Float>, members: [Int], sightings: Int, positions: [SIMD3<Float>])] = []
+        for (n, cluster) in all.enumerated() where cluster.corners.count == 4 {
+            guard let wall = Self.finalWall(for: cluster.center, in: finalRoom) ?? Self.nearestWall(to: cluster.center, in: finalRoom) else { continue }
+            let local = cluster.corners.map { wall.transform.inverse * SIMD4($0, 1) }
+            var lo = SIMD2(local.map(\.x).min()!, local.map(\.y).min()!), hi = SIMD2(local.map(\.x).max()!, local.map(\.y).max()!)
+            var members = [n + 1], sightings = cluster.sizes.count, positions = cluster.cameraPositions
+            while let i = pieces.firstIndex(where: { $0.wall.identifier == wall.identifier
+                && Self.overlaps($0.min - 0.1, $0.max + 0.1, lo, hi) }) {
+                let other = pieces.remove(at: i)
+                lo = simd_min(lo, other.min); hi = simd_max(hi, other.max)
+                members += other.members; sightings += other.sightings; positions += other.positions
+            }
+            pieces.append((wall, lo, hi, members.sorted(), sightings, positions))
+        }
+        emit("pieces: \(pieces.count) (panels within 10 cm on the same wall merged)")
+        for piece in pieces {
+            let size = piece.max - piece.min
+            let status = piece.sightings >= 3 && Self.spread(piece.positions) >= 0.2 ? "ART" : "weak"
+            emit(String(format: "  piece %@ %.0f×%.0f cm on wall %@ from groups %@ (%d sightings)", status, size.x * 100, size.y * 100,
+                        String(piece.wall.identifier.uuidString.prefix(4)), piece.members.map(String.init).joined(separator: "+"), piece.sightings))
+        }
+
     }
 
     // MARK: - Judging one rectangle
@@ -122,24 +149,52 @@ nonisolated final class WallArtSpike: @unchecked Sendable {
         guard let best else { return anyHit ? "REJECT corners not all on one wall" : "REJECT not on any wall" }
         let wall = best.wall, hits = best.hits
 
-        let width = (simd_distance(hits[0], hits[1]) + simd_distance(hits[3], hits[2])) / 2
-        let height = (simd_distance(hits[0], hits[3]) + simd_distance(hits[1], hits[2])) / 2
-        let center = hits.reduce(SIMD3<Float>(repeating: 0), +) / 4
-        let size = String(format: "%.0f×%.0f cm", width * 100, height * 100)
         let wallName = String(wall.sourceId.uuidString.prefix(4))
+        let wallPoint = SIMD3(wall.transform.columns.3.x, wall.transform.columns.3.y, wall.transform.columns.3.z)
+        var normal = simd_normalize(SIMD3(wall.transform.columns.2.x, wall.transform.columns.2.y, wall.transform.columns.2.z))
+        if simd_dot(normal, camera.position - wallPoint) < 0 { normal = -normal } // toward the camera
 
-        // LiDAR at the center: something much nearer than the wall means an object in front (shelf, lamp…).
+        // LiDAR at five points inside the rectangle, each compared with the wall plane at that point.
+        // Flush = on the wall; consistent and nearer (≤30 cm) = a flat panel standing off the wall (layered canvas);
+        // uneven = an object in front; farther = seen through a gap.
         let mid = corners.reduce(SIMD2<Float>(repeating: 0), +) / 4
-        let expected = -(camera.cameraToWorld.inverse * SIMD4(center, 1)).z
-        var depthNote = "depth n/a"
-        if let measured = Self.depth(in: depth, u: mid.x, v: mid.y) {
-            let delta = measured - expected
-            depthNote = String(format: "depthΔ=%+.2fm", delta)
-            if delta < -0.08 { return "REJECT \(size) wall=\(wallName) something in front (\(depthNote))" }
-            if delta > 0.08 { return "REJECT \(size) wall=\(wallName) surface behind the wall, seen through a gap (\(depthNote))" }
+        let samples = [mid] + corners.map { mid + ($0 - mid) * 0.5 }
+        let worldToCamera = camera.cameraToWorld.inverse
+        let deltas: [Float] = samples.compactMap { p in
+            guard let measured = Self.depth(in: depth, u: p.x, v: p.y),
+                  let onWall = Self.hitPlane(origin: camera.position, direction: camera.ray(p.x, p.y), point: wallPoint, normal: normal)
+            else { return nil }
+            return measured + (worldToCamera * SIMD4(onWall, 1)).z // measured − expected z-depth
         }
-        guard (0.15...2.0).contains(width), (0.15...2.0).contains(height), max(width, height) / min(width, height) <= 5 else {
+        var standoff: Float = 0
+        var depthNote = "depth n/a"
+        if deltas.count >= 3 {
+            let sorted = deltas.sorted(), median = sorted[sorted.count / 2], range = sorted.last! - sorted.first!
+            depthNote = String(format: "depthΔ=%+.2fm (range %.2f, %d pts)", median, range, deltas.count)
+            if median > 0.08 { return "REJECT wall=\(wallName) surface behind the wall, seen through a gap (\(depthNote))" }
+            if median < -0.08 {
+                guard range <= 0.05, median >= -0.30 else { return "REJECT wall=\(wallName) something in front (\(depthNote))" }
+                standoff = -median
+            }
+        }
+
+        // Measure on the panel's own plane (the wall shifted toward the camera by the standoff).
+        let panelPoint = wallPoint + normal * standoff
+        let panel = corners.compactMap { Self.hitPlane(origin: camera.position, direction: camera.ray($0.x, $0.y), point: panelPoint, normal: normal) }
+        guard panel.count == 4 else { return "REJECT wall=\(wallName) panel plane not visible" }
+        let width = (simd_distance(panel[0], panel[1]) + simd_distance(panel[3], panel[2])) / 2
+        let height = (simd_distance(panel[0], panel[3]) + simd_distance(panel[1], panel[2])) / 2
+        let center = panel.reduce(SIMD3<Float>(repeating: 0), +) / 4
+        let size = String(format: "%.0f×%.0f cm", width * 100, height * 100)
+        let kind = standoff > 0 ? String(format: "panel %.0f cm off wall", standoff * 100) : "flush"
+
+        guard (0.25...2.5).contains(width), (0.25...2.5).contains(height), max(width, height) / min(width, height) <= 5 else {
             return "REJECT \(size) wall=\(wallName) size out of range (\(depthNote))"
+        }
+        let floorY = surfaces.filter { $0.kind == .wall }.map { $0.transform.columns.3.y - $0.dimensions.y / 2 }.min() ?? -10
+        let bottom = panel.map(\.y).min()! - floorY
+        guard bottom >= 0.4 else {
+            return String(format: "REJECT %@ wall=%@ starts %.2f m above floor, likely furniture (%@)", size, wallName, bottom, depthNote)
         }
         let toWall = wall.transform.inverse
         let local = hits.map { toWall * SIMD4($0, 1) }
@@ -161,14 +216,15 @@ nonisolated final class WallArtSpike: @unchecked Sendable {
                 return "REJECT \(size) wall=\(wallName) overlaps TV (\(depthNote))"
             }
         }
-        let group = record(wallId: wall.sourceId, center: center, size: SIMD2(width, height), camera: camera.position, elapsed: elapsed)
-        return String(format: "ACCEPT %@ wall=%@ at (%.2f, %.2f, %.2f) %@ → group%d",
-                      size, wallName, center.x, center.y, center.z, depthNote, group)
+        let group = record(wallId: wall.sourceId, center: center, size: SIMD2(width, height), corners: panel,
+                           camera: camera.position, elapsed: elapsed)
+        return String(format: "ACCEPT %@ %@ wall=%@ bottom %.2f m %@ → group%d", size, kind, wallName, bottom, depthNote, group)
     }
 
     /// Adds a sighting to the group within 15 cm, or starts one. Returns its 1-based number. Grouped by
     /// position, not wall ID: live wall IDs change while RoomPlan merges walls (seen on device).
-    private func record(wallId: UUID, center: SIMD3<Float>, size: SIMD2<Float>, camera: SIMD3<Float>, elapsed: TimeInterval) -> Int {
+    private func record(wallId: UUID, center: SIMD3<Float>, size: SIMD2<Float>, corners: [SIMD3<Float>],
+                        camera: SIMD3<Float>, elapsed: TimeInterval) -> Int {
         lock.lock(); defer { lock.unlock() }
         if let i = clusters.firstIndex(where: { simd_distance($0.center, center) < 0.15 }) {
             let n = Float(clusters[i].sizes.count)
@@ -176,10 +232,17 @@ nonisolated final class WallArtSpike: @unchecked Sendable {
             clusters[i].wallId = wallId
             clusters[i].sizes.append(size)
             clusters[i].cameraPositions.append(camera)
+            clusters[i].corners = corners
             return i + 1
         }
-        clusters.append(Cluster(wallId: wallId, center: center, sizes: [size], cameraPositions: [camera], firstSeen: elapsed))
+        clusters.append(Cluster(wallId: wallId, center: center, sizes: [size], cameraPositions: [camera], firstSeen: elapsed, corners: corners))
         return clusters.count
+    }
+
+    /// The final room's wall with the nearest plane (for panels standing off the wall), within 40 cm.
+    private static func nearestWall(to point: SIMD3<Float>, in room: CapturedRoom) -> CapturedRoom.Surface? {
+        room.walls.map { ($0, abs((($0.transform.inverse) * SIMD4(point, 1)).z)) }
+            .filter { $0.1 < 0.4 }.min { $0.1 < $1.1 }?.0
     }
 
     /// The final room's wall whose plane the point lies on (within 10 cm) and inside of, if any.
@@ -204,6 +267,14 @@ nonisolated final class WallArtSpike: @unchecked Sendable {
         let local = wall.transform.inverse * SIMD4(world, 1)
         guard abs(local.x) <= wall.dimensions.x / 2 + 0.05, abs(local.y) <= wall.dimensions.y / 2 + 0.05 else { return nil }
         return world
+    }
+
+    /// Where a ray meets an unbounded plane, if in front of the camera.
+    private static func hitPlane(origin: SIMD3<Float>, direction: SIMD3<Float>, point: SIMD3<Float>, normal: SIMD3<Float>) -> SIMD3<Float>? {
+        let facing = simd_dot(direction, normal)
+        guard abs(facing) > 1e-4 else { return nil }
+        let t = simd_dot(point - origin, normal) / facing
+        return t > 0.1 ? origin + direction * t : nil
     }
 
     private static func overlaps(_ aMin: SIMD2<Float>, _ aMax: SIMD2<Float>, _ bMin: SIMD2<Float>, _ bMax: SIMD2<Float>) -> Bool {
