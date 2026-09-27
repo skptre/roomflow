@@ -149,13 +149,13 @@ export function describeRoomDesignIntent(value: RoomDesignIntent, room: Room): R
 export type RoomDesignResponse = { intent: RoomDesignIntent }
 
 /** Parses a response envelope and validates its intent against the current room and 24 KB model limit. */
-export function parseRoomDesignResponse(value: unknown, room: Room): RoomDesignResponse {
+export function parseRoomDesignResponse(value: unknown, room: { objects: readonly { id: string }[] }): RoomDesignResponse {
   const envelope = z.strictObject({ intent: z.unknown() }).parse(value)
   return { intent: parseRoomDesignIntent(envelope.intent, room) }
 }
 
 /** Validates bounded model JSON against the current room; throws for stale identities, duplicates, fabricated fields, or oversized output. */
-export function parseRoomDesignIntent(value: unknown, room: Room): RoomDesignIntent {
+export function parseRoomDesignIntent(value: unknown, room: { objects: readonly { id: string }[] }): RoomDesignIntent {
   const json = JSON.stringify(value)
   if (!json || new TextEncoder().encode(json).byteLength > 24 * 1024) throw new Error('Room design intent exceeds 24 KB')
   const intent = RoomDesignIntent.parse(value)

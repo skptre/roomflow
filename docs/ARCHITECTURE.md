@@ -162,6 +162,9 @@ Commands: see `web/README.md` (`npm ci`, `npm run dev`, `typecheck`, `lint`, `te
 | `web/src/recognition/discovery.ts` | `DiscoveryDetails`, `discoveryPrice`, `discoveryObject`: supplied facts and deterministic new-item placement |
 | `web/src/recognition/*.test.ts` | Appearance/discovery state, money and placement regressions |
 | `web/server/` | Bounded Gemini adapter and local-only Vite middleware with boundary tests |
+| `web/server/roomDesigner.ts`, `roomDesigner.test.ts` | `POST /api/design-room`: `createRoomDesignerHandler(deps)`, `RoomDesignerDeps` (lazy `ai` provider), fixed `ROOM_DESIGN_SYSTEM_INSTRUCTION`; loopback/same-origin JSON only, 32 KB body, one in flight + 6/min, sends brief + optional budget + validated `RoomSummary` through the shared `AiContext`, re-validates output with `parseRoomDesignResponse`, fixed errors, no logging |
+| `web/server/localAccess.ts` | `isLocalPeerRequest` (loopback Host + peer), `isLocalBrowserRequest` (plus same-origin `Origin`); shared by the recognition and room-design routes |
+| `web/server/ai.ts` | `openAi` (reads web/.env.local, opens the shared file ledger) and `createAiContext(settings: AiSettings)`, the single paid-call path: egress allowlist, consent + `GEMINI_PAID_PROJECT` attestation for private input classes (`user-photo`, `room-summary`), worst-case reservation, settle |
 | `web/src/ui/AppearanceDialog.tsx` | Local image preparation, disclosure, consent and recognition review |
 | `web/src/ui/DiscoveryDetails.tsx` | Dimensions/price form, isolated preview and atomic addition |
 | `web/src/recognition/appearanceAsset.ts` | Maps an appearance result to a safe default recipe and material slots; never an asserted product match |
