@@ -47,7 +47,7 @@ struct ScanSummaryView: View {
             }
 
             if let rawCapture {
-                Section("Browser") {
+                Section {
                     Button(pairing.pairing == nil ? "Connect to browser" : "Send scan to browser",
                            systemImage: "qrcode.viewfinder") {
                         if pairing.pairing == nil { showPairing = true }
@@ -58,6 +58,8 @@ struct ScanSummaryView: View {
                     } else if case .failed(let message) = pairing.transfer {
                         Text(message).font(.footnote).foregroundStyle(.red)
                     }
+                } header: {
+                    Text("Browser")
                 } footer: {
                     Text("Scan the code shown in your browser. The original RoomPlan scan opens there automatically.")
                 }
