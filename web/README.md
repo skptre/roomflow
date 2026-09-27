@@ -17,7 +17,7 @@ Design tokens: `src/index.css` (`@theme`) and `src/scene/palette.ts`. Pure domai
 
 ## Optional Gemini furniture appearance
 
-On branch `codex/gemini-appearance`, select a captured/owned item, choose **Match appearance from photo**, pick a JPG/PNG/WebP, crop locally, and explicitly consent to send the displayed image. Analyze → preview → apply; cancel and undo preserve the original appearance. Measurements, placement, keep/lock flags and purchase identity never change. Low-confidence results remain labeled, and unsupported objects cannot be applied. These are approximate template matches, not exact replicas or texture reconstruction.
+Select a captured/owned item, choose **Match appearance from photo**, pick a JPG/PNG/WebP, crop locally, and explicitly consent to send the displayed image. Analyze → preview → apply; cancel and undo preserve the original appearance. Measurements, placement, keep/lock flags and purchase identity never change. Low-confidence results remain labeled, and unsupported objects cannot be applied. These are approximate template matches, not exact replicas or texture reconstruction.
 
 ### Local setup
 

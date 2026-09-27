@@ -1,5 +1,12 @@
 # Changelog
 
+### 2026-09-27 — docs: project README for submission
+
+- `README.md` (new): banner, what Roomflow is, how capture → import → recipes → shopping fits together, features with fresh app screenshots, quick start (web, optional Gemini, iOS), usage table with shortcuts, project layout, honest limits, team.
+- `docs/assets/` (new): `banner.svg` (isometric room in the studio palette) and screenshots `room.webp`, `try-a-piece.webp`, `try-a-look.webp`, `edit-a-piece.webp` taken from the sample room.
+- `web/README.md`: dropped the stale "on branch codex/gemini-appearance" note; the feature is on main.
+- `docs/INDEX.md`: rows for the README and assets; `docs/superpowers/plans/` is tracked, not local.
+
 ### 2026-09-27 — web: landing room fits its frame
 
 - `web/src/scene/CameraRig.tsx`: new `HERO_MARGIN` (1.02) replaces the 0.9 hero fit factor. At 0.9 the camera sat inside the fitted distance, so the landing canvas clipped the tops of the walls; now the whole room shows on desktop and phone widths.

@@ -5,6 +5,8 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 
 | Looking for… | Go to |
 | --- | --- |
+| Project overview, setup and usage (repo front page) | `README.md` |
+| README banner and app screenshots | `docs/assets/` (banner source: hand-built isometric SVG) |
 | What every file does, with key types/functions | `docs/ARCHITECTURE.md` |
 | What changed and when | `docs/CHANGELOG.md` |
 | Gemini room-designer design and safety contract | `docs/superpowers/specs/2026-09-27-gemini-room-designer-design.md` |
@@ -44,7 +46,7 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | Web — moving hung pieces along their wall | `web/src/domain/layout.ts` (`slideOnWall`), `web/src/scene/FurnitureObject.tsx`, `web/src/ui/editorActions.ts` (`nudgeOnWall`) |
 | Web — run/test commands | `web/README.md`, `AGENTS.md` |
 | Plans (web) | `.claude/plans/` |
-| Plans (iOS, local, untracked) | `docs/superpowers/plans/` |
+| Plans (iOS, Gemini designer) | `docs/superpowers/plans/` |
 | PR template and CI | `.github/` |
 
 | Web — Gemini photos and furniture discoveries | `docs/ux/gemini-appearance.md`, `web/src/recognition/`, `web/server/` |
