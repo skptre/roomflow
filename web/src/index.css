@@ -233,192 +233,100 @@ select {
   flex-direction: column;
 }
 .welcome-header {
-  padding: 32px 5%;
+  padding: 28px 4.5%;
   display: flex;
   justify-content: space-between;
   align-items: center;
   z-index: 2;
-}
-.welcome-note {
-  display: flex;
-  gap: 8px;
-  color: #786c60;
-  font-size: 11px;
 }
 .welcome-content {
   width: 100%;
   flex: 1;
   display: grid;
-  grid-template-columns: 45% 55%;
-  max-width: 1700px;
+  grid-template-columns: minmax(340px, 38%) minmax(0, 62%);
+  align-items: center;
+  max-width: 1800px;
   margin: auto;
-  padding: 20px 5% 36px;
+  padding: 0 4.5% 28px;
 }
 .welcome-copy {
   position: relative;
   z-index: 2;
-  padding: 20px 0 0;
+  padding: 0 0 28px;
 }
 .welcome-copy h1 {
   font-family: var(--font-display);
-  font-weight: 400;
-  font-size: clamp(52px, 5.6vw, 88px);
-  letter-spacing: -0.055em;
-  line-height: 1.035;
-  margin: 24px 0;
-}
-.welcome-copy h1 em {
-  color: #ac826a;
-  font-weight: 400;
+  font-weight: 450;
+  font-size: clamp(50px, 5.1vw, 84px);
+  letter-spacing: -0.065em;
+  line-height: 1.03;
+  margin: 0 0 24px;
 }
 .welcome-description {
-  max-width: 355px;
-  font-size: 14px;
-  color: #747165;
-  line-height: 1.9;
+  max-width: 390px;
+  font-size: 16px;
+  color: #665e55;
+  line-height: 1.65;
 }
 .welcome-actions {
-  margin-top: 27px;
-  max-width: 355px;
+  margin-top: 30px;
+  max-width: 390px;
 }
 .welcome-actions > .studio-primary {
   width: 100%;
   justify-content: space-between;
-  min-height: 52px;
-  padding: 15px 22px;
-}
-.action-caption {
-  font-size: 10px;
-  color: #777367;
-  text-align: center;
-  margin-top: 9px;
+  min-height: 54px;
+  padding: 14px 19px;
+  font-size: 15px;
 }
 .welcome-import {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 11px;
   color: #493c34;
   width: 100%;
-  padding: 20px 1px 10px;
-  font-size: 12px;
+  min-height: 54px;
+  margin-top: 11px;
+  padding: 12px 18px;
+  border: 1px solid #cfc5b8;
+  border-radius: 10px;
+  background: #fcfaf6;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
 }
 .welcome-import:hover {
-  color: var(--studio-clay);
+  background: #eeeade;
 }
-.welcome-import > span {
+.welcome-import > svg:last-child {
   margin-left: auto;
-  color: #797568;
-  font-size: 10px;
 }
-.welcome-values {
-  display: flex;
-  gap: 23px;
-  margin-top: 29px;
-  font-size: 10px;
-  color: #493c34;
+.scan-handoff {
+  margin: 13px 1px 0;
+  max-width: 380px;
+  color: #665e55;
+  font-size: 13px;
+  line-height: 1.55;
 }
-.welcome-values > span {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.welcome-resume {
+  margin-top: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #794837;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 .welcome-room {
   position: relative;
-  min-height: 540px;
-}
-.room-arch {
-  position: absolute;
-  width: 85%;
-  height: 85%;
-  right: 3%;
-  top: 0;
-  border-radius: 50% 50% 9px 9px;
-  background: radial-gradient(ellipse at 75% 20%, #eee4d4, #e8ddce);
-  border: 1px solid #dedbcc;
+  min-height: clamp(500px, 73dvh, 820px);
 }
 .welcome-scene {
   position: absolute;
-  inset: 12% -12% 6% -19%;
+  inset: -4% -5% 0 -9%;
   pointer-events: none;
-  z-index: 1;
-}
-.room-note {
-  position: absolute;
-  bottom: 8%;
-  left: 25%;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  transform: rotate(-5deg);
-}
-.note-script {
-  font-family: var(--font-display);
-  font-size: 30px;
-  font-style: italic;
-  color: #493c34;
-  letter-spacing: -0.025em;
-}
-.room-note > span + span {
-  font-size: 7px;
-  letter-spacing: 0.14em;
-  margin-top: 7px;
-  color: #786c60;
-}
-.material-story {
-  position: absolute;
-  right: 0;
-  top: 6%;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  z-index: 2;
-  transform: rotate(5deg);
-  padding: 12px 15px;
-  background: #fffdf5e8;
-  border: 1px solid #e3ddcc;
-  border-radius: 4px;
-  box-shadow: 0 6px 16px #6250310b;
-}
-.material-story > span:last-child {
-  margin-left: 5px;
-  font-family: var(--font-display);
-  font-style: italic;
-  line-height: 1.3;
-  font-size: 13px;
-  color: #736b59;
-}
-.material-swatch {
-  width: 27px;
-  height: 33px;
-  display: block;
-  border-radius: 2px;
-  box-shadow: 0 2px 4px #0001;
-}
-.swatch-oak {
-  background: repeating-linear-gradient(88deg, #b9976c 0, #b9976c 3px, #bd9d75 4px, #c4a67f 6px);
-}
-.swatch-linen {
-  background: repeating-linear-gradient(0deg, #e5dfca 0, #e5dfca 2px, #efe7d6 3px);
-}
-.swatch-clay {
-  background: #ac826a;
-}
-.welcome-footer {
-  margin: 0 5%;
-  padding: 21px 0;
-  border-top: 1px solid #dcd8cb;
-  display: flex;
-  justify-content: space-between;
-  color: #797569;
-  font-size: 9px;
-  letter-spacing: 0.1em;
-}
-.welcome-footer > span:last-child {
-  letter-spacing: 0;
-  font-family: var(--font-display);
-  font-style: italic;
-  font-size: 13px;
 }
 .import-error {
   max-width: 360px;
@@ -1519,86 +1427,48 @@ select {
     grid-template-columns: minmax(0, 1fr) 330px;
   }
   .welcome-content {
-    grid-template-columns: 48% 52%;
+    grid-template-columns: minmax(300px, 40%) minmax(0, 60%);
   }
   .welcome-copy h1 {
-    font-size: 60px;
-  }
-  .material-story {
-    top: 1%;
-    right: -5%;
+    font-size: clamp(49px, 5vw, 68px);
   }
   .welcome-scene {
-    inset: 18% -17% 9% -24%;
-  }
-  .room-note {
-    left: 15%;
-    bottom: 12%;
+    inset: -3% -5% 0 -7%;
   }
 }
 @media (max-width: 760px) {
   .welcome-header {
-    padding: 24px 6%;
-  }
-  .welcome-note {
-    display: none;
+    padding: 20px 6%;
   }
   .welcome-content {
     display: flex;
     flex-direction: column;
-    padding: 0 6% 20px;
+    align-items: stretch;
+    padding: 0 6% 36px;
   }
   .welcome-copy {
-    padding-top: 13px;
+    padding: 4px 0 0;
   }
   .welcome-copy h1 {
-    font-size: 57px;
-    margin: 17px 0;
-  }
-  .welcome-copy h1 br:nth-of-type(1) {
-    display: none;
-  }
-  .welcome-copy h1 em {
-    margin-left: 10px;
+    font-size: clamp(42px, 10vw, 58px);
+    margin: 0 0 14px;
   }
   .welcome-description {
-    max-width: 450px;
-    font-size: 13px;
+    max-width: 520px;
+    font-size: 15px;
+    line-height: 1.55;
   }
   .welcome-actions {
-    max-width: 100%;
-  }
-  .welcome-values {
-    margin-top: 20px;
+    max-width: 520px;
+    margin-top: 22px;
   }
   .welcome-room {
-    min-height: 365px;
-    margin-top: 38px;
-  }
-  .room-arch {
-    width: 90%;
-    height: 90%;
-    right: 5%;
+    order: -1;
+    min-height: clamp(290px, 47dvh, 440px);
+    margin: -10px -6.8vw 14px;
   }
   .welcome-scene {
-    inset: 10px -5% 0;
-  }
-  .material-story {
-    right: 0;
-    top: 4%;
-  }
-  .room-note {
-    bottom: 4%;
-    left: 18%;
-  }
-  .note-script {
-    font-size: 24px;
-  }
-  .welcome-footer {
-    font-size: 7px;
-  }
-  .welcome-footer > span:last-child {
-    font-size: 11px;
+    inset: 0;
   }
   .studio {
     overflow: auto;
@@ -1763,9 +1633,6 @@ select {
   .room-identity {
     display: none;
   }
-  .welcome-copy h1 {
-    font-size: 48px;
-  }
   .product-list {
     grid-template-columns: 1fr;
   }
@@ -1861,7 +1728,7 @@ select {
 }
 @media (min-width: 761px) and (max-width: 1100px) {
   .welcome-scene {
-    inset: 18% -7% 9% -9%;
+    inset: -3% -5% 0 -7%;
   }
 }
 @media (max-width: 760px) {
@@ -1996,38 +1863,6 @@ select {
   letter-spacing: -1.2px;
   color: #493c34;
 }
-.welcome-copy h1 {
-  font-weight: 450;
-  font-size: clamp(50px, 5.3vw, 82px);
-  line-height: 1.04;
-  letter-spacing: -0.065em;
-  margin: 30px 0 24px;
-}
-.welcome-description {
-  font-size: 15px;
-  line-height: 1.8;
-}
-.welcome-copy {
-  padding-top: 52px;
-}
-.note-script {
-  font-size: 20px;
-  font-weight: 450;
-  font-style: normal;
-  letter-spacing: -0.04em;
-  color: #7f6250;
-}
-.room-note {
-  transform: none;
-}
-.material-story {
-  transform: rotate(3deg);
-}
-.material-story > span:last-child {
-  font-style: normal;
-  font-size: 11px;
-  line-height: 1.5;
-}
 .room-panel h2,
 .catalog-content h2,
 .inspector-title h2 {
@@ -2063,10 +1898,6 @@ select {
 .stage-preview {
   top: 25px;
 }
-.welcome-footer > span:last-child {
-  font-style: normal;
-  font-size: 11px;
-}
 .sidebar-scroll > section {
   animation: studio-arrive 0.18s ease-out;
 }
@@ -2081,15 +1912,6 @@ select {
   }
 }
 @media (max-width: 760px) {
-  .welcome-copy {
-    padding-top: 20px;
-  }
-  .welcome-copy h1 {
-    font-size: 52px;
-  }
-  .welcome-copy h1 br:nth-of-type(1) {
-    display: inline;
-  }
   .room-canvas {
     inset: 5px 0 58px;
   }

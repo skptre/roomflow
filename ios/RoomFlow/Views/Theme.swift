@@ -1,10 +1,11 @@
 import SwiftUI
 
 extension Color {
-    /// #151515
-    static let rfBackground = Color(red: 0x15 / 255, green: 0x15 / 255, blue: 0x15 / 255)
-    static let rfSurface = Color(white: 0.13)
-    static let rfSecondaryText = Color.white.opacity(0.6)
+    static let rfBackground = Color(red: 0xF5 / 255, green: 0xF1 / 255, blue: 0xE9 / 255)
+    static let rfSurface = Color(red: 0xFC / 255, green: 0xFA / 255, blue: 0xF6 / 255)
+    static let rfInk = Color(red: 0x49 / 255, green: 0x3C / 255, blue: 0x34 / 255)
+    static let rfAccent = Color(red: 0x96 / 255, green: 0x51 / 255, blue: 0x3F / 255)
+    static let rfSecondaryText = Color(red: 0x66 / 255, green: 0x5E / 255, blue: 0x55 / 255)
 }
 
 /// Full-width rounded button used for primary actions across RoomFlow.
@@ -17,9 +18,25 @@ struct RFButtonStyle: ButtonStyle {
             .font(.headline)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .foregroundStyle(prominent ? Color.black : Color.white)
-            .background(prominent ? Color.accentColor : Color.rfSurface, in: RoundedRectangle(cornerRadius: 14))
+            .foregroundStyle(prominent ? Color.white : Color.rfInk)
+            .background(prominent ? Color.rfAccent : Color.rfSurface, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(prominent ? Color.clear : Color.rfInk.opacity(0.16)))
             .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
+    }
+}
+
+/// Keep the RoomPlan camera controls legible over live video.
+struct RFScanButtonStyle: ButtonStyle {
+    var prominent = true
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .foregroundStyle(prominent ? Color.black : Color.white)
+            .background(prominent ? Color(red: 0.91, green: 0.83, blue: 0.62) : Color(white: 0.13),
+                        in: RoundedRectangle(cornerRadius: 14))
+            .opacity(configuration.isPressed ? 0.75 : 1)
     }
 }
 
@@ -36,8 +53,8 @@ extension Color {
 
 /// Floor-plan colors: the scanned color when we have one, otherwise a neutral stand-in.
 enum PlanPalette {
-    static let floorFallback = Color(white: 0.17)
-    static let wallFallback = Color(white: 0.85)
+    static let floorFallback = Color(red: 0.79, green: 0.66, blue: 0.51)
+    static let wallFallback = Color(red: 0.96, green: 0.94, blue: 0.91)
     static let window = Color(red: 0.55, green: 0.78, blue: 0.91)
     static let selection = Color.accentColor
 

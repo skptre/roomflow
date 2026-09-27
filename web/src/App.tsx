@@ -109,10 +109,10 @@ function Workspace() {
     setSwapId(null)
     setPanel(next)
   }
-  function open(result: ImportResult | PackageImportResult) {
+  function open(result: ImportResult | PackageImportResult): boolean {
     if (!result.ok) {
       setError(result.error)
-      return
+      return false
     }
     setError(null)
     cancelCatalogPreview()
@@ -123,6 +123,7 @@ function Workspace() {
     setSwapId(null)
     announceImport(result)
     offerAutoMatch(result.room)
+    return true
   }
   /** After a package opens, offers to match every photographed item (nothing is sent without consent). */
   function offerAutoMatch(opened: Room) {
