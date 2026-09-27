@@ -5,6 +5,12 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### iOS: wall-art spike, round 3 (layered canvases)
+- `WallArtSpike.swift`: LiDAR sampled at five points; a consistent surface up to 30 cm in front of the wall counts as a
+  panel standing off the wall (layered canvas) and is measured on its own plane; uneven depth is still "something in
+  front". Rejects rectangles under 25 cm or starting below 40 cm (furniture). Summary merges groups on the same wall
+  within 10 cm into pieces. Why: the real test painting is a multi-panel canvas ~20 cm off the wall and was rejected.
+
 ### iOS: wall-art spike, round 2
 - `WallArtSpike.swift`: groups sightings by 3D position instead of live wall ID (the device log showed wall `836B`
   replaced by `91A5` mid-scan, splitting one object into two groups); rejects surfaces more than 8 cm behind the wall
