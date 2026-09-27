@@ -1,5 +1,9 @@
 # Changelog
 
+### 2026-09-27 — web: preserve existing purchase prices when stock changes
+
+Updated `web/src/roomDesigner/proposal.ts` and `proposal.test.ts`. `buildRoomDesignProposal` now reads known offer prices and merchant details from all valid supplied catalog entries for existing placed products, while requiring `available: true` only when selecting new or replacement products. A sold-out or unreported-stock offer no longer turns an existing purchase subtotal into an unknown value.
+
 ### 2026-09-27 — web: require confirmed stock and known budget prices in room proposals
 
 Updated `web/src/roomDesigner/proposal.ts` and `proposal.test.ts`. `buildRoomDesignProposal` now selects only offers with `available: true`; when a budget is supplied, additions and replacements require a known price in the budget currency. Full rearrangement validates the exact final position and yaw, including doorway clearance, before keeping its move/rotate command sequence. Added regressions for unreported stock, null prices under budget, and an alternate-yaw doorway placement.

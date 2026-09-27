@@ -40,7 +40,7 @@ function recolor(color: string, mode: 'darken' | 'lighten'): string {
 
 function validEntry(entry: CatalogEntry): boolean {
   return Product.safeParse(entry.product).success && Variant.safeParse(entry.variant).success && Offer.safeParse(entry.offer).success &&
-    entry.variant.productId === entry.product.id && entry.offer.variantId === entry.variant.id && entry.offer.available === true
+    entry.variant.productId === entry.product.id && entry.offer.variantId === entry.variant.id
 }
 
 /** Builds a safe, possibly partial proposal. Every emitted command is checked against the latest working room with the automated actor. */
@@ -48,7 +48,9 @@ export function buildRoomDesignProposal(input: RoomDesignProposalInput): RoomDes
   const { room, budget, baseRevision } = input
   const intent = parseRoomDesignIntent(input.intent, room)
   const catalog = input.catalog.filter(validEntry)
+  // A sold-out offer still prices an already placed item; only new choices need confirmed stock.
   const offers = new Map(catalog.map((entry) => [entry.offer.id, entry.offer]))
+  const selectable = catalog.filter((entry) => entry.offer.available === true)
   const commands: Command[] = []
   const notes: string[] = []
   const warnings: string[] = []
@@ -94,7 +96,7 @@ export function buildRoomDesignProposal(input: RoomDesignProposalInput): RoomDes
   }
 
   const choose = (category: string, count: number, target: { mode: 'swap'; objectId: string } | { mode: 'add' }): boolean => {
-    const candidates = catalog.filter((entry) => entry.product.category === category)
+    const candidates = selectable.filter((entry) => entry.product.category === category)
       .sort((a, b) => (a.offer.price?.amountMinor ?? Number.MAX_SAFE_INTEGER) - (b.offer.price?.amountMinor ?? Number.MAX_SAFE_INTEGER) || a.variant.id.localeCompare(b.variant.id))
     if (!candidates.length) { skipped.push(`No in-stock catalog item is available for ${category}.`); return false }
     let reason = `No safe spot or fitting catalog item was found for ${category}.`

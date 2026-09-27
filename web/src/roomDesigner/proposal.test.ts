@@ -136,6 +136,20 @@ describe('buildRoomDesignProposal', () => {
     expect(unknownStock.skipped.join(' ')).toMatch(/stock/i)
   })
 
+  it('retains known totals and merchant for an existing product after its offer loses stock status', () => {
+    const lamp = catalog.find((entry) => entry.variant.id === 'v-linen-floor-lamp-std')!
+    const room: Room = { ...sampleRoom(), objects: [entryToObject(lamp, { id: 'existing-lamp', position: { x: 0, z: 0 }, yaw: 0 })] }
+    for (const available of [false, undefined]) {
+      const stale = { ...lamp, offer: { ...lamp.offer, available } }
+      const proposal = build({ add: [{ category: 'floor-lamp', count: 1 }] }, room, [stale], usd(50000))
+      expect(proposal.commands).toEqual([])
+      expect(proposal.skipped.join(' ')).toMatch(/stock/i)
+      expect(proposal.summary.subtotal.total).toEqual(lamp.offer.price)
+      expect(proposal.summary.budget).toBe('under')
+      expect(proposal.summary.lines[0]).toMatchObject({ offerId: lamp.offer.id, store: lamp.offer.merchant, unitPrice: lamp.offer.price })
+    }
+  })
+
   it('reports incomplete cost when an existing product has an unknown offer', () => {
     const unpriced = catalog.find((entry) => entry.offer.price === null)!
     const object = entryToObject(unpriced, { id: 'unpriced', position: { x: 0, z: 0 }, yaw: 0 })
