@@ -4,7 +4,7 @@ Non-obvious tradeoffs, each with the alternative that was rejected. Routine "onl
 
 ## Partial room-design proposals explain every skipped change
 
-The resolver accepts each safe command against a working room and returns a visible reason when a requested change cannot fit, has no available catalog entry, or violates a user constraint. It can include an unknown-price item when a budget is set, but marks budget status unknown and warns instead of claiming the design is under budget. Rejected: discarding the entire design on one impossible request or treating a missing price as zero.
+The resolver accepts each safe command against a working room and returns a visible reason when a requested change cannot fit, has no confirmed in-stock catalog entry, or violates a user constraint. With a budget, new choices require a known price in that currency; existing unknown-priced purchases still make the resulting budget status unknown. Rejected: discarding the entire design on one impossible request or treating a missing price as zero.
 
 ## Room-designer descriptions are composed in the browser
 

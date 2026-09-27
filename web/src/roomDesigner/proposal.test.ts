@@ -3,6 +3,7 @@ import { sampleCatalog } from '../fixtures/sample-catalog'
 import { sampleRoom } from '../test/rooms'
 import { entryToObject, type CatalogEntry } from '../domain/catalog'
 import { applyCommands } from '../domain/commands'
+import { blocksDoorway } from '../domain/layout'
 import type { Money, Room } from '../domain/schema'
 import type { RoomDesignIntent } from './contract'
 import { buildRoomDesignProposal } from './proposal'
@@ -25,6 +26,34 @@ describe('buildRoomDesignProposal', () => {
     expect(first.commands.some((command) => command.type === 'move' || command.type === 'rotate')).toBe(true)
     expect(applyCommands(room, first.commands, 'auto').ok).toBe(true)
     expect(build({ rearrange: 'full' }, room, catalog, null, 4).commands).not.toEqual(first.commands)
+  })
+
+  it('uses the alternate yaw when the original yaw would block a doorway', () => {
+    const base = sampleRoom()
+    const chair = base.objects.find((object) => object.id === 'OBJ-CHAIR')!
+    const object = { ...chair, keep: false, lockPlacement: false, dimensions: { width: 1.2, height: 0.8, depth: 0.4, source: 'estimated' as const }, pose: { position: { x: -0.3, y: 0, z: 0.6 }, yaw: 0 } }
+    const room: Room = {
+      ...base,
+      id: 'alternate-yaw-doorway-fixture',
+      floorPolygon: [{ x: -1, z: -1 }, { x: 1, z: -1 }, { x: 1, z: 1 }, { x: -1, z: 1 }],
+      walls: [{ id: 'right', start: { x: 1, z: -1 }, end: { x: 1, z: 1 }, height: 2.5, thickness: 0.1, exterior: true }],
+      openings: [{ id: 'door', kind: 'door', wallId: 'right', offsetAlongWall: 0.5, bottom: 0, width: 0.5, height: 2.1 }],
+      objects: [object],
+    }
+    const proposals = Array.from({ length: 16 }, (_, revision) => build({ rearrange: 'full' }, room, catalog, null, revision))
+    const alternate = proposals.find((proposal) => {
+      const result = applyCommands(room, proposal.commands, 'auto')
+      if (!result.ok) return false
+      const placed = result.room.objects[0]!
+      return placed.pose.yaw !== object.pose.yaw && blocksDoorway(room, { ...placed, pose: { ...placed.pose, yaw: object.pose.yaw } })
+    })
+    expect(alternate).toBeDefined()
+    const result = applyCommands(room, alternate!.commands, 'auto')
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const placed = result.room.objects[0]!
+    expect(alternate!.commands.map((command) => command.type)).toEqual(expect.arrayContaining(['move', 'rotate']))
+    expect(blocksDoorway(result.room, placed)).toBe(false)
   })
 
   it('restyles to a requested black palette without changing the source room', () => {
@@ -51,7 +80,7 @@ describe('buildRoomDesignProposal', () => {
     }
   })
 
-  it('prunes over-budget and foreign-currency offers and keeps unknown prices unknown', () => {
+  it('prunes over-budget, foreign-currency and unknown-price offers under a budget', () => {
     const plant = catalog.find((entry) => entry.product.category === 'plant')!
     const eur = { ...plant, offer: { ...plant.offer, id: 'eur', price: { amountMinor: 1, currency: 'EUR' } } }
     const expensive = { ...plant, offer: { ...plant.offer, id: 'expensive', price: usd(50000) } }
@@ -60,8 +89,12 @@ describe('buildRoomDesignProposal', () => {
     expect(pruned.skipped.join(' ')).toMatch(/budget|currency/i)
     const unknown = { ...plant, offer: { ...plant.offer, id: 'unknown', price: null } }
     const proposal = build({ add: [{ category: 'plant', count: 1 }] }, sampleRoom(), [unknown], usd(50000))
-    expect(proposal.commands.some((command) => command.type === 'add')).toBe(true)
-    expect(proposal.summary.budget).toBe('unknown')
+    expect(proposal.commands).toEqual([])
+    expect(proposal.skipped.join(' ')).toMatch(/known price/i)
+    const withoutBudget = build({ add: [{ category: 'plant', count: 1 }] }, sampleRoom(), [unknown])
+    expect(withoutBudget.commands.some((command) => command.type === 'add')).toBe(true)
+    expect(withoutBudget.summary.subtotal.status).toBe('incomplete')
+    expect(proposal.summary.budget).toBe('under')
   })
 
   it('refuses keep removal and replacement, and locked moves or replacement nudges', () => {
@@ -92,11 +125,15 @@ describe('buildRoomDesignProposal', () => {
     expect(proposal.skipped.join(' ')).toMatch(/space|fit|spot/i)
   })
 
-  it('never adds an out-of-stock entry and reports a missing category', () => {
+  it('never adds sold-out or unreported-availability entries', () => {
     const soldOut = catalog.filter((entry) => entry.product.category === 'plant').map((entry) => ({ ...entry, offer: { ...entry.offer, available: false } }))
     const proposal = build({ add: [{ category: 'plant', count: 1 }] }, sampleRoom(), soldOut)
     expect(proposal.commands).toEqual([])
     expect(proposal.skipped.join(' ')).toMatch(/catalog|stock/i)
+    const unreported = catalog.filter((entry) => entry.product.category === 'plant').map((entry) => ({ ...entry, offer: { ...entry.offer, available: undefined } }))
+    const unknownStock = build({ add: [{ category: 'plant', count: 1 }] }, sampleRoom(), unreported)
+    expect(unknownStock.commands).toEqual([])
+    expect(unknownStock.skipped.join(' ')).toMatch(/stock/i)
   })
 
   it('reports incomplete cost when an existing product has an unknown offer', () => {

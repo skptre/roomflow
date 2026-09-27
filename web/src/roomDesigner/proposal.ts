@@ -3,8 +3,9 @@ import { Product, Variant, Offer, type Money, type Room } from '../domain/schema
 import { placementCommands, type CatalogEntry } from '../domain/catalog'
 import { applyCommands, checkPlacement, type Command } from '../domain/commands'
 import { purchaseSummary, type PurchaseSummary } from '../domain/purchases'
-import { freeSpot } from '../domain/layout'
+import { blocksDoorway, freeSpot } from '../domain/layout'
 import { footprintBounds } from '../domain/geometry'
+import { normalizeYaw } from '../domain/units'
 import { parseRoomDesignIntent, type RoomDesignIntent } from './contract'
 
 /** All pricing, positions and commands are resolved locally at this committed revision. */
@@ -39,7 +40,7 @@ function recolor(color: string, mode: 'darken' | 'lighten'): string {
 
 function validEntry(entry: CatalogEntry): boolean {
   return Product.safeParse(entry.product).success && Variant.safeParse(entry.variant).success && Offer.safeParse(entry.offer).success &&
-    entry.variant.productId === entry.product.id && entry.offer.variantId === entry.variant.id && entry.offer.available !== false
+    entry.variant.productId === entry.product.id && entry.offer.variantId === entry.variant.id && entry.offer.available === true
 }
 
 /** Builds a safe, possibly partial proposal. Every emitted command is checked against the latest working room with the automated actor. */
@@ -55,24 +56,27 @@ export function buildRoomDesignProposal(input: RoomDesignProposalInput): RoomDes
   let working = room
   const summary = (candidate: Room) => purchaseSummary(candidate, { offers }, budget)
 
-  const tryCommand = (command: Command): boolean => {
-    const result = applyCommands(working, [command], 'auto')
-    if (!result.ok) { skipped.push(result.error); return false }
-    if (result.warnings.length) { skipped.push(result.warnings.join(' ')); return false }
+  const attempt = (nextCommands: Command[]): { ok: true } | { ok: false; reason: string } => {
+    const result = applyCommands(working, nextCommands, 'auto')
+    if (!result.ok) return { ok: false, reason: result.error }
+    if (result.warnings.length) return { ok: false, reason: result.warnings.join(' ') }
     const next = summary(result.room)
-    if (budget && (command.type === 'add' || command.type === 'replace')) {
+    if (budget && nextCommands.some((command) => command.type === 'add' || command.type === 'replace')) {
       if (next.subtotal.totals.some((total) => total.currency !== budget.currency)) {
-        skipped.push('Skipped an item because its currency differs from the budget.')
-        return false
+        return { ok: false, reason: 'Skipped an item because its currency differs from the budget.' }
       }
       const known = next.subtotal.totals.find((total) => total.currency === budget.currency)?.amountMinor ?? 0
       if (known > budget.amountMinor) {
-        skipped.push('Skipped an item to stay within the budget.')
-        return false
+        return { ok: false, reason: 'Skipped an item to stay within the budget.' }
       }
     }
     working = result.room
-    commands.push(command)
+    commands.push(...nextCommands)
+    return { ok: true }
+  }
+  const tryCommand = (command: Command): boolean => {
+    const result = attempt([command])
+    if (!result.ok) { skipped.push(result.reason); return false }
     return true
   }
 
@@ -95,7 +99,8 @@ export function buildRoomDesignProposal(input: RoomDesignProposalInput): RoomDes
     if (!candidates.length) { skipped.push(`No in-stock catalog item is available for ${category}.`); return false }
     let reason = `No safe spot or fitting catalog item was found for ${category}.`
     for (const entry of candidates) {
-      if (budget && entry.offer.price && entry.offer.price.currency !== budget.currency) { reason = `No ${category} offer matches the budget currency.`; continue }
+      if (budget && !entry.offer.price) { reason = `No ${category} offer has a known price for this budget.`; continue }
+      if (budget && entry.offer.price?.currency !== budget.currency) { reason = `No ${category} offer matches the budget currency.`; continue }
       const before = skipped.length
       const proposed = placementCommands(working, entry, target, count)
       if (!proposed) { reason = `No free space or safe spot is available for ${category}.`; continue }
@@ -141,20 +146,31 @@ export function buildRoomDesignProposal(input: RoomDesignProposalInput): RoomDes
       let changed = false
       for (let i = 0; i < targets.length; i++) {
         const near = targets[(offset + i) % targets.length]!
-        const pose = freeSpot(working, object.dimensions, { near, ignoreId: object.id, yaws: [object.pose.yaw, object.pose.yaw + Math.PI / 2] })
+        const pose = freeSpot(working, object.dimensions, { near, ignoreId: object.id, yaws: [object.pose.yaw, normalizeYaw(object.pose.yaw + Math.PI / 2)] })
         if (!pose) continue
         const position = { x: pose.position.x, z: pose.position.z }
-        if (checkPlacement(working, object.id, position, object.pose.yaw).status !== 'ok') continue
+        if (checkPlacement(working, object.id, position, pose.yaw).status !== 'ok') continue
+        const finalObject = { ...object, pose: { position: { ...pose.position, y: object.pose.position.y }, yaw: pose.yaw } }
+        if (blocksDoorway(working, finalObject)) continue
         const current = working.objects.find((item) => item.id === object.id)!
-        if (position.x === current.pose.position.x && position.z === current.pose.position.z) continue
-        if (tryCommand({ type: 'move', id: object.id, position })) {
-          notes.push(`Moved ${object.name}.`)
+        const moved = position.x !== current.pose.position.x || position.z !== current.pose.position.z
+        const rotated = pose.yaw !== current.pose.yaw
+        if (!moved && !rotated) continue
+        const move: Command = { type: 'move', id: object.id, position }
+        const rotate: Command = { type: 'rotate', id: object.id, yaw: pose.yaw }
+        const sequences = moved && rotated ? [[move, rotate], [rotate, move]] : [moved ? [move] : [rotate]]
+        for (const sequence of sequences) {
+          const trial = applyCommands(working, sequence, 'auto')
+          if (!trial.ok || trial.warnings.length) continue
+          const actual = trial.room.objects.find((item) => item.id === object.id)!
+          if (actual.pose.position.x !== position.x || actual.pose.position.z !== position.z || actual.pose.yaw !== pose.yaw || blocksDoorway(trial.room, actual)) continue
+          if (!attempt(sequence).ok) continue
+          if (moved) notes.push(`Moved ${object.name}.`)
+          if (rotated) notes.push(`Rotated ${object.name}.`)
           changed = true
-          if (pose.yaw !== object.pose.yaw && checkPlacement(working, object.id, position, pose.yaw).status === 'ok') {
-            if (tryCommand({ type: 'rotate', id: object.id, yaw: pose.yaw })) notes.push(`Rotated ${object.name}.`)
-          }
           break
         }
+        if (changed) break
       }
       if (!changed) skipped.push(`No safe rearrangement spot was found for ${object.name}.`)
     }
