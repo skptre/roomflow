@@ -46,6 +46,61 @@ struct RoomEvidenceRecorderTests {
                                   imageWidth: 1920, imageHeight: 1440, trackingNormal: tracking)
     }
 
+    @Test func pieceProgressCountsOnlyCompletedSelectedJPEGs() async throws {
+        let root = makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let gate = DispatchSemaphore(value: 0)
+        let recorder = RoomEvidenceRecorder(encoder: FakeEncoder(gate: gate), rootDirectory: root)
+        let session = UUID(), object = UUID()
+        recorder.start(sessionID: session)
+        #expect(recorder.captureFocused(snapshot: frame(time: 0, x: 0), objectId: object, sessionID: session) { image() })
+        #expect(recorder.completedPhotoCount(for: object) == 0)
+        gate.signal()
+        await recorder.waitUntilIdle()
+        #expect(recorder.completedPhotoCount(for: object) == 1)
+        #expect(recorder.completedPhotoCount(for: UUID()) == 0)
+        let photos = try await recorder.finish(sessionID: session)
+        #expect(photos.count == 1)
+        #expect(photos[0].focusObjectId == object)
+    }
+
+    @Test func failedPieceJPEGDoesNotAdvanceProgress() async {
+        let root = makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let recorder = RoomEvidenceRecorder(encoder: FakeEncoder(fails: true), rootDirectory: root)
+        let session = UUID(), object = UUID()
+        recorder.start(sessionID: session)
+        #expect(recorder.captureFocused(snapshot: frame(time: 0, x: 0), objectId: object, sessionID: session) { image() })
+        await recorder.waitUntilIdle()
+        #expect(recorder.completedPhotoCount(for: object) == 0)
+    }
+
+    @Test func pieceTrackingLossReleasesOldPhotosAndAllowsThreeNewViews() async throws {
+        let root = makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let recorder = RoomEvidenceRecorder(encoder: FakeEncoder(), rootDirectory: root)
+        recorder.discardInterruptedPhotos = true
+        let session = UUID(), object = UUID()
+        recorder.start(sessionID: session)
+        for i in 0..<3 {
+            #expect(recorder.captureFocused(snapshot: frame(time: Double(i), x: Float(i)), objectId: object,
+                                            sessionID: session) { image() })
+            await recorder.waitUntilIdle()
+        }
+        #expect(recorder.completedPhotoCount(for: object) == 3)
+        recorder.noteTrackingInterrupted(sessionID: session)
+        #expect(recorder.completedPhotoCount(for: object) == 0)
+        for i in 3..<6 {
+            #expect(recorder.captureFocused(snapshot: frame(time: Double(i), x: Float(i)), objectId: object,
+                                            sessionID: session) { image() })
+            await recorder.waitUntilIdle()
+        }
+        #expect(recorder.completedPhotoCount(for: object) == 3)
+        let photos = try await recorder.finish(sessionID: session)
+        #expect(photos.count == 3)
+        #expect(photos.allSatisfy { $0.trackingContinuous && $0.timestamp >= 3 })
+    }
+
     @Test func limitsCandidateCountAndBytes() async throws {
         let root = makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }

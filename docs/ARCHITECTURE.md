@@ -164,3 +164,21 @@ Commands: see `web/README.md` (`npm ci`, `npm run dev`, `typecheck`, `lint`, `te
 | `web/src/fixtures/assemblies/scannedSeating.ts` | Neutral approximate chair/loveseat/sofa geometry |
 | `web/src/domain/schema.ts`, `designStore.ts`, `commands.ts` | Embedded found-item evidence and appearance command in reversible room snapshots |
 | `web/.env.example`, `docs/ux/gemini-appearance.md` | Server-only configuration, privacy and verification limits |
+
+### Single-piece capture and import
+
+| Path | Purpose / public API |
+| --- | --- |
+| `ios/RoomFlow/Models/PieceSelection.swift` | Explicit target identity: `PieceSelection.select`, `allowsPhoto`, `finalID`; missing final identity requires rescan |
+| `ios/RoomFlow/Models/ScannedPiece.swift` | Portable single object, `Dimensions`, `Photo`, `ValidationError`, `validate`, `encoded`, `photo(from:)`, `uprightQuarterTurns`; meter dimensions, bounded upright JPEG, no world pose |
+| `ios/RoomFlow/Services/PieceArchiveStore.swift` | Atomic local saved exports: `shared`, `defaultRoot`, `init(root:)`, `save`, `url(for:)`, `list`; hashed names prevent traversal |
+| `ios/RoomFlow/Services/RoomScanService.swift` | `Mode.piece`, `pieceSelection`, `piecePhotoCount`, `selectFramedPiece`: opt-in target lock and focused-only photo capture |
+| `ios/RoomFlow/Services/RoomEvidenceRecorder.swift` | `completedPhotoCount(for:)` distinguishes encoded photos from pending capture attempts |
+| `ios/RoomFlow/Views/PieceScanView.swift` | Circular selection, guided views, processing and review of only the selected final object |
+| `ios/RoomFlow/Views/PieceReviewView.swift` | `PieceReviewView`, `SavedPiecesView`: measurement correction, photo sharing choice, save and repeatable share |
+| `ios/RoomFlow/Views/HomeView.swift`, `RoomScanView.swift` | Native entry points and reused `RoomCaptureViewContainer` |
+| `ios/RoomFlowTests/PieceSelectionTests.swift`, `ScannedPieceTests.swift` | Selection, identity loss, photo bounds/provenance, local persistence and transport tests |
+| `web/src/import/piece.ts` | `MAX_PIECE_BYTES`, `PiecePackage`, `parsePiece`, `verifyPiecePhotos`, `pieceAsset`, `pieceObject`: validated transport and deterministic placement |
+| `web/src/import/piece.test.ts` | Package bounds, invalid data, fresh placement IDs, isolated previews and reversible financial changes |
+| `web/src/ui/PieceImportDialog.tsx` | Revision-bound file loading, duplicate notice, local photo review and owned preview lifecycle |
+| `docs/piece-package.md`, `docs/plans/scan-piece.md` | New single-piece transport contract and approved implementation scope |

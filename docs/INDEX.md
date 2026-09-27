@@ -43,3 +43,6 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | PR template and CI | `.github/` |
 
 | Web — Gemini photos and furniture discoveries | `docs/ux/gemini-appearance.md`, `web/src/recognition/`, `web/server/` |
+
+| iOS — Scan a piece, local saved pieces and selected-object export | `ios/RoomFlow/Views/PieceScanView.swift`, `PieceReviewView.swift`, `ios/RoomFlow/Models/ScannedPiece.swift`, `ios/RoomFlow/Services/PieceArchiveStore.swift` |
+| Web — import one piece into an existing room | `web/src/import/piece.ts`, `web/src/ui/PieceImportDialog.tsx`, `docs/piece-package.md` |

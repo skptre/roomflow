@@ -1,5 +1,11 @@
 # Changelog
 
+### 2026-09-27 — iOS/web: scan and import a single furniture piece
+
+Added `PieceSelection` (`select`, `allowsPhoto`, `finalID`) and `RoomScanService.Mode.piece` with `selectFramedPiece`, `piecePhotoCount`, `pieceSelection`. Focused shots are recorded only for the chosen object; `RoomEvidenceRecorder.completedPhotoCount` drives saved-view progress. New `PieceScanView` reuses `RoomCaptureViewContainer`; `HomeView` exposes Scan a Piece and Saved Pieces. `ScannedPiece` (`Dimensions`, `Photo`, `validate`, `encoded`, `photo`, `uprightQuarterTurns`) creates bounded, metadata-stripped upright photo exports. `PieceArchiveStore` (`shared`, `defaultRoot`, `init`, `save`, `url(for:)`, `list`) retains files through canceled sharing. `PieceReviewView` and `SavedPiecesView` review/correct dimensions and choose photo inclusion.
+
+The new `web/src/import/piece.ts` exports `MAX_PIECE_BYTES`, `PiecePackage`, `parsePiece`, `verifyPiecePhotos`, `pieceAsset`, `pieceObject`. `PieceImportDialog`, `RoomPanel` and `Workspace` add a piece into the current room without replacing it, retain source measurement provenance, warn about duplicates, and keep preview/undo financially isolated. Unknown categories are placeholders and unknown price remains unknown. Contract: `docs/piece-package.md`. Existing room package contracts are unchanged. Physical-device capture remains a required validation step; this is approximate modeling, not object reconstruction.
+
 ### 2026-09-27 — integration: one combined local app
 
 Merged photo discovery, package import, automatic appearance matching, measured floors, closet/wall-art rendering and the existing iOS capture branch. Preserved preview-ownership fixes from main. Local preview now runs from the primary checkout on port 5173. No new native implementation changes.

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct HomeView: View {
     @State private var isScanning = false
+    @State private var isScanningPiece = false
     @State private var showUnsupported = false
     @State private var pendingScan: ScanCaptureResult?
     /// Opt-in: keep calibrated reference photos during the scan.
@@ -51,6 +52,15 @@ struct HomeView: View {
                     }
                     .buttonStyle(RFButtonStyle())
 
+                    Button("Scan a Piece", systemImage: "scope") {
+                        if RoomScanService.isSupported { isScanningPiece = true }
+                        else { showUnsupported = true }
+                    }
+                    .buttonStyle(RFButtonStyle(prominent: false))
+
+                    NavigationLink("Saved Pieces") { SavedPiecesView() }
+                        .font(.subheadline)
+
                     Toggle(isOn: $includeReferencePhotos) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Include reference photos")
@@ -91,6 +101,9 @@ struct HomeView: View {
                 pendingScan = result
                 isScanning = false
             }
+        }
+        .fullScreenCover(isPresented: $isScanningPiece) {
+            PieceScanView(capturePhotos: includeReferencePhotos)
         }
         .alert("Couldn't save this room", isPresented: $showSaveError) {
             Button("Retry") { Task { await saveAndOpenLatest() } }

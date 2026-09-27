@@ -198,3 +198,7 @@ high-sighting-count art pieces in one scan) that hasn't shown up as a real probl
 counted in the existing `omittedPhotoCount` rather than a new field, since it already means "a photo we would
 have liked to include didn't make it," and a second counter would fragment that one user-facing number for no
 real benefit.
+
+### 2026-09-27 — A piece is separate from its room
+
+Use existing RoomPlan measurements and explicit live object selection for the first native piece mode. Export only that object's dimensions and opted-in upright photos. Rejected: exporting a one-object room and passing it through loadRoom, which would replace the user's design; exporting raw surroundings; claiming full 3D reconstruction from reference views. A missing final RoomPlan ID requires rescan instead of silently choosing the nearest item. The separate piece format has no pose: the Designer places it in free space and records an approximate category shape. File import is local; Gemini remains an explicit photo action rather than an automatic upload. Durable native piece files make canceled sharing retryable without a new scan.

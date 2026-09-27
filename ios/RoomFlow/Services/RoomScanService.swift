@@ -38,6 +38,19 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
     /// False on the Simulator and on devices without LiDAR.
     static var isSupported: Bool { RoomCaptureSession.isSupported }
 
+    enum Mode { case room, piece }
+    var mode: Mode = .room
+    private(set) var pieceSelection = PieceSelection()
+    private(set) var piecePhotoCount = 0
+    @ObservationIgnored private var pieceShotPending = false
+
+    func selectFramedPiece() {
+        guard mode == .piece, state == .scanning, pieceSelection.selectedID == nil,
+              let hint = focusHint else { return }
+        pieceSelection.select(hint.objectId)
+        focusTracker.reset()
+    }
+
     private(set) var state: State = .idle
     private(set) var capturedRoom: CapturedRoom?
     /// Camera-sampled colors for `capturedRoom`; empty if sampling found nothing reliable.
@@ -95,6 +108,8 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
 
     func start() async {
         guard state == .idle else { return }
+        resetPieceProgress()
+        evidenceRecorder.discardInterruptedPhotos = mode == .piece
         guard Self.isSupported else {
             state = .failed(.unsupportedDevice)
             return
@@ -120,7 +135,7 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
                 .appendingPathComponent(sessionID.uuidString, isDirectory: true)
                 .appendingPathComponent("art", isDirectory: true)
             pendingWallArtDirectory = dir
-            wallArtScanner.reset(directory: dir)
+            if mode == .room { wallArtScanner.reset(directory: dir) }
         }
         state = .scanning
         liveObserver.install(on: captureView.captureSession)
@@ -139,6 +154,7 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
 
     /// Abandons the scan. Safe to call in any state.
     func cancel() {
+        resetPieceProgress()
         stopColorSampling()
         colorSampler.reset()
         evidenceRecorder.cancel(sessionID: sessionID)
@@ -153,6 +169,13 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         if state == .scanning || state == .processing {
             state = .idle
         }
+    }
+
+    private func resetPieceProgress() {
+        pieceSelection = PieceSelection()
+        piecePhotoCount = 0
+        pieceShotPending = false
+        focusTracker.reset()
     }
 
     // MARK: - RoomCaptureViewDelegate
@@ -187,7 +210,7 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         let artDirectory = pendingWallArtDirectory
         Task {
             let chosen = capturePhotos ? ((try? await evidenceRecorder.finish(sessionID: session)) ?? []) : []
-            let art = capturePhotos ? await wallArtScanner.finish(finalRoom: processedResult) : []
+            let art = capturePhotos && mode == .room ? await wallArtScanner.finish(finalRoom: processedResult) : []
             guard session == sessionID, state == .processing || state == .scanning else { return }
             photos = chosen
             wallArt = art
@@ -206,14 +229,14 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
             while !Task.isCancelled {
                 guard let self else { return }
                 if let frame = self.captureView.captureSession.arSession.currentFrame {
-                    if self.capturePhotos { self.updateFocus(with: frame) }
-                    if self.capturePhotos, self.sampleTick.isMultiple(of: 2) {
+                    if self.capturePhotos || self.mode == .piece { self.updateFocus(with: frame) }
+                    if self.capturePhotos, self.mode == .room, self.sampleTick.isMultiple(of: 2) {
                         self.wallArtScanner.process(frame: frame, surfaces: self.liveObserver.latestSurfaces(),
                                                     objects: self.liveObserver.latestObjects())
                     }
                     if self.sampleTick.isMultiple(of: 3) {
                         self.colorSampler.capture(frame)
-                        if self.capturePhotos {
+                        if self.capturePhotos, self.mode == .room {
                             self.evidenceRecorder.consider(frame: frame, sessionID: self.sessionID)
                         }
                     }
@@ -229,9 +252,15 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         let snapshot = RoomEvidenceRecorder.snapshot(of: frame)
         if !snapshot.trackingNormal {
             evidenceRecorder.noteTrackingInterrupted(sessionID: sessionID)
+            if mode == .piece {
+                piecePhotoCount = 0
+                focusTracker.reset()
+            }
         }
         let depthMap = (frame.sceneDepth ?? frame.smoothedSceneDepth)?.depthMap
-        let objects = liveObserver.latestObjects()
+        let allObjects = liveObserver.latestObjects()
+        let objects = mode == .piece && pieceSelection.selectedID != nil
+            ? allObjects.filter { $0.sourceId == pieceSelection.selectedID } : allObjects
         var hint: FocusHint?
         switch focusTracker.update(objects: objects, camera: snapshot,
                                    depthAt: { u, v in Self.depth(in: depthMap, u: u, v: v) }) {
@@ -241,7 +270,27 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
             hint = current
         case .shoot(let current):
             hint = current
-            if let object = objects.first(where: { $0.sourceId == current.objectId }),
+            if mode == .piece {
+                hint?.shotsTaken = piecePhotoCount
+                if capturePhotos, pieceSelection.allowsPhoto(for: current.objectId), !pieceShotPending,
+                   let object = objects.first(where: { $0.sourceId == current.objectId }) {
+                    let before = evidenceRecorder.completedPhotoCount(for: current.objectId)
+                    if evidenceRecorder.captureFocused(frame: frame, objectId: current.objectId, sessionID: sessionID) {
+                        pieceShotPending = true
+                        let session = sessionID
+                        Task {
+                            await evidenceRecorder.waitUntilIdle()
+                            guard session == sessionID, state == .scanning || state == .processing else { return }
+                            if evidenceRecorder.completedPhotoCount(for: current.objectId) > before {
+                                focusTracker.recordShot(objectId: current.objectId, cameraToWorld: snapshot.cameraToWorld,
+                                                        objectCenter: object.center)
+                                piecePhotoCount += 1
+                            }
+                            pieceShotPending = false
+                        }
+                    }
+                }
+            } else if let object = objects.first(where: { $0.sourceId == current.objectId }),
                evidenceRecorder.captureFocused(frame: frame, objectId: current.objectId, sessionID: sessionID) {
                 focusTracker.recordShot(objectId: current.objectId, cameraToWorld: snapshot.cameraToWorld,
                                         objectCenter: object.center)

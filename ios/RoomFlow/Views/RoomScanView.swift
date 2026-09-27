@@ -103,7 +103,7 @@ struct RoomScanView: View {
 }
 
 /// Hosts the service-owned RoomCaptureView so SwiftUI re-renders never recreate the AR view.
-private struct RoomCaptureViewContainer: UIViewRepresentable {
+struct RoomCaptureViewContainer: UIViewRepresentable {
     let captureView: RoomCaptureView
 
     func makeUIView(context: Context) -> RoomCaptureView { captureView }
