@@ -30,6 +30,37 @@ struct WallArtDetectorTests {
         return [p(x0, y1), p(x1, y1), p(x1, y0), p(x0, y0)]
     }
 
+    /// `camera(at:)` held upright in portrait: the landscape sensor pose rolled `degrees` about its own
+    /// viewing (Z) axis, same position. −90° is how ARKit reports an upright phone: sensor +X points down,
+    /// sensor +Y points right.
+    private func portraitCamera(at position: SIMD3<Float> = [0, 1.5, 0], degrees: Float = -90) -> PhotoFrameSnapshot {
+        var snapshot = camera(at: position)
+        let a = degrees * .pi / 180
+        var roll = matrix_identity_float4x4
+        roll.columns.0 = SIMD4(cos(a), sin(a), 0, 0)
+        roll.columns.1 = SIMD4(-sin(a), cos(a), 0, 0)
+        snapshot.cameraToWorld = snapshot.cameraToWorld * roll
+        return snapshot
+    }
+
+    /// Normalized, top-left-origin image point of world point `world` seen from `pose` (same intrinsics as
+    /// `camera()`).
+    private func project(world: SIMD3<Float>, pose: simd_float4x4) -> SIMD2<Float> {
+        let p = pose.inverse * SIMD4(world, 1)
+        return SIMD2((960 + 1500 * p.x / -p.z) / 1920, (720 - 1500 * p.y / -p.z) / 1440)
+    }
+
+    /// Image quad (in image order TL, TR, BR, BL, as Vision reports it) of the world rectangle x0…x1,
+    /// y0…y1 at depth z, seen from `pose`.
+    private func imageQuad(x0: Float, x1: Float, y0: Float, y1: Float, z: Float = -3, pose: simd_float4x4) -> [SIMD2<Float>] {
+        let points = [SIMD3(x0, y1, z), SIMD3(x1, y1, z), SIMD3(x1, y0, z), SIMD3(x0, y0, z)].map { project(world: $0, pose: pose) }
+        let tl = points.min { $0.x + $0.y < $1.x + $1.y }!
+        let br = points.max { $0.x + $0.y < $1.x + $1.y }!
+        let tr = points.max { $0.x - $0.y < $1.x - $1.y }!
+        let bl = points.min { $0.x - $0.y < $1.x - $1.y }!
+        return [tl, tr, br, bl]
+    }
+
     private let flush: (Float, Float) -> Float? = { _, _ in 3.0 }
     private let noDepth: (Float, Float) -> Float? = { _, _ in nil }
 
@@ -78,6 +109,24 @@ struct WallArtDetectorTests {
         t.columns.3 = SIMD4(0, 1.4, -2.95, 1)
         let tv = LiveObject(sourceId: UUID(), category: "television", transform: t, dimensions: [1.0, 0.6, 0.08], center: [0, 1.4, -2.95])
         #expect(WallArtDetector.judge(quad: q, camera: camera(), surfaces: [wall()], objects: [tv], depthAt: noDepth) == .rejected(.overlapsTV))
+    }
+
+    @Test(arguments: [Float(-90), Float(90)])
+    func portraitFlushArtIsMeasuredInRoomOrientation(degrees: Float) {
+        let c = portraitCamera(degrees: degrees)
+        let q = imageQuad(x0: -0.3, x1: 0.3, y0: 1.2, y1: 1.6, pose: c.cameraToWorld)
+        let verdict = WallArtDetector.judge(quad: q, camera: c, surfaces: [wall()], objects: [], depthAt: flush)
+        guard case .sighting(let s) = verdict else { Issue.record("expected sighting, got \(verdict)"); return }
+        #expect(abs(s.width - 0.6) < 0.01)
+        #expect(abs(s.height - 0.4) < 0.01)
+        #expect(simd_distance(s.corners[0], [-0.3, 1.6, -3]) < 0.01) // upper-left as seen in the room
+        #expect(simd_distance(s.corners[2], [0.3, 1.2, -3]) < 0.01)
+    }
+
+    @Test func portraitSixteenByNineIsLikelyTV() {
+        let c = portraitCamera()
+        let q = imageQuad(x0: -0.445, x1: 0.445, y0: 1.2, y1: 1.7, pose: c.cameraToWorld)
+        #expect(WallArtDetector.judge(quad: q, camera: c, surfaces: [wall()], objects: [], depthAt: noDepth) == .rejected(.likelyTV))
     }
 
     @Test func rectangleHangingOffTheEdgeOfAWallIsRejected() {

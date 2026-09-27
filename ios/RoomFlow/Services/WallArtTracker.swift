@@ -4,7 +4,7 @@ import simd
 /// Groups `WallArtSighting`s seen across a scan by position/orientation, decides which groups are
 /// confirmed (seen enough, from different-enough spots to triangulate), and attaches confirmed groups to
 /// the final room's walls to produce `WallArtItem`s. Pure/deterministic; no I/O, no model inference.
-/// See `.superpowers/sdd/2026-09-26-wall-art-detection/task-2-brief.md` for the rule derivation.
+/// See `docs/superpowers/plans/2026-09-26-wall-art-detection.md` for the rule derivation.
 nonisolated struct WallArtTracker {
     /// One candidate piece of art: sightings judged to be the same physical rectangle.
     private struct Group {
@@ -13,6 +13,18 @@ nonisolated struct WallArtTracker {
         var meanNormal: SIMD3<Float> = .zero
         /// Best `frontality × width × height` seen so far in this group.
         var bestScore: Float = 0
+    }
+
+    /// A confirmed group placed on a final wall, in that wall's local frame (meters), before merging.
+    private struct Placed {
+        var wall: LiveSurface
+        var centerX: Double
+        var centerY: Double
+        var width: Double
+        var height: Double
+        var standoff: Double
+        var sightingCount: Int
+        var groupIndices: [Int]
     }
 
     private var groups: [Group] = []
@@ -49,6 +61,11 @@ nonisolated struct WallArtTracker {
         return (groups.count - 1, true)
     }
 
+    /// Sightings currently held by `group` (a tracker group index from `add`); 0 for an unknown index.
+    func sightingCount(group: Int) -> Int {
+        groups.indices.contains(group) ? groups[group].sightings.count : 0
+    }
+
     /// Number of groups with ≥3 sightings whose camera positions span ≥0.2 m (enough to triangulate,
     /// not just repeated frames from one spot).
     var confirmedCount: Int {
@@ -61,17 +78,6 @@ nonisolated struct WallArtTracker {
     /// overlap or sit within 0.10 m are then merged (union box; standoff = max; sightingCount = sum;
     /// `groups` = the union of contributing group indices, sorted). Fresh `UUID()`s; `photoFileName` nil.
     func finalize(walls: [LiveSurface]) -> [(item: WallArtItem, groups: [Int])] {
-        struct Placed: PlacedBoxLike {
-            var wall: LiveSurface
-            var centerX: Double
-            var centerY: Double
-            var width: Double
-            var height: Double
-            var standoff: Double
-            var sightingCount: Int
-            var groupIndices: [Int]
-        }
-
         var placed: [Placed] = []
         for (index, group) in groups.enumerated() where isConfirmed(group) {
             let centers = group.sightings.map(\.center)
@@ -159,7 +165,7 @@ nonisolated struct WallArtTracker {
         return sorted.count.isMultiple(of: 2) ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
     }
 
-    private func boxesOverlapOrClose<T>(_ a: T, _ b: T, margin: Double) -> Bool where T: PlacedBoxLike {
+    private func boxesOverlapOrClose(_ a: Placed, _ b: Placed, margin: Double) -> Bool {
         let (ax0, ax1) = (a.centerX - a.width / 2, a.centerX + a.width / 2)
         let (ay0, ay1) = (a.centerY - a.height / 2, a.centerY + a.height / 2)
         let (bx0, bx1) = (b.centerX - b.width / 2, b.centerX + b.width / 2)
@@ -167,7 +173,7 @@ nonisolated struct WallArtTracker {
         return ax0 <= bx1 + margin && bx0 <= ax1 + margin && ay0 <= by1 + margin && by0 <= ay1 + margin
     }
 
-    private func union<T: PlacedBoxLike>(_ a: T, _ b: T) -> T {
+    private func union(_ a: Placed, _ b: Placed) -> Placed {
         let x0 = min(a.centerX - a.width / 2, b.centerX - b.width / 2)
         let x1 = max(a.centerX + a.width / 2, b.centerX + b.width / 2)
         let y0 = min(a.centerY - a.height / 2, b.centerY - b.height / 2)
@@ -182,15 +188,4 @@ nonisolated struct WallArtTracker {
         result.groupIndices = a.groupIndices + b.groupIndices
         return result
     }
-}
-
-/// Shared shape for the wall-local box math used while merging finalized items.
-private protocol PlacedBoxLike {
-    var centerX: Double { get set }
-    var centerY: Double { get set }
-    var width: Double { get set }
-    var height: Double { get set }
-    var standoff: Double { get set }
-    var sightingCount: Int { get set }
-    var groupIndices: [Int] { get set }
 }

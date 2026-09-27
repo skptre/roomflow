@@ -44,10 +44,14 @@ nonisolated final class WallArtScanner: @unchecked Sendable {
     private let lock = NSLock()
     private var busy = false
     private var tracker = WallArtTracker()
-    /// Best crop per tracker group index; capped at 16 distinct groups (existing entries can still be
-    /// replaced by a better sighting of the same group).
+    /// Best crop per tracker group index; at most 16 slots. Existing entries can be replaced by a better
+    /// sighting of the same group; when full, the slot of the group with the fewest sightings is evicted for
+    /// a group seen at least as often (see `slotDecision`).
     private var bestImages: [Int: ScoredImage] = [:]
     private var directory: URL?
+    /// Bumped by `reset`/`discard`; a queued frame started under an older generation drops its results so
+    /// a stale sighting never lands in the new scan's tracker.
+    private var generation = 0
 
     init(encoder: any PhotoEncoding = ImageIOPhotoEncoder()) {
         self.encoder = encoder
@@ -60,9 +64,22 @@ nonisolated final class WallArtScanner: @unchecked Sendable {
         tracker = WallArtTracker()
         bestImages = [:]
         self.directory = directory
+        generation += 1
         busy = false
         lock.unlock()
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    }
+
+    /// Abandons the current scan (cancel or failure): releases every tracked sighting and held crop, and
+    /// makes any frame still being analyzed drop its results. `finish` afterwards returns no items.
+    func discard() {
+        lock.lock()
+        tracker = WallArtTracker()
+        bestImages = [:]
+        directory = nil
+        generation += 1
+        busy = false
+        lock.unlock()
     }
 
     /// Analyzes `frame` unless the previous frame is still being analyzed, or tracking isn't normal, or
@@ -74,6 +91,7 @@ nonisolated final class WallArtScanner: @unchecked Sendable {
         lock.lock()
         if busy { lock.unlock(); return }
         busy = true
+        let startGeneration = generation
         lock.unlock()
 
         nonisolated(unsafe) let image = frame.capturedImage
@@ -81,7 +99,7 @@ nonisolated final class WallArtScanner: @unchecked Sendable {
         let snapshot = RoomEvidenceRecorder.snapshot(of: frame)
 
         queue.async { [self] in
-            defer { lock.lock(); busy = false; lock.unlock() }
+            defer { lock.lock(); if generation == startGeneration { busy = false }; lock.unlock() }
             let request = VNDetectRectanglesRequest()
             request.maximumObservations = 8
             request.minimumSize = 0.1
@@ -100,19 +118,33 @@ nonisolated final class WallArtScanner: @unchecked Sendable {
                 guard case .sighting(let sighting) = verdict else { continue }
 
                 lock.lock()
+                guard generation == startGeneration else { lock.unlock(); return }
                 let (group, isNewBest) = tracker.add(sighting)
+                let wanted = isNewBest && slotDecision(for: group) != nil
                 lock.unlock()
-                guard isNewBest else { continue }
-                guard let cropped = Self.straightOnCrop(pixelBuffer: image, quad: quad) else { continue }
+                guard wanted else { continue }
+                // `sighting.quad` is in room order, so the crop comes out upright even in portrait.
+                guard let cropped = Self.straightOnCrop(pixelBuffer: image, quad: sighting.quad) else { continue }
 
                 let score = sighting.frontality * sighting.width * sighting.height
                 lock.lock()
-                if bestImages[group] != nil || bestImages.count < 16 {
+                if generation == startGeneration, let decision = slotDecision(for: group) {
+                    if let evict = decision { bestImages[evict] = nil }
                     bestImages[group] = ScoredImage(image: cropped, score: score)
                 }
                 lock.unlock()
             }
         }
+    }
+
+    /// Whether `group` may store a crop, and which slot to evict for it. Caller holds `lock`. Returns
+    /// `.some(nil)` when it already has a slot or one is free; `.some(key)` to evict the slot of the group
+    /// with the fewest sightings when all 16 are taken and `group` has at least as many; `nil` otherwise.
+    private func slotDecision(for group: Int) -> Int?? {
+        if bestImages[group] != nil || bestImages.count < 16 { return .some(nil) }
+        guard let weakest = bestImages.keys.min(by: { tracker.sightingCount(group: $0) < tracker.sightingCount(group: $1) }),
+              tracker.sightingCount(group: group) >= tracker.sightingCount(group: weakest) else { return nil }
+        return .some(weakest)
     }
 
     /// Number of tracker groups confirmed so far (seen enough, from different-enough spots).
@@ -160,8 +192,9 @@ nonisolated final class WallArtScanner: @unchecked Sendable {
 
     private static let context = CIContext()
 
-    /// A straight-on crop of the rectangle `quad` (normalized, top-left-origin corners: top-left,
-    /// top-right, bottom-right, bottom-left) from `pixelBuffer`, undoing its perspective with
+    /// A straight-on crop of the rectangle `quad` (normalized, top-left-origin image points that become the
+    /// crop's top-left, top-right, bottom-right, bottom-left — pass room-ordered points for an upright
+    /// crop) from `pixelBuffer`, undoing its perspective with
     /// `CIPerspectiveCorrection`, scaled so its long edge is at most 1024 px. Core Image's origin is
     /// bottom-left, so a normalized top-left-origin point `(u, v)` becomes pixel `(u·W, H − v·H)`.
     private static func straightOnCrop(pixelBuffer: CVPixelBuffer, quad: [SIMD2<Float>]) -> CGImage? {

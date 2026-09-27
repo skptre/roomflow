@@ -18,6 +18,8 @@ struct RoomEvidenceReviewView: View {
     @State private var saveError: String?
     @State private var wallArtItems: [WallArtItem]
     @State private var wallArtSaveError: String?
+    /// True once the user removed a wall-art item in this view, so a late `loadSavedChoices` can't restore it.
+    @State private var wallArtEdited = false
 
     init(captureID: UUID, room: RoomModel, photos: [RoomPhotoEvidence], associations: [RoomPhotoAssociation],
          wallArt: [WallArtItem] = [], wallArtDirectory: URL? = nil, store: RoomArchiveStore = .shared) {
@@ -273,6 +275,7 @@ struct RoomEvidenceReviewView: View {
 
     private func removeWallArt(_ item: WallArtItem) {
         wallArtItems.removeAll { $0.id == item.id }
+        wallArtEdited = true
         persistWallArt()
     }
 
@@ -293,7 +296,8 @@ struct RoomEvidenceReviewView: View {
     private func loadSavedChoices() async {
         if let archive = try? await store.load(id: captureID) {
             selection = archive.selection
-            wallArtItems = archive.wallArt
+            // A removal made here before the load finished wins over the (older) saved list.
+            if !wallArtEdited { wallArtItems = archive.wallArt }
         }
     }
 
