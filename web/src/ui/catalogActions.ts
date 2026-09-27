@@ -5,7 +5,7 @@
  */
 import { placementCommands, type CatalogEntry, type PlacementTarget } from '../domain/catalog'
 import type { Command } from '../domain/commands'
-import { designStore } from '../domain/designStore'
+import { designStore, type Preview } from '../domain/designStore'
 import { noticeStore } from './noticeStore'
 
 export type PreviewOutcome = { ok: true } | { ok: false; reason: 'no-space' | 'no-room' | 'refused'; message: string }
@@ -14,6 +14,7 @@ export type PreviewOutcome = { ok: true } | { ok: false; reason: 'no-space' | 'n
 let previewOwner: string | null = null
 /** What exactly the live preview shows (card, variant, target, quantity); a commit reuses it only on an exact match. */
 let previewKey: string | null = null
+let previewSnapshot: Preview | null = null
 
 function keyFor(owner: string, entry: CatalogEntry, target: PlacementTarget, quantity: number): string {
   return JSON.stringify([owner, entry.variant.id, target, quantity])
@@ -48,19 +49,18 @@ export function previewEntry(
   }
   previewOwner = owner
   previewKey = keyFor(owner, entry, target, quantity)
+  previewSnapshot = designStore.getState().preview
   return { ok: true }
 }
 
 export function endPreview(owner: string) {
   if (previewOwner !== owner) return
-  previewOwner = null
-  previewKey = null
-  designStore.getState().cancelPreview()
+  cancelCatalogPreview()
 }
 
 /** Drop whatever catalog preview is showing (e.g. the selection it was built for changed). */
 export function endAnyPreview() {
-  if (previewOwner) endPreview(previewOwner)
+  cancelCatalogPreview()
 }
 
 /** Commit the entry: reuse the live preview when it is this card's, otherwise apply fresh commands. */
@@ -68,7 +68,7 @@ export function placeEntry(owner: string, entry: CatalogEntry, target: Placement
   const state = designStore.getState()
   let result
   let commands
-  if (previewKey === keyFor(owner, entry, target, quantity) && state.preview) {
+  if (previewKey === keyFor(owner, entry, target, quantity) && state.preview === previewSnapshot && state.preview) {
     commands = state.preview.commands
     result = state.commitPreview()
   } else {
@@ -84,6 +84,7 @@ export function placeEntry(owner: string, entry: CatalogEntry, target: Placement
   }
   previewOwner = null
   previewKey = null
+  previewSnapshot = null
   if (!result.ok) {
     noticeStore.getState().show(result.error, 'danger')
     return false
@@ -98,10 +99,13 @@ export function placeEntry(owner: string, entry: CatalogEntry, target: Placement
 
 /** Dismiss an explicit preview when leaving its browsing context. */
 export function cancelCatalogPreview() {
+  const owned = previewSnapshot
   previewOwner = null
-  designStore.getState().cancelPreview()
+  previewKey = null
+  previewSnapshot = null
+  if (owned && designStore.getState().preview === owned) designStore.getState().cancelPreview()
 }
 
 export function ownsPreview(owner: string): boolean {
-  return previewOwner === owner
+  return previewOwner === owner && designStore.getState().preview === previewSnapshot
 }
