@@ -55,6 +55,10 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
     @ObservationIgnored private var sessionID = UUID()
     /// Live detected objects during a scan; see LiveRoomObserver.
     @ObservationIgnored private let liveObserver = LiveRoomObserver()
+    #if DEBUG
+    /// SPIKE: logs rectangles that may be wall art; see `WallArtSpike`.
+    @ObservationIgnored private let wallArtSpike = WallArtSpike()
+    #endif
 
     /// The furniture currently framed and its photo progress; nil unless photo capture is on and something is framed.
     private(set) var focusHint: FocusHint?
@@ -104,6 +108,9 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         if capturePhotos { evidenceRecorder.start(sessionID: sessionID) }
         state = .scanning
         liveObserver.install(on: captureView.captureSession)
+        #if DEBUG
+        wallArtSpike.reset()
+        #endif
         captureView.captureSession.run(configuration: RoomCaptureSession.Configuration())
         startColorSampling()
     }
@@ -157,6 +164,9 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         colorSampler.reset()
         capturedRoom = processedResult
         liveObserver.logFinalOverlap(with: processedResult)
+        #if DEBUG
+        wallArtSpike.logSummary(finalRoom: processedResult)
+        #endif
         // Photos are optional: any problem finishing them leaves an empty list, never a failed scan.
         let session = sessionID
         Task {
@@ -178,6 +188,12 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
                 guard let self else { return }
                 if let frame = self.captureView.captureSession.arSession.currentFrame {
                     if self.capturePhotos { self.updateFocus(with: frame) }
+                    #if DEBUG
+                    if self.sampleTick.isMultiple(of: 2) {
+                        self.wallArtSpike.process(frame: frame, surfaces: self.liveObserver.latestSurfaces(),
+                                                  objects: self.liveObserver.latestObjects())
+                    }
+                    #endif
                     if self.sampleTick.isMultiple(of: 3) {
                         self.colorSampler.capture(frame)
                         if self.capturePhotos {

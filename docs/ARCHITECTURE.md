@@ -65,7 +65,8 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | File | Purpose | Key types / functions |
 | --- | --- | --- |
 | `RoomScanService.swift` | Owns RoomCaptureView/session; permission, state machine, 250 ms loop: focus hints every tick, colors + ambient photos every third | `RoomScanService` (`State`, `Failure`, `isSupported`, `capturePhotos`, `start()`, `finish()`, `cancel()`, `capturedRoom`, `colorEstimates`, `photos`, `focusHint`) |
-| `LiveRoomObserver.swift` | Live-object feed: forwards every session callback to the previous delegate, keeps the newest detected objects; debug-only logging | `LiveRoomObserver` (`install(on:)`, `latestObjects()`, `logFinalOverlap(with:)`) |
+| `LiveRoomObserver.swift` | Live-object feed: forwards every session callback to the previous delegate, keeps the newest detected objects; debug-only logging | `LiveRoomObserver` (`install(on:)`, `latestObjects()`, `latestSurfaces()` (`LiveSurface`), `logFinalOverlap(with:)`) |
+| `WallArtSpike.swift` | SPIKE, DEBUG only: logs rectangles in camera frames that land on a scanned wall and pass depth/size/opening/TV checks, grouped per wall | `WallArtSpike` (`reset()`, `process(frame:surfaces:objects:)`, `logSummary(finalRoom:)`) |
 | `RoomPlanFileExport.swift` | Raw export: exactly `JSONEncoder().encode(CapturedRoom)` | `encode(_:) -> RawCapture`, `export(_:directory:)`, `write(data:roomID:directory:)`, `fileName(roomID:)` |
 | `RoomArchiveStore.swift` | Saved rooms in Application Support; staging + rename publish | actor `RoomArchiveStore` (`shared`, `saveCapture(id:rawData:editableData:photos:appearance:…)`, `saveEdits`, `saveSelection`, `load(id:)`, `list()`, `ArchiveError`) |
 | `RoomPlanConverter.swift` | Only reader of `CapturedRoom` into RoomModel | `RoomPlanConverter.convert(_:colors:capturedAt:)` |

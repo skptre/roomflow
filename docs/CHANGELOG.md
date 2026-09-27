@@ -5,6 +5,14 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### iOS: spike: log possible wall art during scanning
+- New `ios/RoomFlow/Services/WallArtSpike.swift` (DEBUG only): `WallArtSpike` (`reset()`, `process(frame:surfaces:objects:)`,
+  `logSummary(finalRoom:)`). Vision rectangle detection every 500 ms; corners cast onto live walls; rejects by LiDAR depth
+  in front, size, door/window/opening or TV overlap; groups accepted sightings per wall. Logs only (category `WallArt`).
+- `LiveRoomObserver.swift`: new `LiveSurface` and `latestSurfaces()` (live walls, doors, windows, openings).
+- `RoomScanService.swift`: calls the spike under `#if DEBUG`.
+- Why: RoomPlan has no category for paintings; this checks on a real room whether rectangle + wall geometry finds them.
+
 ### iOS: furniture-aware photos — review fixes
 - `ios/RoomFlow/Services/RoomScanService.swift`: sampling loop now calls `updateFocus(with:)` before the
   every-third-tick ambient-color/photo block, so an ambient encode starting first can no longer make the same
