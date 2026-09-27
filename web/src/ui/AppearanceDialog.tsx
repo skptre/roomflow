@@ -143,7 +143,7 @@ export function AppearanceDialog({ object, onClose }: { object?: RoomObject; onC
           <h3>{result.data.appearance.template === 'unsupported' ? 'No close match yet' : 'Your approximate match'}</h3>
           <p>{result.data.appearance.explanation}</p>
           <p>Visual confidence: {result.data.appearance.confidence}. Patterns and small details are simplified.</p>
-          {object && result.data.appearance.template !== 'unsupported' && <FurnitureThumbnail asset={appearanceAsset(result.data.appearance)} dimensions={object.dimensions} />}
+          {object && result.data.appearance.template !== 'unsupported' && <FurnitureThumbnail asset={appearanceAsset(result.data.appearance)} category={object.category} dimensions={object.dimensions} />}
           <p className="appearance-disclosure">{result.data.usage.inputTokens} input / {result.data.usage.outputTokens} output tokens · {result.data.usage.estimatedCostUsd === null ? 'Cost unavailable' : `Estimated API cost $${result.data.usage.estimatedCostUsd.toFixed(5)}`}</p>
           {object && (stale ? <p role="status">Your room changed. Analyze again before applying a match.</p> : result.data.appearance.template !== 'unsupported' && <div className="appearance-actions">
             <button className="studio-secondary" onClick={isPreviewing ? clearPreview : showPreview}>{isPreviewing ? 'Cancel preview' : 'Preview in room'}</button>

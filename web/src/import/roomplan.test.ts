@@ -110,7 +110,7 @@ describe('parseRoomPlanJson — synthetic bedroom', () => {
       keep: true,
       lockPlacement: false,
       quantity: 1,
-      asset: { kind: 'parametric', assemblyId: 'bed' },
+      asset: { kind: 'recipe', recipeId: 'default:bed' },
     })
     expect(bed.dimensions.source).toBe('captured')
   })
@@ -393,7 +393,7 @@ describe('parseRoomPlanJson — built-in closets', () => {
     const closets = room.objects.filter((o) => o.category === 'closet')
     expect(closets).toHaveLength(1)
     const closet = closets[0]!
-    expect(closet).toMatchObject({ id: 'OBJ-CLOSET', name: 'Closet', keep: true, lockPlacement: true, asset: { kind: 'parametric', assemblyId: 'closet-front' } })
+    expect(closet).toMatchObject({ id: 'OBJ-CLOSET', name: 'Closet', keep: true, lockPlacement: true, asset: { kind: 'recipe', recipeId: 'default:closet' } })
     expect(closet.dimensions).toMatchObject({ width: 1.3, height: 2.2, depth: 0.04, source: 'captured' })
     // West wall is at app x = -2; the back touches it and the front faces +x (into the room).
     expect(closet.pose.position.x).toBeCloseTo(-2 + 0.02 + 0.002, 4)
@@ -422,7 +422,7 @@ describe('parseRoomPlanJson — built-in closets', () => {
     for (const id of ['OBJ-STORAGE', 'OBJ-WARDROBE']) {
       const object = room.objects.find((o) => o.id === id)!
       expect(object.category).toBe('storage')
-      expect(object.asset).toEqual({ kind: 'parametric', assemblyId: 'dresser' })
+      expect(object.asset).toEqual({ kind: 'recipe', recipeId: 'default:storage' })
       expect(object.lockPlacement).toBe(false)
     }
     expect(warnings.join(' ')).not.toMatch(/closet/)

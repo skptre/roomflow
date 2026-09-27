@@ -9,6 +9,7 @@
  * meters and a right-handed, Y-up frame, so only a translation is applied.
  */
 import { z } from 'zod'
+import { recipeAsset } from '../blocks/registry'
 import { pointInPolygon } from '../domain/geometry'
 import { inwardNormal } from '../domain/layout'
 import { Room, type AssetRef, type Opening, type RoomObject, type Vec2, type Wall } from '../domain/schema'
@@ -76,18 +77,6 @@ const OBJECT_CATEGORIES: Record<string, string> = {
   television: 'television',
   toilet: 'toilet',
   washerDryer: 'washer-dryer',
-}
-
-/**
- * Closest parametric template for a captured category. Assemblies are authored
- * in src/fixtures/assemblies; anything unmapped renders as a sized placeholder.
- */
-const TEMPLATE_FOR_CATEGORY: Record<string, string> = {
-  bed: 'bed',
-  table: 'desk',
-  chair: 'desk-chair',
-  sofa: 'sofa',
-  storage: 'dresser',
 }
 
 /** Lookup that ignores inherited keys: scan text like "constructor" must never match Object.prototype. */
@@ -381,7 +370,7 @@ function closetOnWall(
         // Local +Z (the front) turns to (sin yaw, cos yaw): face along the inward normal.
         yaw: Math.atan2(normal.x, normal.z),
       },
-      asset: { kind: 'parametric', assemblyId: 'closet-front' },
+      asset: recipeAsset('closet'),
       fidelity: 'approximate',
       quantity: 1,
       keep: true,
@@ -547,8 +536,8 @@ export function parseRoomPlanJson(text: string, options: ImportOptions = {}): Im
     if (isLowConfidence(surface.confidence)) lowConfidence += 1
 
     const pose = poseFromColumnMajor(flatten(surface.transform), height)
-    const templateId = category ? own(TEMPLATE_FOR_CATEGORY, category) : undefined
-    const asset: AssetRef = templateId ? { kind: 'parametric', assemblyId: templateId } : { kind: 'placeholder' }
+    // Captured furniture is drawn with its category's default block recipe; anything else stays a sized box.
+    const asset: AssetRef = category ? recipeAsset(category) : { kind: 'placeholder' }
     const appCategory = category ?? 'unknown'
     objects.push({
       id: surface.identifier,

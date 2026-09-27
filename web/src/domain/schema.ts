@@ -70,10 +70,15 @@ export type Opening = z.infer<typeof Opening>
 
 export const AssetRef = z.discriminatedUnion('kind', [
   z.object({
-    kind: z.literal('parametric'),
-    assemblyId: Id,
-    /** Color swaps for a finish variant or a photographed item's tint: { '#authored': '#shown' } (lowercase). */
-    recolor: z.record(HexColor, HexColor).optional(),
+    kind: z.literal('recipe'),
+    /** A block recipe (src/blocks): a product's own, or `default:<category>`. */
+    recipeId: Id,
+    /** Color per material slot for this variant or photographed item ({ upholstery: '#4a4b4d' }). */
+    colors: z.record(z.string().min(1).max(64), HexColor).optional(),
+    /** This variant's block choices where they differ from the recipe's ("Arm Style: Round"). */
+    blocks: z.record(z.string().min(1).max(64), z.string().min(1).max(64)).optional(),
+    /** This variant's own photo, for families that show one (a rug colorway). https only. */
+    imageUrl: z.url({ protocol: /^https$/ }).optional(),
   }),
   z.object({ kind: z.literal('glb'), url: z.string().min(1), attribution: z.string().optional() }),
   z.object({ kind: z.literal('placeholder') }),
@@ -177,6 +182,16 @@ export const Product = z.object({
   category: z.string().min(1),
   tags: z.array(z.string()),
   images: z.array(z.string()).optional(),
+  /** Brand as the store lists it. */
+  vendor: z.string().optional(),
+  /** Display name of the store the listing came from. */
+  store: z.string().optional(),
+  /** The product's page at that store. */
+  url: z.url().optional(),
+  /** Main product photo (store CDN). */
+  imageUrl: z.url().optional(),
+  /** The store's option names in order ("Fabric", "Leg Finish"); variants carry the values. */
+  optionNames: z.array(z.string()).optional(),
 })
 export type Product = z.infer<typeof Product>
 
@@ -187,6 +202,10 @@ export const Variant = z.object({
   label: z.string(),
   dimensions: Dimensions,
   asset: AssetRef,
+  /** This variant's value for each of the product's optionNames. */
+  optionValues: z.array(z.string()).optional(),
+  /** Photo of this variant (store CDN). */
+  imageUrl: z.url().optional(),
 })
 export type Variant = z.infer<typeof Variant>
 
@@ -199,5 +218,9 @@ export const Offer = z.object({
   price: Money.nullable(),
   retrievedAt: IsoTimestamp,
   isSample: z.boolean(),
+  /** In stock at retrievedAt; absent = not reported. */
+  available: z.boolean().optional(),
+  /** Hostname the offer was read from (the only host a refresh may contact). */
+  sourceStore: z.string().optional(),
 })
 export type Offer = z.infer<typeof Offer>

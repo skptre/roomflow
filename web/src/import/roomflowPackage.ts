@@ -8,6 +8,7 @@
  * Optional `wallArt.json` adds wall art the phone measured (format: .superpowers/sdd/wall-art-package/format.md).
  */
 import { z } from 'zod'
+import { recipeAsset } from '../blocks/registry'
 import { Room, type RoomObject } from '../domain/schema'
 import type { Vec3 } from '../domain/units'
 import { parseRoomPlanJson, type ImportOptions } from './roomplan'
@@ -164,7 +165,7 @@ function wallArtObject(item: WallArtItem, nativeToApp: Vec3): RoomObject {
       position: { x: mid.x + nativeToApp.x, y: cy + nativeToApp.y - item.height / 2, z: mid.z + nativeToApp.z },
       yaw: Math.atan2(n.x, n.z),
     },
-    asset: { kind: 'parametric', assemblyId: 'wall-art' },
+    asset: recipeAsset('wall-art'),
     fidelity: 'approximate',
     quantity: 1,
     keep: true,

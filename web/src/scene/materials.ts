@@ -1,30 +1,16 @@
 /**
- * Shared look resources.
- *
- * Textures: procedural, meter-scaled detail patterns. Each is a light grayscale
- * pattern that multiplies a material's color, generated once and shared. UVs
- * are in meters (one tile = 1 m), so grain never stretches with object size.
- *
- * Materials: one shared material per (kind, color, texture) so every imported,
- * authored, or generated part is lit and shaded the same way.
+ * Procedural, meter-scaled detail textures for the room shell (floor boards,
+ * wall plaster). Each is a light grayscale pattern that multiplies a
+ * material's color, generated once and shared. UVs are in meters (one tile =
+ * 1 m), so grain never stretches with room size. Furniture is drawn from
+ * blocks with flat colors (src/blocks/materials.ts).
  */
-import {
-  CanvasTexture,
-  LinearMipmapLinearFilter,
-  MeshPhysicalMaterial,
-  MeshStandardMaterial,
-  RepeatWrapping,
-  SRGBColorSpace,
-  type Material,
-  type Texture,
-} from 'three'
-import type { PartMaterial, PartTexture } from '../domain/assembly'
+import { CanvasTexture, LinearMipmapLinearFilter, RepeatWrapping, SRGBColorSpace, type Texture } from 'three'
 
-export type TextureKind = Exclude<PartTexture, 'plain'>
+export type TextureKind = 'woodgrain' | 'plaster'
 
 const SIZE = 256
 const textures = new Map<TextureKind, Texture>()
-const materials = new Map<string, Material>()
 
 /** Small deterministic PRNG so textures look the same on every load. */
 function random(seed: number): () => number {
@@ -80,49 +66,9 @@ function drawPlaster(ctx: CanvasRenderingContext2D) {
   }
 }
 
-function drawWeave(ctx: CanvasRenderingContext2D) {
-  const rand = random(19)
-  gray(ctx, 0.95)
-  ctx.fillRect(0, 0, SIZE, SIZE)
-  // Basket weave: ~64 threads per meter in both directions, alternating over/under.
-  const step = SIZE / 64
-  for (let y = 0; y < 64; y++) {
-    for (let x = 0; x < 64; x++) {
-      const over = (x + y) % 2 === 0
-      gray(ctx, (over ? 0.93 : 0.84) + rand() * 0.04)
-      ctx.fillRect(x * step, y * step, step, step)
-    }
-  }
-}
-
-function drawKnit(ctx: CanvasRenderingContext2D) {
-  const rand = random(23)
-  gray(ctx, 0.95)
-  ctx.fillRect(0, 0, SIZE, SIZE)
-  // Rows of soft chevrons, ~40 stitches per meter.
-  const w = SIZE / 40
-  const h = SIZE / 32
-  for (let row = 0; row < 32; row++) {
-    for (let col = 0; col < 40; col++) {
-      gray(ctx, 0.82 + rand() * 0.06, 0.6)
-      const x = col * w
-      const y = row * h
-      ctx.beginPath()
-      ctx.moveTo(x, y)
-      ctx.lineTo(x + w / 2, y + h)
-      ctx.lineTo(x + w, y)
-      ctx.lineWidth = 1.2
-      ctx.strokeStyle = ctx.fillStyle
-      ctx.stroke()
-    }
-  }
-}
-
 const painters: Record<TextureKind, (ctx: CanvasRenderingContext2D) => void> = {
   woodgrain: drawWoodgrain,
   plaster: drawPlaster,
-  weave: drawWeave,
-  knit: drawKnit,
 }
 
 /** Shared texture for a kind; created on first use. Browser only. */
@@ -145,44 +91,8 @@ export function proceduralTexture(kind: TextureKind): Texture {
   return texture
 }
 
-/** One shared material per surface kind, color, and texture. */
-export function partMaterial(kind: PartMaterial, color: string, texture: PartTexture = 'plain'): Material {
-  const key = `${kind}|${color}|${texture}`
-  const cached = materials.get(key)
-  if (cached) return cached
-  const map = texture === 'plain' ? null : proceduralTexture(texture)
-  let material: Material
-  switch (kind) {
-    case 'fabric':
-      material = new MeshPhysicalMaterial({ color, map, roughness: 0.95, sheen: 0.35, sheenRoughness: 0.8, sheenColor: '#ffffff' })
-      break
-    case 'ceramic':
-      material = new MeshPhysicalMaterial({ color, map, roughness: 0.4, clearcoat: 0.35, clearcoatRoughness: 0.35 })
-      break
-    case 'glass':
-      material = new MeshPhysicalMaterial({ color, roughness: 0.06, metalness: 0.1, transparent: true, opacity: 0.45 })
-      break
-    case 'metal':
-      material = new MeshStandardMaterial({ color, map, roughness: 0.32, metalness: 0.85 })
-      break
-    case 'wood':
-      material = new MeshStandardMaterial({ color, map, roughness: 0.62 })
-      break
-    case 'leaf':
-      material = new MeshStandardMaterial({ color, roughness: 0.7 })
-      break
-    case 'matte':
-      material = new MeshStandardMaterial({ color, map, roughness: 0.85 })
-      break
-  }
-  materials.set(key, material)
-  return material
-}
-
-/** Release every shared texture and material (e.g. when the room view unmounts). */
+/** Release every shared texture (e.g. when the room view unmounts). */
 export function disposeSharedMaterials() {
-  for (const material of materials.values()) material.dispose()
-  materials.clear()
   for (const texture of textures.values()) texture.dispose()
   textures.clear()
 }

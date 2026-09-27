@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { sampleRoom } from '../test/rooms'
 import { acceptResult, entryToObject, filterHard, preloadPicks, rankSoft, type CatalogEntry } from './catalog'
 
-function entry(id: string, overrides: { category?: string; price?: number | null; currency?: string; width?: number; depth?: number; tags?: string[]; assemblyId?: string } = {}): CatalogEntry {
-  const { category = 'floor-lamp', price = 10000, currency = 'USD', width = 0.4, depth = 0.4, tags = [], assemblyId = 'floor-lamp' } = overrides
+function entry(id: string, overrides: { category?: string; price?: number | null; currency?: string; width?: number; depth?: number; tags?: string[]; recipeId?: string } = {}): CatalogEntry {
+  const { category = 'floor-lamp', price = 10000, currency = 'USD', width = 0.4, depth = 0.4, tags = [], recipeId = 'default:floor-lamp' } = overrides
   return {
     product: { id: `p-${id}`, name: `Product ${id}`, category, tags },
     variant: {
@@ -11,7 +11,7 @@ function entry(id: string, overrides: { category?: string; price?: number | null
       productId: `p-${id}`,
       label: 'Standard',
       dimensions: { width, height: 1, depth, source: 'merchant' },
-      asset: { kind: 'parametric', assemblyId },
+      asset: { kind: 'recipe', recipeId },
     },
     offer: {
       id: `o-${id}`,
@@ -82,7 +82,7 @@ describe('rankSoft', () => {
 
 describe('preloadPicks', () => {
   it('returns at most n entries with distinct assets', () => {
-    const ranked = [entry('a'), entry('b'), entry('c', { assemblyId: 'rug' }), entry('d', { assemblyId: 'vase' })]
+    const ranked = [entry('a'), entry('b'), entry('c', { recipeId: 'default:rug' }), entry('d', { recipeId: 'default:vase' })]
     const picks = preloadPicks(ranked, 2)
     expect(picks).toHaveLength(2)
     expect(new Set(picks.map((e) => JSON.stringify(e.variant.asset))).size).toBe(2)
@@ -108,7 +108,7 @@ describe('entryToObject', () => {
       quantity: 2,
       fidelity: 'approximate',
       dimensions: { width: 0.4, depth: 0.4, source: 'merchant' },
-      asset: { kind: 'parametric', assemblyId: 'floor-lamp' },
+      asset: { kind: 'recipe', recipeId: 'default:floor-lamp' },
     })
   })
 })

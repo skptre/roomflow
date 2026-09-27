@@ -75,7 +75,7 @@ export function PieceImportDialog({ onClose }: { onClose: () => void }) {
       {error && <p role="alert">{error}</p>}
       {loaded && <section className="appearance-result">
         <h3>{loaded.piece.name}</h3>
-        <FurnitureThumbnail asset={pieceAsset(loaded.piece)} dimensions={loaded.piece.dimensions} />
+        <FurnitureThumbnail asset={pieceAsset(loaded.piece)} category={loaded.piece.category} dimensions={loaded.piece.dimensions} />
         <p>{formatDimensions(loaded.piece.dimensions)} · width × depth × height</p>
         <p>{loaded.piece.dimensions.source === 'captured' ? 'Measured by the phone' : loaded.piece.dimensions.source === 'user' ? 'Dimensions you supplied' : 'Estimated dimensions — cannot confirm fit'}</p>
         <p>{pieceAsset(loaded.piece).kind === 'placeholder' ? 'No matching shape yet — shown as a size placeholder' : 'Approximate shape based on its scanned category'}</p>

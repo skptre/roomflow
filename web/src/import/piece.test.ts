@@ -10,7 +10,7 @@ it('imports only a piece with meter dimensions, no original room pose or AI attr
   expect(object.sourceKind).toBe('found')
   expect(object.appearance).toBeUndefined()
   expect(object.foundItemId).toBe(input.id)
-  expect(object.asset.kind).toBe('parametric')
+  expect(object.asset.kind).toBe('recipe')
 })
 it('rejects raw rooms, invalid values, oversized files and non-JPEG photo content', () => {
   for (const value of [{}, { ...input, version: 2 }, { ...input, pose: {} }, { ...input, dimensions: { ...input.dimensions, width: 0 } }, { ...input, dimensions: { ...input.dimensions, height: 21 } }, { ...input, photos: [{ mimeType: 'image/jpeg', data: btoa('not a jpeg') }] }]) expect(() => parsePiece(JSON.stringify(value))).toThrow()
