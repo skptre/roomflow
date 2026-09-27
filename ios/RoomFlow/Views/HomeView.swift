@@ -5,12 +5,17 @@ struct HomeView: View {
     @EnvironmentObject private var pairing: BrowserPairingManager
     @State private var isScanning = false
     @State private var showPairing = false
+    @State private var isScanningPiece = false
     @State private var showUnsupported = false
     @State private var pendingScan: ScanCaptureResult?
     /// Opt-in: keep calibrated reference photos during the scan.
     @AppStorage("includeReferencePhotos") private var includeReferencePhotos = false
     @State private var latestPhotos: [RoomPhotoEvidence] = []
     @State private var latestAppearance: RoomAppearanceEvidence?
+    @State private var latestWallArt: [WallArtItem] = []
+    /// Temp folder for `latestWallArt`'s crops, source-side only; cleared with the scan session's
+    /// other temporary files once the save copies them into the saved room.
+    @State private var latestWallArtDirectory: URL?
     /// The untouched RoomPlan result as frozen JSON bytes: what gets saved and shared.
     @State private var latestRawCapture: RawCapture?
     /// Camera colors for `latestRawCapture`; exported separately, never inside the raw file.
@@ -27,6 +32,8 @@ struct HomeView: View {
             ZStack {
                 Color.rfBackground.ignoresSafeArea()
 
+                GeometryReader { geometry in
+                ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Roomflow")
                         .font(.system(size: 27, weight: .semibold))
@@ -44,6 +51,8 @@ struct HomeView: View {
                         .font(.system(size: 49, weight: .regular))
                         .tracking(-2.8)
                         .lineSpacing(-3)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.75)
                         .foregroundStyle(Color.rfInk)
                         .padding(.top, 15)
                     Text("Scan here. Arrange and try new pieces in your browser.")
@@ -74,6 +83,15 @@ struct HomeView: View {
                         .buttonStyle(RFButtonStyle(prominent: false))
                         .padding(.bottom, 20)
 
+                    Button("Scan a Piece", systemImage: "scope") {
+                        if RoomScanService.isSupported { isScanningPiece = true }
+                        else { showUnsupported = true }
+                    }
+                    .buttonStyle(RFButtonStyle(prominent: false))
+
+                    NavigationLink("Saved Pieces") { SavedPiecesView() }
+                        .font(.subheadline)
+
                     Toggle(isOn: $includeReferencePhotos) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Include reference photos")
@@ -100,12 +118,17 @@ struct HomeView: View {
                 }
                 .padding(.horizontal, 26)
                 .padding(.bottom, 28)
+                .frame(minHeight: geometry.size.height, alignment: .top)
+                }
+                .scrollIndicators(.hidden)
+                }
             }
             .navigationDestination(isPresented: $showEditor) {
                 if let latestRoom {
                     RoomEditorView(room: latestRoom, isSample: latestRoomIsSample,
                                    rawCapture: latestRawCapture, colors: latestColorEstimates,
-                                   photos: latestPhotos, appearance: latestAppearance)
+                                   photos: latestPhotos, appearance: latestAppearance,
+                                   wallArt: latestWallArt, wallArtDirectory: latestWallArtDirectory)
                         .id(latestRoom.id)
                 }
             }
@@ -119,6 +142,9 @@ struct HomeView: View {
         .sheet(isPresented: $showPairing) { BrowserPairingView() }
         .preferredColorScheme(.light)
         .tint(Color.rfAccent)
+        .fullScreenCover(isPresented: $isScanningPiece) {
+            PieceScanView(capturePhotos: includeReferencePhotos)
+        }
         .alert("Couldn't save this room", isPresented: $showSaveError) {
             Button("Retry") { Task { await saveAndOpenLatest() } }
             Button("Continue Without Saving", role: .cancel) {
@@ -146,6 +172,8 @@ struct HomeView: View {
         // Match photos against the final processed room only.
         latestAppearance = RoomEvidenceProjector.appearance(room: pendingScan.room, colors: pendingScan.colors,
                                                             photos: pendingScan.photos)
+        latestWallArt = pendingScan.wallArt
+        latestWallArtDirectory = pendingScan.wallArtDirectory
         latestRoom = RoomPlanConverter.convert(pendingScan.room, colors: pendingScan.colors)
         latestRoomIsSample = false
         Task { await saveAndOpenLatest() }
@@ -159,11 +187,19 @@ struct HomeView: View {
             }
             try await RoomArchiveStore.shared.saveCapture(id: raw.id, rawData: raw.data,
                                                           editableData: room.jsonData(), photos: latestPhotos,
-                                                          appearance: latestAppearance)
-            // Point at the saved room's copies, then drop the scan's temporary photos.
-            let temporarySessions = Set(latestPhotos.map(\.sessionID))
-            if !latestPhotos.isEmpty, let saved = try? await RoomArchiveStore.shared.load(id: raw.id).photos {
-                latestPhotos = saved
+                                                          appearance: latestAppearance, wallArt: latestWallArt,
+                                                          wallArtDirectory: latestWallArtDirectory)
+            // Point at the saved room's copies, then drop the scan's temporary photos and art crops.
+            // The art folder lives under the same per-session temp directory as the photos, one level up.
+            var temporarySessions = Set(latestPhotos.map(\.sessionID))
+            if let artSessionID = latestWallArtDirectory?.deletingLastPathComponent().lastPathComponent,
+               let uuid = UUID(uuidString: artSessionID) {
+                temporarySessions.insert(uuid)
+            }
+            if !latestPhotos.isEmpty || !latestWallArt.isEmpty, let saved = try? await RoomArchiveStore.shared.load(id: raw.id) {
+                latestPhotos = saved.photos
+                latestWallArt = saved.wallArt
+                latestWallArtDirectory = saved.wallArtDirectory
                 temporarySessions.forEach { RoomEvidenceRecorder.removeTemporaryFiles(sessionID: $0) }
             }
             showEditor = true
@@ -204,6 +240,8 @@ struct HomeView: View {
         latestColorEstimates = nil
         latestPhotos = []
         latestAppearance = nil
+        latestWallArt = []
+        latestWallArtDirectory = nil
         latestRoom = room
         latestRoomIsSample = isSample
         showEditor = true

@@ -55,13 +55,14 @@ nonisolated struct RoomPackageManifest: Codable, Equatable, Sendable {
     static let rawPath = "capture.roomplan.json"
     static let editablePath = "editable.roomflow.json"
     static let appearancePath = "appearance.json"
+    static let wallArtPath = "wallArt.json"
     static let manifestPath = "manifest.json"
 
-    /// Only these paths may appear: the three JSON files, and `photos/<UUID>.jpg`.
+    /// Only these paths may appear: the four JSON files, `photos/<UUID>.jpg`, and `art/<UUID>.jpg`.
     static func isAllowed(_ path: String) -> Bool {
-        if [rawPath, editablePath, appearancePath].contains(path) { return true }
+        if [rawPath, editablePath, appearancePath, wallArtPath].contains(path) { return true }
         let parts = path.split(separator: "/", omittingEmptySubsequences: false)
-        guard parts.count == 2, parts[0] == "photos", parts[1].hasSuffix(".jpg") else { return false }
+        guard parts.count == 2, parts[1].hasSuffix(".jpg"), parts[0] == "photos" || parts[0] == "art" else { return false }
         return UUID(uuidString: String(parts[1].dropLast(4))) != nil
     }
 
@@ -110,4 +111,33 @@ nonisolated struct PackageAppearance: Codable, Equatable, Sendable {
     var colors: [SourceColor]
     var floorColor: EstimatedColor?
     var annotations: [ObjectAnnotation]
+}
+
+/// `wallArt.json` inside a package: confirmed wall art still in the room's saved list, in RoomPlan
+/// native world coordinates (`docs/ios-room-package.md`, agreed layout in
+/// `.superpowers/sdd/wall-art-package/format.md`, approved by the Designer side 2026-09-27). Only
+/// written when at least one item qualifies; items without a resolved `worldCenter`/`worldNormal`
+/// (older saves) are left out of `items`, never written with fabricated coordinates.
+nonisolated struct WallArtPackage: Codable, Equatable, Sendable {
+    var schemaVersion = 1
+    var captureId: UUID
+    var items: [Item]
+
+    struct Item: Codable, Equatable, Sendable {
+        var artId: UUID
+        /// RoomPlan wall `identifier` this piece is attached to; may be absent from the web room.
+        var wallSourceId: UUID
+        /// RoomPlan native world coordinates, meters.
+        var center: [Double]
+        /// Unit vector, RoomPlan native world space, pointing from the wall into the room.
+        var normal: [Double]
+        var width: Double
+        var height: Double
+        var standoff: Double
+        var sightingCount: Int
+        /// `art/<artId>.jpg`, or nil when no photo was captured or it didn't fit the size budget.
+        var photoPath: String?
+        var method: String
+        var provenance: String
+    }
 }

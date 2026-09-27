@@ -69,7 +69,7 @@ export function StartScreen({ onImportFile, onOpenSample, onPairedScan, onResume
             <input
               ref={inputRef}
               type="file"
-              accept=".json,application/json"
+              accept=".json,application/json,.zip,application/zip"
               hidden
               onChange={(event) => {
                 const file = event.target.files?.[0]
@@ -93,7 +93,7 @@ export function StartScreen({ onImportFile, onOpenSample, onPairedScan, onResume
         <div className="drop-overlay">
           <StudioIcon name="upload" size={40} />
           <h2>Your room belongs here</h2>
-          <p>Drop your RoomPlan .json scan to begin.</p>
+          <p>Drop your RoomPlan .json scan or RoomFlow .zip package to begin.</p>
         </div>
       )}
       {pairing && <PairScanDialog onClose={() => setPairing(false)} onReceive={onPairedScan} />}

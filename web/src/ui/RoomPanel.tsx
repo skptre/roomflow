@@ -7,10 +7,14 @@ export function RoomPanel({
   room,
   onSelect,
   onBrowse,
+  onAddPhoto,
+  onImportPiece,
 }: {
   room: Room
   onSelect: (object: RoomObject) => void
   onBrowse: () => void
+  onAddPhoto: () => void
+  onImportPiece: () => void
 }) {
   const heading = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
@@ -33,6 +37,8 @@ export function RoomPanel({
         </span>
         <StudioIcon name="arrow" size={18} />
       </button>
+      <button className="studio-primary full-width" onClick={onImportPiece}>Import a scanned piece</button>
+      <button className="studio-secondary full-width" onClick={onAddPhoto}>Add a piece from a photo</button>
       <div className="section-label">
         <h3>In your room</h3>
         <span>{room.objects.length} pieces</span>

@@ -5,15 +5,24 @@ import { catalogSource, catalogStore } from './catalog/appCatalog'
 import { designStore, viewRoom } from './domain/designStore'
 import { budgetForChoice, type SummarySources } from './domain/purchases'
 import sampleScan from './fixtures/synthetic-bedroom.roomplan.json?raw'
-import { MAX_IMPORT_BYTES, parseRoomPlanJson } from './import/roomplan'
+import { MAX_IMPORT_BYTES, parseRoomPlanJson, type ImportResult } from './import/roomplan'
+import { isZipArchive, MAX_PACKAGE_BYTES, parseRoomflowPackage, type PackageImportResult } from './import/roomflowPackage'
 import { RoomScene } from './scene/RoomScene'
 import type { ViewRequest } from './scene/CameraRig'
+import type { Room } from './domain/schema'
+import type { PreparedItem } from './recognition/autoMatch'
+import { prepareAutoMatch } from './recognition/cropPhoto'
+import { AutoMatchDialog } from './ui/AutoMatchDialog'
 import { CatalogPanel } from './ui/CatalogPanel'
+import { evidenceStore } from './ui/evidenceStore'
 import { cancelCatalogPreview } from './ui/catalogActions'
+import { PieceImportDialog } from './ui/PieceImportDialog'
+import { AppearanceDialog } from './ui/AppearanceDialog'
 import { HelpDialog } from './ui/HelpDialog'
 import { Inspector } from './ui/Inspector'
 import { cancelActivePreview } from './ui/lookActions'
 import { NoticeBar } from './ui/NoticeBar'
+import { noticeStore } from './ui/noticeStore'
 import { RoomPanel } from './ui/RoomPanel'
 import { StartScreen } from './ui/StartScreen'
 import { StudioIcon } from './ui/StudioIcon'
@@ -59,10 +68,13 @@ function Workspace() {
     designStore,
     (state) => state.committed?.room.objects.find((object) => object.id === state.selectedId) ?? null,
   )
+  const [autoMatch, setAutoMatch] = useState<{ items: PreparedItem[]; model: string } | null>(null)
   const [looksOpen, setLooksOpen] = useState(false)
   const [welcome, setWelcome] = useState(true)
   const [panel, setPanel] = useState<'room' | 'catalog'>('room')
   const [swapId, setSwapId] = useState<string | null>(null)
+  const [pieceImport, setPieceImport] = useState(false)
+  const [discovery, setDiscovery] = useState(false)
   const [help, setHelp] = useState(false)
   const [viewRequest, setViewRequest] = useState<ViewRequest>({ action: 'home', sequence: 0 })
   const [error, setError] = useState<string | null>(null)
@@ -94,8 +106,7 @@ function Workspace() {
     setSwapId(null)
     setPanel(next)
   }
-  function open(text: string): boolean {
-    const result = parseRoomPlanJson(text)
+  function open(result: ImportResult | PackageImportResult): boolean {
     if (!result.ok) {
       setError(result.error)
       return false
@@ -103,19 +114,52 @@ function Workspace() {
     setError(null)
     cancelCatalogPreview()
     designStore.getState().loadRoom(result.room)
+    evidenceStore.getState().set(result.room.id, 'evidence' in result ? result.evidence : null)
     setWelcome(false)
     setPanel('room')
     setSwapId(null)
+    announceImport(result)
+    offerAutoMatch(result.room)
     return true
   }
+  /** After a package opens, offers to match every photographed item (nothing is sent without consent). */
+  function offerAutoMatch(opened: Room) {
+    setAutoMatch(null)
+    const evidence = evidenceStore.getState()
+    if (!evidence.evidence || evidence.evidence.photos.length === 0) return
+    void prepareAutoMatch(opened, evidence.regionsFor).then((offer) => {
+      // Only offer for the room that is still open.
+      if (offer && designStore.getState().committed?.room.id === opened.id && evidenceStore.getState().roomId === opened.id) setAutoMatch(offer)
+    })
+  }
+  /** Tells the user what came in with the room and anything the importer had to estimate or skip. */
+  function announceImport(result: Extract<ImportResult | PackageImportResult, { ok: true }>) {
+    const parts: string[] = []
+    if ('evidence' in result) {
+      const { photos, annotations } = result.evidence
+      parts.push(`Room package opened with ${photos.length} reference photo${photos.length === 1 ? '' : 's'}` +
+        (annotations.length > 0 ? ` and ${annotations.length} name${annotations.length === 1 ? '' : 's'} from your phone.` : '.'))
+    }
+    if (result.warnings.length > 0) {
+      parts.push(result.warnings[0]! + (result.warnings.length > 1 ? ` (+${result.warnings.length - 1} more)` : ''))
+    }
+    if (parts.length > 0) noticeStore.getState().show(parts.join(' '), result.warnings.length > 0 ? 'warning' : 'info')
+  }
   async function importFile(file: File) {
-    if (file.size > MAX_IMPORT_BYTES) {
-      setError(`This file is too large. Choose a scan smaller than ${MAX_IMPORT_BYTES / (1024 * 1024)} MB.`)
+    if (file.size > MAX_PACKAGE_BYTES) {
+      setError(`This file is too large. Choose a scan smaller than ${MAX_PACKAGE_BYTES / (1024 * 1024)} MB.`)
       return
     }
     setBusy(true)
     try {
-      open(await file.text())
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      if (isZipArchive(bytes)) {
+        open(await parseRoomflowPackage(bytes))
+      } else if (bytes.length > MAX_IMPORT_BYTES) {
+        setError(`This file is too large. Choose a scan smaller than ${MAX_IMPORT_BYTES / (1024 * 1024)} MB.`)
+      } else {
+        open(parseRoomPlanJson(new TextDecoder().decode(bytes)))
+      }
     } catch {
       setError('We couldn’t read that file. Try choosing your room scan again.')
     } finally {
@@ -132,8 +176,8 @@ function Workspace() {
           error={error}
           busy={busy}
           onImportFile={importFile}
-          onOpenSample={() => open(sampleScan)}
-          onPairedScan={open}
+          onOpenSample={() => open(parseRoomPlanJson(sampleScan))}
+          onPairedScan={(scan) => open(parseRoomPlanJson(scan))}
           onResume={committed ? () => setWelcome(false) : undefined}
         >
           {sampleRoom && <RoomScene room={sampleRoom} sources={sources} decorative />}
@@ -240,13 +284,18 @@ function Workspace() {
                 room={committed.room}
                 onSelect={(object) => designStore.getState().select(object.id)}
                 onBrowse={() => showPanel('catalog')}
+                onImportPiece={() => { cancelActivePreview(); setLooksOpen(false); setPieceImport(true) }}
+                onAddPhoto={() => { cancelActivePreview(); setLooksOpen(false); setDiscovery(true) }}
               />
             )}
           </div>
           <SubtotalBar sources={sources} />
         </aside>
       </div>
+      {pieceImport && <PieceImportDialog onClose={() => setPieceImport(false)} />}
+      {discovery && <AppearanceDialog onClose={() => setDiscovery(false)} />}
       {help && <HelpDialog onClose={() => setHelp(false)} />}
+      {autoMatch && <AutoMatchDialog items={autoMatch.items} model={autoMatch.model} onClose={() => setAutoMatch(null)} />}
     </main>
   )
 }

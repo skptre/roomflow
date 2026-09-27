@@ -87,7 +87,7 @@ export function purchaseLine(object: RoomObject, sources: PurchaseSources): Purc
       return { id: object.id, unitPrice: price, quantity: object.quantity, owned: false }
     }
     case 'found': {
-      const item = object.foundItemId ? sources.foundItems?.get(object.foundItemId) : undefined
+      const item = object.foundItem ?? (object.foundItemId ? sources.foundItems?.get(object.foundItemId) : undefined)
       return { id: object.id, unitPrice: item?.price ?? null, quantity: object.quantity, owned: item?.owned ?? false }
     }
   }

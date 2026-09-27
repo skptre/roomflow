@@ -21,6 +21,9 @@ nonisolated struct RoomPhotoEvidence: Codable, Equatable, Identifiable, Sendable
     /// line up with the final room, so automatic object matching must not use it.
     var trackingContinuous: Bool
     var byteCount: Int
+    /// Live object this photo was deliberately taken of (focused shot), else nil. Local only: not in the
+    /// package manifest; the final photo↔object association always comes from the processed room.
+    var focusObjectId: UUID? = nil
     /// Where the JPEG currently lives (temporary folder or saved room). Not part of the JSON.
     var fileURL: URL? = nil
 
@@ -28,7 +31,7 @@ nonisolated struct RoomPhotoEvidence: Codable, Equatable, Identifiable, Sendable
 
     enum CodingKeys: String, CodingKey {
         case id, sessionID, timestamp, pixelWidth, pixelHeight, cameraToWorld, intrinsics
-        case pixelOrientation, trackingContinuous, byteCount
+        case pixelOrientation, trackingContinuous, byteCount, focusObjectId
     }
 
     static func columnMajor(_ m: simd_float4x4) -> [Float] {

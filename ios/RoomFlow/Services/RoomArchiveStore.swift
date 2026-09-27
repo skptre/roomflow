@@ -10,6 +10,8 @@ import Foundation
 /// rooms/<capture-id>/photos.json, photos/     optional reference photos and their calibration
 /// rooms/<capture-id>/appearance.json          optional approximate colors and photo regions
 /// rooms/<capture-id>/selection.json           the user's sharing choices and labels (Review room)
+/// rooms/<capture-id>/wallArt.json, art/        confirmed wall art and their reference photos; the
+///                                              file is only written when there is at least one item
 /// staging/…                                  in-progress saves; never listed
 /// ```
 /// A new room is assembled in `staging/` and published with a single directory rename,
@@ -48,6 +50,8 @@ actor RoomArchiveStore {
     private static let photosFolder = "photos"
     private static let appearanceName = "appearance.json"
     private static let selectionName = "selection.json"
+    private static let wallArtName = "wallArt.json"
+    private static let artFolder = "art"
 
     private let root: URL
     private let writeData: DataWriter
@@ -72,6 +76,8 @@ actor RoomArchiveStore {
     func saveCapture(id: UUID, rawData: Data, editableData: Data,
                      photos: [RoomPhotoEvidence] = [],
                      appearance: RoomAppearanceEvidence? = nil,
+                     wallArt: [WallArtItem] = [],
+                     wallArtDirectory: URL? = nil,
                      name: String? = nil, capturedAt: Date = Date()) throws {
         let destination = roomDirectory(id)
         if fileManager.fileExists(atPath: destination.path) {
@@ -105,6 +111,23 @@ actor RoomArchiveStore {
         if let appearance {
             try writeData(Self.encoder.encode(appearance), staging.appendingPathComponent(Self.appearanceName))
         }
+        if !wallArt.isEmpty {
+            var savedItems = wallArt
+            var artCreated = false
+            for index in savedItems.indices {
+                guard let fileName = savedItems[index].photoFileName else { continue }
+                guard let wallArtDirectory else { savedItems[index].photoFileName = nil; continue }
+                let source = wallArtDirectory.appendingPathComponent(fileName)
+                guard fileManager.fileExists(atPath: source.path) else { savedItems[index].photoFileName = nil; continue }
+                if !artCreated {
+                    try fileManager.createDirectory(at: staging.appendingPathComponent(Self.artFolder, isDirectory: true),
+                                                    withIntermediateDirectories: true)
+                    artCreated = true
+                }
+                try fileManager.copyItem(at: source, to: staging.appendingPathComponent(Self.artFolder).appendingPathComponent(fileName))
+            }
+            try writeData(Self.encoder.encode(savedItems), staging.appendingPathComponent(Self.wallArtName))
+        }
         try writeData(Self.encoder.encode(record), staging.appendingPathComponent(Self.recordName))
 
         try fileManager.createDirectory(at: roomsDirectory, withIntermediateDirectories: true)
@@ -130,6 +153,16 @@ actor RoomArchiveStore {
         try writeData(Self.encoder.encode(selection), directory.appendingPathComponent(Self.selectionName))
     }
 
+    /// Replaces the confirmed wall art list (one atomic write; a failure keeps the previous list).
+    /// Used by Review room's "Not wall art" to remove an item; it never touches `art/`'s photo files.
+    func saveWallArt(id: UUID, items: [WallArtItem]) throws {
+        let directory = roomDirectory(id)
+        guard fileManager.fileExists(atPath: directory.appendingPathComponent(Self.recordName).path) else {
+            throw ArchiveError.notFound
+        }
+        try writeData(Self.encoder.encode(items), directory.appendingPathComponent(Self.wallArtName))
+    }
+
     // MARK: - Reading
 
     func load(id: UUID) throws -> RoomArchive {
@@ -146,6 +179,8 @@ actor RoomArchiveStore {
         let selection = (try? Data(contentsOf: directory.appendingPathComponent(Self.selectionName)))
             .flatMap { try? Self.decoder.decode(RoomEvidenceSelection.self, from: $0) }
             ?? RoomEvidenceSelection.initial(for: photos)
+        let wallArt = (try? Data(contentsOf: directory.appendingPathComponent(Self.wallArtName)))
+            .flatMap { try? Self.decoder.decode([WallArtItem].self, from: $0) } ?? []
         return RoomArchive(
             record: record,
             rawData: try Data(contentsOf: directory.appendingPathComponent(Self.rawName)),
@@ -153,7 +188,9 @@ actor RoomArchiveStore {
             photos: photos,
             appearance: (try? Data(contentsOf: directory.appendingPathComponent(Self.appearanceName)))
                 .flatMap { try? Self.decoder.decode(RoomAppearanceEvidence.self, from: $0) },
-            selection: selection
+            selection: selection,
+            wallArt: wallArt,
+            wallArtDirectory: directory.appendingPathComponent(Self.artFolder, isDirectory: true)
         )
     }
 

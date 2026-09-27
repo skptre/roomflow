@@ -16,6 +16,10 @@ struct ScanSummaryView: View {
     var photos: [RoomPhotoEvidence] = []
     /// Candidate photo regions for captured objects (nil for older saved rooms).
     var appearance: RoomAppearanceEvidence? = nil
+    /// Confirmed wall art detected during the scan (empty when photo capture was off or none was found).
+    var wallArt: [WallArtItem] = []
+    /// Where `wallArt`'s reference photos live; nil when there is no wall art to show one for.
+    var wallArtDirectory: URL? = nil
 
     @State private var json = ""
     @State private var didCopy = false
@@ -60,12 +64,26 @@ struct ScanSummaryView: View {
 
                 Section {
                     NavigationLink {
-                        RoomEvidenceReviewView(captureID: rawCapture.id, room: room, photos: photos)
+                        RoomEvidenceReviewView(captureID: rawCapture.id, room: room, photos: photos, associations: appearance?.associations ?? [],
+                                              wallArt: wallArt, wallArtDirectory: wallArtDirectory)
                     } label: {
                         Label("Review room", systemImage: "checklist")
                     }
                 } footer: {
                     Text("Rename items the scan got wrong and choose which photos to share.")
+                }
+
+                if !wallArt.isEmpty {
+                    Section {
+                        NavigationLink {
+                            RoomEvidenceReviewView(captureID: rawCapture.id, room: room, photos: photos, associations: appearance?.associations ?? [],
+                                                  wallArt: wallArt, wallArtDirectory: wallArtDirectory)
+                        } label: {
+                            Label("Wall art (\(wallArt.count))", systemImage: "photo.artframe")
+                        }
+                    } footer: {
+                        Text("Sizes are measured estimates.")
+                    }
                 }
             }
 
@@ -80,6 +98,13 @@ struct ScanSummaryView: View {
                         )
                     } label: {
                         Label("Reference photos (\(photos.count))", systemImage: "photo.on.rectangle")
+                    }
+                    if let appearance,
+                       let summary = PhotoCoverage.make(objects: room.objects, associations: appearance.associations,
+                                                        photoIds: Set(photos.map(\.id)), label: { _ in nil }).summary {
+                        Text(summary)
+                            .font(.footnote)
+                            .foregroundStyle(Color.rfSecondaryText)
                     }
                 }
             }

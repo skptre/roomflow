@@ -11,6 +11,8 @@ struct SavedRoomsView: View {
     @State private var openedRaw: RawCapture?
     @State private var openedPhotos: [RoomPhotoEvidence] = []
     @State private var openedAppearance: RoomAppearanceEvidence?
+    @State private var openedWallArt: [WallArtItem] = []
+    @State private var openedWallArtDirectory: URL?
     @State private var showEditor = false
     @State private var errorMessage: String?
     @State private var showError = false
@@ -48,7 +50,8 @@ struct SavedRoomsView: View {
         .refreshable { await reload() }
         .navigationDestination(isPresented: $showEditor) {
             if let openedRoom {
-                RoomEditorView(room: openedRoom, rawCapture: openedRaw, photos: openedPhotos, appearance: openedAppearance)
+                RoomEditorView(room: openedRoom, rawCapture: openedRaw, photos: openedPhotos, appearance: openedAppearance,
+                               wallArt: openedWallArt, wallArtDirectory: openedWallArtDirectory)
                     .id(openedRoom.id)
             }
         }
@@ -81,6 +84,8 @@ struct SavedRoomsView: View {
             openedRaw = RawCapture(id: archive.record.id, data: archive.rawData)
             openedPhotos = archive.photos
             openedAppearance = archive.appearance
+            openedWallArt = archive.wallArt
+            openedWallArtDirectory = archive.wallArtDirectory
             showEditor = true
         } catch {
             errorMessage = error.localizedDescription

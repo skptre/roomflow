@@ -10,6 +10,7 @@ struct RoomScanView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var scanner = RoomScanService()
 
     var body: some View {
@@ -32,10 +33,16 @@ struct RoomScanView: View {
                     .background(.ultraThinMaterial, in: Capsule())
                     Spacer()
                 }
+                if scanner.state == .scanning, let hint = scanner.focusHint {
+                    ScanFocusHintView(hint: hint)
+                        .padding(.top, 8)
+                        .transition(.opacity)
+                }
                 Spacer()
                 bottomPanel
             }
             .padding(20)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: scanner.focusHint?.objectId)
         }
         .task {
             scanner.capturePhotos = capturePhotos
@@ -52,7 +59,9 @@ struct RoomScanView: View {
             ProgressView()
         case .scanning:
             VStack(spacing: 12) {
-                statusText("Walk slowly around the room. Point at every wall, door, window, and piece of furniture.")
+                statusText(capturePhotos
+                    ? "Walk slowly around the room. When furniture is found, hold the phone steady on it for a moment."
+                    : "Walk slowly around the room. Point at every wall, door, window, and piece of furniture.")
                 Button("Done Scanning") { scanner.finish() }
                     .buttonStyle(RFScanButtonStyle())
             }
@@ -66,7 +75,8 @@ struct RoomScanView: View {
         case .finished:
             Button("View Room") {
                 if let room = scanner.capturedRoom {
-                    onComplete(ScanCaptureResult(room: room, colors: scanner.colorEstimates, photos: scanner.photos))
+                    onComplete(ScanCaptureResult(room: room, colors: scanner.colorEstimates, photos: scanner.photos,
+                                                 wallArt: scanner.wallArt, wallArtDirectory: scanner.wallArtDirectory))
                 }
             }
             .buttonStyle(RFScanButtonStyle())
@@ -94,7 +104,7 @@ struct RoomScanView: View {
 }
 
 /// Hosts the service-owned RoomCaptureView so SwiftUI re-renders never recreate the AR view.
-private struct RoomCaptureViewContainer: UIViewRepresentable {
+struct RoomCaptureViewContainer: UIViewRepresentable {
     let captureView: RoomCaptureView
 
     func makeUIView(context: Context) -> RoomCaptureView { captureView }

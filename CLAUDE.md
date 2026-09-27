@@ -194,6 +194,16 @@ Relevant end-to-end scenarios:
 
 Do not claim a feature is verified when hardware, credentials, provider access, or runtime were unavailable. Explain the specific unverified part and continue any useful work that is possible.
 
+## Project records and index
+
+Read `docs/INDEX.md` before searching the code; `docs/ARCHITECTURE.md` lists every file with its key types and
+functions. Every code change must, in the same commit, append to `docs/CHANGELOG.md`, update
+`docs/ARCHITECTURE.md` for new/changed files or public functions, add a `docs/INDEX.md` row for new areas, and
+record non-obvious tradeoffs in `docs/DECISIONS.md`. Full rules: `.claude/documentation.md` and `.claude/index.md`.
+
+@.claude/index.md
+@.claude/documentation.md
+
 ## Definition of done and handoff
 
 A task is complete when its requested behavior is integrated, relevant invariants hold, loading/error states are handled, appropriate checks have run, and visible changes have been inspected where tooling permits.
