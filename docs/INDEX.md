@@ -20,7 +20,7 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | iOS — reference photos (capture, limits, sessions) | `ios/RoomFlow/Services/RoomEvidenceRecorder.swift`, `Models/RoomPhotoEvidence.swift` |
 | iOS — furniture-aware photos (live objects, focus hint, coverage) | `ios/RoomFlow/Services/LiveRoomObserver.swift`, `ObjectFocusTracker.swift`, `ios/RoomFlow/Views/ScanFocusHintView.swift`, `ios/RoomFlow/Models/PhotoCoverage.swift` |
 | iOS — matching photos to scanned objects | `ios/RoomFlow/Services/RoomEvidenceProjector.swift`, `Models/RoomAppearanceEvidence.swift` |
-| iOS — wall art detection (judge rectangles, group/confirm/attach to final walls, scan wiring + reference photo crop) | `ios/RoomFlow/Services/WallArtDetector.swift`, `WallArtTracker.swift`, `WallArtScanner.swift`, `Models/WallArtItem.swift`, `.superpowers/sdd/2026-09-26-wall-art-detection/` |
+| iOS — wall art detection (judge rectangles, group/confirm/attach to final walls, scan wiring + reference photo crop, save/reopen/review) | `ios/RoomFlow/Services/WallArtDetector.swift`, `WallArtTracker.swift`, `WallArtScanner.swift`, `Models/WallArtItem.swift`, `Services/RoomArchiveStore.swift`, `Views/RoomEvidenceReviewView.swift`, `Views/ScanSummaryView.swift`, `.superpowers/sdd/2026-09-26-wall-art-detection/` |
 | iOS — Review room (labels, photo selection) | `ios/RoomFlow/Views/RoomEvidenceReviewView.swift`, `Models/RoomEvidenceSelection.swift` |
 | iOS — `.roomflow.zip` package | `ios/RoomFlow/Services/RoomPackageExport.swift`, `Models/RoomPackageManifest.swift`, `docs/ios-room-package.md` |
 | iOS — top-down plan drawing and tap selection | `ios/RoomFlow/Views/RoomEditorView.swift`, `Services/FloorPlanGeometry.swift` |

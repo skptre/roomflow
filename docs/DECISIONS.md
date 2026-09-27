@@ -55,6 +55,22 @@ live focus ID, so this stays a capture-time convenience rather than a second sou
 Box corners projected with the photo's pose; near-plane crossings rejected; photos before a tracking
 interruption skipped. Rejected: claiming visibility or product identity from a rectangle.
 
+## Wall art's empty state uses reference photos as the "photos were on" signal
+`RoomEvidenceReviewView` shows a "Wall art" section — including its "no wall art found" empty state — only
+when `wallArt` isn't empty or reference `photos` isn't empty, since art detection is fully gated on the
+same `capturePhotos` flag as reference photos and there is no separate stored flag for "photo capture was
+on for this scan" once a room is reloaded from disk (`RoomArchive.wallArtDirectory` is always a real path,
+by design — see below). Rejected: adding a dedicated flag; the same imprecision already exists for
+`SavedRoomRecord.evidenceStatus`, which is likewise derived from `photos.isEmpty`. The rare case this
+misses — photo capture on, wall art found, but zero reference photos survived selection — would only hide
+the harmless empty-state text, never real items.
+
+## `RoomArchive.wallArtDirectory` is a plain path, not an optional
+`load(id:)` always returns `rooms/<id>/art` for `wallArtDirectory`, whether or not that folder exists or
+the room has any wall art. Rejected: making it `Optional<URL>` like `appearance`, which would need a
+"do older/photos-off rooms count as nil" rule with no reliable signal to base it on (see above); a plain
+path is cheap to compute and only ever dereferenced for an item whose `photoFileName` isn't nil.
+
 ## Saved rooms publish atomically
 Assembled in `staging/` and moved into `rooms/<id>/` with one rename; edits and selections are single atomic
 writes. Rejected: writing files in place, which can leave half-saved rooms after a crash or full disk.

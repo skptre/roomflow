@@ -38,4 +38,9 @@ nonisolated struct RoomArchive: Sendable {
     var appearance: RoomAppearanceEvidence? = nil
     /// What the user chose to share, and their labels; defaults to sharing every saved photo.
     var selection = RoomEvidenceSelection.initial(for: [])
+    /// Confirmed wall art saved with the scan; empty for rooms with none or saved before this existed.
+    var wallArt: [WallArtItem] = []
+    /// Where `wallArt`'s reference photos live (`rooms/<id>/art`); a path, not a guarantee the folder
+    /// exists — only meaningful for items whose `photoFileName` isn't nil.
+    var wallArtDirectory: URL = FileManager.default.temporaryDirectory
 }
