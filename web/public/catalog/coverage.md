@@ -1,19 +1,19 @@
 # Recipe coverage
 
-Generated 2026-09-27T05:15:37.234Z from the snapshot retrieved 2026-09-26T19:28:27.651Z · photo tier: gemini-3.8-flash, low thinking.
+Generated 2026-09-27T05:30:41.696Z from the snapshot retrieved 2026-09-26T19:28:27.651Z · photo tier: gemini-3.8-flash, low thinking.
 Tier: `gemini` = read from the store photos; `rules` = from listing words only (free). Evidence says where colors and shape came from.
 
 ## chair (410)
 
 - tiers: gemini 391, rules 19
 - colors from: photo 391, default 13, name 6
-- arm: none 251, track 78, slope 56, (default) 19, rolled 5, flared 1
-- back: tight 293, pillow 98, (default) 17, channel 2
-- base: plinth 171, block-legs 97, tapered-legs 90, metal-legs 33, (default) 19
-- form: armchair 164, ottoman 155, bench 89, (default) 2
-- shell: boxy 329, barrel 62, (default) 19
-- top: rect 317, round 76, (default) 17
-- can't show yet (top 12): swivel 29; modular 28; slipcover skirt 26; swivel base 19; storage 15; rounded corners 14; exposed wood frame 13; rounded edges 9; slipcover 8; all-wood construction 7; loose seat cushion 7; boucle 7
+- arm: none 252, track 74, slope 55, (default) 19, rolled 7, flared 3
+- back: tight 292, pillow 98, (default) 17, channel 3
+- base: plinth 139, block-legs 102, tapered-legs 87, swivel 33, metal-legs 30, (default) 19
+- form: armchair 164, ottoman 154, bench 90, (default) 2
+- shell: boxy 333, barrel 58, (default) 19
+- top: rect 326, round 67, (default) 17
+- can't show yet (top 12): modular 28; slipcover skirt 23; rounded corners 17; storage 15; exposed wood frame 11; storage compartment 9; slipcover 9; flange seams 8; boucle 7; all-wood construction 6; cushion top 6; slab legs 6
 
 ## sofa (390)
 
