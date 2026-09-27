@@ -189,3 +189,11 @@ describe('rulesRecipe — names on the wrong part', () => {
     expect(rulesRecipe(listing('sofa', 'Sofa', { Upholstery: ['Pine', 'Navy'] })).optionColors?.Upholstery).toEqual({ Navy: { upholstery: COLOR_LEXICON.navy!.hex } })
   })
 })
+
+describe('rulesRecipe — swivel chairs', () => {
+  it('a swivel chair sits on a swivel base', () => {
+    const recipe = rulesRecipe(listing('lounge-chair', 'The Vera Swivel Chair'))
+    expect(recipe.blocks.base).toBe('swivel')
+    expect(recipe.unmatched ?? []).not.toContain('swivel')
+  })
+})

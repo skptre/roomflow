@@ -74,6 +74,10 @@ export const AssetRef = z.discriminatedUnion('kind', [
     recipeId: Id,
     /** Color per material slot for this variant or photographed item ({ upholstery: '#4a4b4d' }). */
     colors: z.record(z.string().min(1).max(64), HexColor).optional(),
+    /** This variant's block choices where they differ from the recipe's ("Arm Style: Round"). */
+    blocks: z.record(z.string().min(1).max(64), z.string().min(1).max(64)).optional(),
+    /** This variant's own photo, for families that show one (a rug colorway). https only. */
+    imageUrl: z.url({ protocol: /^https$/ }).optional(),
   }),
   z.object({ kind: z.literal('glb'), url: z.string().min(1), attribution: z.string().optional() }),
   z.object({ kind: z.literal('placeholder') }),

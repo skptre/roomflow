@@ -1,7 +1,7 @@
 import { Edges, Html, useGLTF } from '@react-three/drei'
 import { Component, Suspense, useMemo, type ReactNode } from 'react'
 import { Box3, Vector3 } from 'three'
-import { resolveRecipe } from '../blocks/registry'
+import { recipeForAsset } from '../blocks/registry'
 import type { AssetRef, Dimensions } from '../domain/schema'
 import { palette } from './palette'
 import { RecipeMesh } from './RecipeMesh'
@@ -24,7 +24,7 @@ type AssetViewProps = {
 export function AssetView({ asset, dimensions, category }: AssetViewProps) {
   switch (asset.kind) {
     case 'recipe': {
-      const recipe = resolveRecipe(asset.recipeId, category)
+      const recipe = recipeForAsset(asset, category)
       return recipe ? <RecipeMesh recipe={recipe} dimensions={dimensions} colors={asset.colors} /> : <Placeholder dimensions={dimensions} />
     }
     case 'glb':

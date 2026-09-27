@@ -7,13 +7,35 @@
  */
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import type { CatalogEntry, CatalogQuery, CatalogResult, CatalogSource } from '../domain/catalog'
-import { recipeAsset } from '../blocks/registry'
+import { getFamily } from '../blocks/families'
+import { validateRecipe, variantBlocks, variantColors, type Recipe } from '../blocks/recipe'
+import { recipeAsset, registerRecipes } from '../blocks/registry'
 import { categoryInfo } from '../domain/categories'
-import type { Offer } from '../domain/schema'
+import type { AssetRef, Offer } from '../domain/schema'
 import { Snapshot, variantId, variantLabel, variantUrl } from '../shop/snapshot'
 import { moodsOf } from './display'
 
-export function snapshotEntries(snapshot: Snapshot): CatalogEntry[] {
+/**
+ * How one variant is drawn: its product's recipe in this variant's colors and
+ * block choices (and, for rugs and art, its own photo), else the category's
+ * default recipe.
+ */
+function variantAsset(p: Snapshot['products'][number], sv: Snapshot['products'][number]['variants'][number], recipe: Recipe | undefined): AssetRef {
+  if (!recipe) return recipeAsset(p.category)
+  const colors = variantColors(recipe, p.optionNames, sv.optionValues)
+  const blocks = variantBlocks(recipe, p.optionNames, sv.optionValues)
+  // A variant's own photo replaces the product photo only where the recipe shows the product photo.
+  const ownPhoto = getFamily(recipe.family)?.imageSlot && recipe.image?.url === p.imageUrl && sv.imageUrl ? sv.imageUrl : undefined
+  return {
+    kind: 'recipe',
+    recipeId: recipe.id,
+    ...(colors ? { colors } : {}),
+    ...(blocks ? { blocks } : {}),
+    ...(ownPhoto ? { imageUrl: ownPhoto } : {}),
+  }
+}
+
+export function snapshotEntries(snapshot: Snapshot, recipes: ReadonlyMap<string, Recipe> = new Map()): CatalogEntry[] {
   return snapshot.products.flatMap((p) =>
     p.variants.map((sv): CatalogEntry => {
       const v = { ...sv, id: variantId(p, sv), label: variantLabel(sv), url: variantUrl(p, sv), imageUrl: sv.imageUrl ?? p.imageUrl }
@@ -36,7 +58,7 @@ export function snapshotEntries(snapshot: Snapshot): CatalogEntry[] {
           productId: p.id,
           label: v.label,
           dimensions: v.dimensions,
-          asset: recipeAsset(p.category),
+          asset: variantAsset(p, sv, recipes.get(p.id)),
           optionValues: v.optionValues,
           ...(v.imageUrl ? { imageUrl: v.imageUrl } : {}),
         },
@@ -60,6 +82,8 @@ export type CatalogState = {
   status: 'idle' | 'loading' | 'ready' | 'error'
   retrievedAt: string | null
   entries: CatalogEntry[]
+  /** Product recipes in use (0 when the recipe file couldn't be read: listings then use category defaults). */
+  recipes: number
   offers: ReadonlyMap<string, Offer>
   variantLabels: ReadonlyMap<string, string>
   /** Resolves when the snapshot is ready; concurrent calls share one request. Rejects on failure (call again to retry). */
@@ -68,12 +92,41 @@ export type CatalogState = {
   updateOffer: (offer: Offer) => void
 }
 
-export function createCatalogStore(fetchSnapshot: () => Promise<unknown>): StoreApi<CatalogState> {
+/** Valid recipes for products in the snapshot, registered for drawing; bad entries are skipped, never drawn. */
+async function loadRecipes(pending: Promise<unknown> | null, snapshot: Snapshot): Promise<Map<string, Recipe>> {
+  const byProduct = new Map<string, Recipe>()
+  if (!pending) return byProduct
+  let file: unknown
+  try {
+    file = await pending
+  } catch (error) {
+    console.warn('Product looks unavailable; using category defaults.', error)
+    return byProduct
+  }
+  const list = file && typeof file === 'object' && (file as { version?: unknown }).version === 1 ? (file as { recipes?: unknown }).recipes : undefined
+  if (!Array.isArray(list)) return byProduct
+  const products = new Set(snapshot.products.map((p) => p.id))
+  let skipped = 0
+  for (const entry of list) {
+    const result = validateRecipe(entry)
+    if (!result.ok || !result.recipe.productId || !products.has(result.recipe.productId)) {
+      skipped += 1
+      continue
+    }
+    byProduct.set(result.recipe.productId, result.recipe)
+  }
+  registerRecipes([...byProduct.values()])
+  if (skipped > 0) console.warn(`Skipped ${skipped} product looks that did not validate or match the catalog.`)
+  return byProduct
+}
+
+export function createCatalogStore(fetchSnapshot: () => Promise<unknown>, fetchRecipes?: () => Promise<unknown>): StoreApi<CatalogState> {
   let pending: Promise<void> | null = null
   return createStore<CatalogState>()((set, get) => ({
     status: 'idle',
     retrievedAt: null,
     entries: [],
+    recipes: 0,
     offers: new Map(),
     variantLabels: new Map(),
     load() {
@@ -81,12 +134,17 @@ export function createCatalogStore(fetchSnapshot: () => Promise<unknown>): Store
       pending ??= (async () => {
         set({ status: 'loading' })
         try {
+          // Both files load in parallel; the looks are optional, the listings are not.
+          const recipeFile = fetchRecipes ? fetchRecipes() : null
+          recipeFile?.catch(() => {})
           const snapshot = Snapshot.parse(await fetchSnapshot())
-          const entries = snapshotEntries(snapshot)
+          const recipes = await loadRecipes(recipeFile, snapshot)
+          const entries = snapshotEntries(snapshot, recipes)
           set({
             status: 'ready',
             retrievedAt: snapshot.retrievedAt,
             entries,
+            recipes: recipes.size,
             offers: new Map(entries.map((e) => [e.offer.id, e.offer])),
             variantLabels: new Map(entries.map((e) => [e.variant.id, e.variant.label])),
           })

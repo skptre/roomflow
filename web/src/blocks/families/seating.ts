@@ -42,6 +42,23 @@ type Run = {
 
 const LEG_STYLE: Record<string, LegStyle> = { 'tapered-legs': 'tapered', 'block-legs': 'block', 'metal-legs': 'metal' }
 
+/** A swivel base: a low round disc and a short column under the seat's center. */
+function swivelBase(x: number, z: number, radius: number, height: number): Geo {
+  const r = Math.max(0.12, radius)
+  const disc = Math.min(0.014, height * 0.3)
+  return place(
+    lathe([
+      [0, 0],
+      [r, 0],
+      [r, disc],
+      [0.055, disc + 0.012],
+      [0.045, height],
+      [0, height],
+    ]),
+    { x, z },
+  )
+}
+
 function armGeometry(style: string, side: 'start' | 'end', run: Run, s: SeatSpec): Geo[] {
   const x0 = side === 'start' ? 0 : run.L - s.armW
   const x1 = x0 + s.armW
@@ -151,6 +168,10 @@ function seatRun(ctx: BuildContext, run: Run, s: SeatSpec) {
     add('legs', slab(legsStart ? 0.03 : 0, run.L - (legsEnd ? 0.03 : 0), 0, s.legH, 0.03, run.D - 0.03, 0.004))
     return
   }
+  if (s.base === 'swivel') {
+    add('legs', swivelBase(run.L / 2, run.D / 2, Math.min(run.L, run.D) * 0.36, s.legH))
+    return
+  }
   const style = LEG_STYLE[s.base] ?? 'tapered'
   for (const [x, z] of legGrid(0, run.L, 0, run.D, style, 0.03)) {
     if ((!legsStart && x < run.L / 2 && run.L > 0.3) || (!legsEnd && x > run.L / 2 && run.L > 0.3)) continue
@@ -185,7 +206,8 @@ const seatParams = {
   legHeight: {
     min: 0,
     max: 0.3,
-    default: (_: unknown, blocks: Readonly<Record<string, string>>) => (blocks.base === 'plinth' ? 0.035 : blocks.base === 'block-legs' ? 0.08 : 0.13),
+    default: (_: unknown, blocks: Readonly<Record<string, string>>) =>
+      blocks.base === 'plinth' ? 0.035 : blocks.base === 'block-legs' ? 0.08 : blocks.base === 'swivel' ? 0.1 : 0.13,
   },
   armHeight: { min: 0.4, max: 1, default: (size: { height: number }) => Math.min(0.64, size.height - 0.04) },
   backDepth: { min: 0.1, max: 0.35, default: 0.2 },
@@ -276,7 +298,7 @@ export const chair = defineFamily({
     arm: { options: ['track', 'rolled', 'slope', 'flared', 'none'], default: 'track' },
     back: { options: ['tight', 'pillow', 'channel'], default: 'tight' },
     top: { options: ['rect', 'round'], default: 'rect' },
-    base: { options: ['tapered-legs', 'block-legs', 'metal-legs', 'plinth'], default: 'tapered-legs' },
+    base: { options: ['tapered-legs', 'block-legs', 'metal-legs', 'plinth', 'swivel'], default: 'tapered-legs' },
   },
   params: {
     ...seatParams,
@@ -321,6 +343,10 @@ function ottomanOrBench(ctx: BuildContext, form: 'ottoman' | 'bench') {
     ctx.add('legs', slab(-w / 2 + 0.01, w / 2 - 0.01, Math.max(legH, padBottom - 0.06), padBottom, -d / 2 + 0.01, d / 2 - 0.01, 0.004))
   }
   if (legH <= 0.004) return
+  if (base === 'swivel') {
+    ctx.add('legs', swivelBase(0, 0, Math.min(w, d) * 0.36, legH))
+    return
+  }
   if (base === 'plinth') {
     ctx.add('legs', round ? place(lathe([[0, 0], [Math.min(w, d) / 2 - 0.04, 0], [Math.min(w, d) / 2 - 0.04, legH], [0, legH]]), {}) : slab(-w / 2 + 0.03, w / 2 - 0.03, 0, legH, -d / 2 + 0.03, d / 2 - 0.03, 0.004))
     return
@@ -370,6 +396,10 @@ function barrel(ctx: BuildContext, s: SeatSpec) {
   if (s.legH <= 0.004) return
   if (s.base === 'plinth') {
     ctx.add('legs', place(lathe([[0, 0], [R - 0.05, 0], [R - 0.05, s.legH], [0, s.legH]]), { z: cz }))
+    return
+  }
+  if (s.base === 'swivel') {
+    ctx.add('legs', swivelBase(0, cz, R * 0.72, s.legH))
     return
   }
   const style = LEG_STYLE[s.base] ?? 'tapered'

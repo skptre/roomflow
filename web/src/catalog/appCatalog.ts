@@ -4,10 +4,16 @@
  */
 import { createCatalogStore, SnapshotCatalogSource } from './snapshotCatalog'
 
-export const catalogStore = createCatalogStore(async () => {
-  const response = await fetch(`${import.meta.env.BASE_URL}catalog/snapshot.json`)
-  if (!response.ok) throw new Error(`catalog HTTP ${response.status}`)
+async function catalogFile(name: string): Promise<unknown> {
+  const response = await fetch(`${import.meta.env.BASE_URL}catalog/${name}`)
+  if (!response.ok) throw new Error(`catalog ${name}: HTTP ${response.status}`)
   return response.json()
-})
+}
+
+export const catalogStore = createCatalogStore(
+  () => catalogFile('snapshot.json'),
+  // Each product's block recipe (scripts/recipes.ts); without it listings use their category's default look.
+  () => catalogFile('recipes.json'),
+)
 
 export const catalogSource = new SnapshotCatalogSource(catalogStore)

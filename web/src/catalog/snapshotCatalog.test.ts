@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { COLOR_LEXICON } from '../shop/colors'
 import { normalizeProduct } from '../shop/normalize'
+import { rulesRecipe } from '../shop/recipeRules'
 import fixtures from '../shop/__fixtures__/shopify-products.json'
 import { ShopifyProduct } from '../shop/shopify'
 import type { Snapshot } from '../shop/snapshot'
@@ -162,5 +164,58 @@ describe('pickVariant', () => {
     expect(pickVariant(variants, ['Moss', 'Oak', 'Slope'], 0)).toBe(3)
     // Change legs to Walnut from Ivory / Oak / Slope → Ivory / Walnut / Block keeps fabric.
     expect(pickVariant(variants, ['Ivory', 'Walnut', 'Slope'], 1)).toBe(0)
+  })
+})
+
+describe('product recipes', () => {
+  const sofaProduct = snapshot.products[0]!
+  const recipe = rulesRecipe(sofaProduct)
+  const recipes = new Map([[sofaProduct.id, recipe]])
+
+  it("draw each variant with its product's recipe, in that variant's colors", () => {
+    const entries = snapshotEntries(snapshot, recipes)
+    const walnut = entries.find((e) => e.variant.label.includes('Walnut - Wood'))!
+    const metal = entries.find((e) => e.variant.label.includes('Black - Metal'))!
+    expect(walnut.variant.asset).toMatchObject({ kind: 'recipe', recipeId: recipe.id, colors: { legs: COLOR_LEXICON.walnut!.hex } })
+    expect(metal.variant.asset).toMatchObject({ kind: 'recipe', recipeId: recipe.id, colors: { legs: COLOR_LEXICON.black!.hex } })
+    // Products without a recipe keep their category's default.
+    expect(entries.find((e) => e.product.category === 'curtain')!.variant.asset).toEqual({ kind: 'recipe', recipeId: 'default:curtain' })
+  })
+
+  it("carry a variant's block choices and, for rugs and art, its own photo", () => {
+    const rug = snapshot.products.find((p) => p.category === 'rug')!
+    const withPhotos = { ...rug, variants: rug.variants.map((v, i) => ({ ...v, ...(i === 1 ? { imageUrl: 'https://cdn.shopify.com/s/files/blue.jpg' } : {}) })) }
+    const rugRecipe = { ...rulesRecipe(withPhotos), optionBlocks: { Size: { [rug.variants[1]!.optionValues[0]!]: { shape: 'round' } } } }
+    const entries = snapshotEntries({ ...snapshot, products: [withPhotos] }, new Map([[rug.id, rugRecipe]]))
+    expect(entries[0]!.variant.asset).toMatchObject({ kind: 'recipe', recipeId: rugRecipe.id })
+    expect(entries[0]!.variant.asset).not.toHaveProperty('blocks')
+    expect(entries[0]!.variant.asset).not.toHaveProperty('imageUrl')
+    expect(entries[1]!.variant.asset).toMatchObject({ blocks: { shape: 'round' }, imageUrl: 'https://cdn.shopify.com/s/files/blue.jpg' })
+  })
+
+  it('load with the snapshot; a bad recipe is skipped, one for an unknown product ignored', async () => {
+    const bad = { ...recipe, id: 'bad', productId: sofaProduct.id, blocks: { arm: 'wing' } }
+    const stray = { ...recipe, id: 'stray', productId: 'shop:elsewhere.com:1' }
+    const store = createCatalogStore(
+      async () => snapshot,
+      async () => ({ version: 1, recipes: [bad, stray, recipe] }),
+    )
+    await store.getState().load()
+    expect(store.getState().recipes).toBe(1)
+    const sofa = store.getState().entries.find((e) => e.product.id === sofaProduct.id)!
+    expect(sofa.variant.asset).toMatchObject({ recipeId: recipe.id })
+  })
+
+  it('still load (with default looks) when the recipe file is unavailable', async () => {
+    const store = createCatalogStore(
+      async () => snapshot,
+      async () => {
+        throw new Error('HTTP 404')
+      },
+    )
+    await store.getState().load()
+    expect(store.getState().status).toBe('ready')
+    expect(store.getState().recipes).toBe(0)
+    expect(store.getState().entries[0]!.variant.asset).toEqual({ kind: 'recipe', recipeId: 'default:sofa' })
   })
 })

@@ -113,3 +113,20 @@ describe('shapes keep their own proportions inside a looser box', () => {
     expect(tray.x).toBeCloseTo(0.15, 2)
   })
 })
+
+describe('chair swivel base', () => {
+  it('stands on one centered disc, not four legs at the corners', () => {
+    const size = { width: 0.8, height: 0.8, depth: 0.82 }
+    const cases: Record<string, string>[] = [{ base: 'swivel' }, { base: 'swivel', shell: 'barrel' }, { base: 'swivel', form: 'ottoman', top: 'round' }]
+    for (const blocks of cases) {
+      const legs = buildParts(FAMILIES.chair!, size, blocks, {}).parts.get('legs')!
+      const box = new Box3()
+      for (const geometry of legs) {
+        geometry.computeBoundingBox()
+        box.union(geometry.boundingBox!)
+      }
+      expect(box.max.x - box.min.x, JSON.stringify(blocks)).toBeLessThan(size.width * 0.8)
+      expect(Math.abs((box.max.x + box.min.x) / 2), JSON.stringify(blocks)).toBeLessThan(0.02)
+    }
+  })
+})

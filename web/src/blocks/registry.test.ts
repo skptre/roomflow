@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CATEGORIES } from '../domain/categories'
-import { defaultRecipeId, getRecipe, recipeAsset, registerRecipes, resolveRecipe } from './registry'
+import { defaultRecipeId, getRecipe, recipeAsset, recipeForAsset, registerRecipes, resolveRecipe } from './registry'
 import { validateRecipe, type Recipe } from './recipe'
 
 describe('default recipes', () => {
@@ -37,5 +37,30 @@ describe('resolveRecipe', () => {
 
   it('refuses to register an invalid recipe', () => {
     expect(() => registerRecipes([{ schemaVersion: 1, id: 'bad', family: 'sofa', blocks: { arm: 'wing' }, params: {}, tier: 'rules' }])).toThrow(/arm/)
+  })
+})
+
+describe('recipeForAsset', () => {
+  const sofa: Recipe = { schemaVersion: 1, id: 'test:asset:sofa', family: 'sofa', blocks: { arm: 'track' }, params: {}, tier: 'gemini' }
+  const rug: Recipe = { schemaVersion: 1, id: 'test:asset:rug', family: 'rug', blocks: {}, params: {}, tier: 'gemini', image: { url: 'https://cdn.shopify.com/main.jpg' } }
+  registerRecipes([sofa, rug])
+
+  it('is the resolved recipe itself when the asset changes nothing', () => {
+    expect(recipeForAsset({ kind: 'recipe', recipeId: sofa.id }, 'sofa')).toBe(getRecipe(sofa.id))
+  })
+
+  it("applies a variant's block choices, and returns the same object for the same choices", () => {
+    const a = recipeForAsset({ kind: 'recipe', recipeId: sofa.id, blocks: { arm: 'rolled' } }, 'sofa')
+    expect(a?.blocks).toEqual({ arm: 'rolled' })
+    expect(recipeForAsset({ kind: 'recipe', recipeId: sofa.id, blocks: { arm: 'rolled' } }, 'sofa')).toBe(a)
+  })
+
+  it('ignores block choices the family does not have (never draws an invalid recipe)', () => {
+    expect(recipeForAsset({ kind: 'recipe', recipeId: sofa.id, blocks: { arm: 'wing' } }, 'sofa')).toBe(getRecipe(sofa.id))
+  })
+
+  it("shows a variant's own photo on families that show photos, only where the recipe shows one", () => {
+    expect(recipeForAsset({ kind: 'recipe', recipeId: rug.id, imageUrl: 'https://cdn.shopify.com/blue.jpg' }, 'rug')?.image).toEqual({ url: 'https://cdn.shopify.com/blue.jpg' })
+    expect(recipeForAsset({ kind: 'recipe', recipeId: sofa.id, imageUrl: 'https://cdn.shopify.com/blue.jpg' }, 'sofa')?.image).toBeUndefined()
   })
 })
