@@ -1,15 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { sampleRoom } from '../test/rooms'
-import { RoomDesignRequest, parseRoomDesignIntent, parseRoomDesignResponse, roomSummary } from './contract'
+import { RoomDesignRequest, describeRoomDesignIntent, parseRoomDesignIntent, parseRoomDesignResponse, roomSummary } from './contract'
 
 const room = sampleRoom()
 const intent = () => ({
-  summary: 'A calmer room',
   rearrange: 'none' as const,
   removeObjectIds: [],
   replace: [],
   add: [{ category: 'sofa', count: 1 }],
-  notes: [],
 })
 
 describe('room designer contract', () => {
@@ -69,18 +67,25 @@ describe('room designer contract', () => {
     expect(parseRoomDesignIntent({ ...intent(), palette: { mode: 'set', color: '#000000' } }, room).palette).toEqual({ mode: 'set', color: '#000000' })
   })
 
-  it('bounds explanations, notes and serialized output', () => {
-    expect(() => parseRoomDesignIntent({ ...intent(), summary: 'x'.repeat(301) }, room)).toThrow()
-    expect(() => parseRoomDesignIntent({ ...intent(), notes: Array(13).fill('note') }, room)).toThrow()
-    expect(() => parseRoomDesignIntent({ ...intent(), notes: ['x'.repeat(301)] }, room)).toThrow()
+  it('bounds serialized model output', () => {
     const oversized = { ...intent(), removeObjectIds: Array.from({ length: 100 }, (_, index) => `${'x'.repeat(297)}${index.toString().padStart(3, '0')}`) }
     expect(() => parseRoomDesignIntent(oversized, room)).toThrow('exceeds 24 KB')
   })
 
-  it.each(['$499', '499 USD', 'price: 499', 'https://shop.example/item', '2.4 m', 'width: 2.4', 'x=3,z=4', 'position: (1,2,3)', 'execute command moveObject'])('rejects fabricated facts in prose: %s', (claim) => {
-    expect(() => parseRoomDesignIntent({ ...intent(), summary: `A calm room. ${claim}` }, room)).toThrow()
-    expect(() => parseRoomDesignIntent({ ...intent(), notes: [`Try warm wood. ${claim}`] }, room)).toThrow()
-    expect(parseRoomDesignIntent({ ...intent(), summary: 'A calm room with a sofa', notes: ['Try warm wood and open space'] }, room).summary).toBe('A calm room with a sofa')
+  it.each(['costs four hundred dollars', 'two metres wide', 'retailer.shop/sofa', 'Delete the chair', 'A calmer room'])('rejects all model prose fields: %s', (claim) => {
+    expect(() => parseRoomDesignIntent({ ...intent(), summary: claim, notes: [] }, room)).toThrow()
+    expect(() => parseRoomDesignIntent({ ...intent(), summary: 'A calmer room', notes: [claim] }, room)).toThrow()
+  })
+
+  it('describes validated intent using neutral local copy, even with untrusted room labels', () => {
+    const alteredRoom = { ...room, objects: [{ ...room.objects[0]!, id: 'item-a', name: 'costs four hundred dollars', category: 'retailer.shop/sofa' }, ...room.objects.slice(1)] }
+    const plan = parseRoomDesignIntent({ ...intent(), palette: { mode: 'set', color: '#000000' }, rearrange: 'full', removeObjectIds: ['item-a'], add: [{ category: 'lounge-chair', count: 2 }] }, alteredRoom)
+    const description = describeRoomDesignIntent(plan, alteredRoom)
+    expect(description.summary).toBe('Requested room design with palette, layout, and furniture changes.')
+    expect(description.notes).toContain('Addition requests: 2 lounge chairs.')
+    expect(description.notes).toContain('Removal requests: 1 existing item.')
+    const copy = JSON.stringify(description)
+    for (const claim of ['costs four hundred dollars', 'two metres wide', 'retailer.shop/sofa', 'Delete the chair']) expect(copy).not.toContain(claim)
   })
 
   it('validates the response envelope through the current room and byte cap', () => {

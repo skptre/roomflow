@@ -2,16 +2,6 @@ import { z } from 'zod'
 import type { Room } from '../domain/schema'
 
 const ShortText = z.string().max(300)
-// Numeric purchase, measurement, coordinate, URL, and command claims are not
-// model facts. Keep prose to subjective, human-actionable design language.
-const FabricatedFacts = [
-  /(?:[$€£¥]\s*\d|\b(?:USD|EUR|GBP|CAD|AUD|JPY)\s*\d|\b\d+(?:\.\d+)?\s*(?:USD|EUR|GBP|CAD|AUD|JPY|dollars?|euros?|pounds?)\b|\b(?:price|cost|subtotal)\s*[:=])/i,
-  /(?:\b\d+(?:\.\d+)?\s*(?:mm|cm|m|meters?|metres?|inches?|ft|feet)\b|\b(?:width|height|depth|size)\s*(?::|=|is|of)?\s*\d|\bdimensions?\b)/i,
-  /(?:\b(?:https?:\/\/|www\.)|\b[a-z0-9-]+\.(?:com|net|org|io|co)(?:\/|\b))/i,
-  /(?:\b[xyz]\s*[:=]\s*-?\d|\b(?:coordinates?|position|pose)\s*[:=])/i,
-  /\b(?:commands?|applycommands|setposition|moveobject|execute)\b/i,
-]
-const SafeModelText = ShortText.refine((value) => !FabricatedFacts.some((pattern) => pattern.test(value)), 'Model prose contains unsupported factual claims')
 const Id = z.string().min(1).max(300)
 const HexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/)
 const Vec2 = z.strictObject({ x: z.number(), z: z.number() })
@@ -90,18 +80,70 @@ const PlannedItem = z.strictObject({ category: Category, count: z.number().int()
 
 /** Model output is intent only. It contains no coordinates, dimensions, prices, URLs, room fields, or executable commands; deterministic browser code resolves all edits. */
 export const RoomDesignIntent = z.strictObject({
-  summary: SafeModelText.min(1),
   palette: Palette.optional(),
   rearrange: z.enum(['none', 'gentle', 'full']),
   removeObjectIds: z.array(Id).max(100),
   replace: z.array(z.strictObject({ objectId: Id, category: Category, count: z.number().int().min(1).max(12) })).max(12),
   add: z.array(PlannedItem).max(12),
-  notes: z.array(SafeModelText.min(1)).max(12),
 }).superRefine((intent, ctx) => {
   const total = [...intent.replace, ...intent.add].reduce((sum, item) => sum + item.count, 0)
   if (total > 12) ctx.addIssue({ code: 'custom', message: 'At most 12 planned additions and replacements', path: ['add'] })
 })
 export type RoomDesignIntent = z.infer<typeof RoomDesignIntent>
+
+/** Browser-authored neutral copy derived from validated intent and allowlisted local category labels, never model prose or offer facts. */
+export type RoomDesignDescription = { summary: string; notes: string[] }
+
+const CapturedCategories = new Set<string>([
+  ...ROOM_DESIGN_CATEGORIES, 'bathtub', 'chair', 'closet', 'dishwasher',
+  'fireplace', 'oven', 'refrigerator', 'sink', 'stairs', 'storage', 'stove',
+  'table', 'television', 'toilet', 'washer-dryer',
+])
+
+function pluralLabel(category: string, count: number): string {
+  const label = category.replaceAll('-', ' ')
+  if (count === 1) return label
+  if (label.endsWith('ch') || label.endsWith('sh')) return `${label}es`
+  if (label.endsWith('y')) return `${label.slice(0, -1)}ies`
+  return `${label}s`
+}
+
+function joinedTopics(topics: string[]): string {
+  if (topics.length < 2) return topics[0] ?? ''
+  if (topics.length === 2) return topics.join(' and ')
+  return `${topics.slice(0, -1).join(', ')}, and ${topics.at(-1)}`
+}
+
+/** Describes requests, not applied changes. Revalidates intent and uses only fixed labels, so hostile local names/categories cannot become displayed claims. */
+export function describeRoomDesignIntent(value: RoomDesignIntent, room: Room): RoomDesignDescription {
+  const intent = parseRoomDesignIntent(value, room)
+  const topics: string[] = []
+  const notes: string[] = []
+  if (intent.palette && intent.palette.mode !== 'preserve') {
+    topics.push('palette')
+    if (intent.palette.mode === 'set') notes.push(`Color preference: ${intent.palette.color}.`)
+    else notes.push(`${intent.palette.mode === 'darken' ? 'Darker' : 'Lighter'} palette requested.`)
+  }
+  if (intent.rearrange !== 'none') {
+    topics.push('layout')
+    notes.push(`${intent.rearrange === 'full' ? 'Full' : 'Gentle'} rearrangement requested.`)
+  }
+  if (intent.removeObjectIds.length || intent.replace.length || intent.add.length) topics.push('furniture changes')
+  if (intent.removeObjectIds.length) {
+    const categories = intent.removeObjectIds.map((id) => room.objects.find((object) => object.id === id)?.category)
+    const category = categories.every((item) => item === categories[0]) && categories[0] && CapturedCategories.has(categories[0]) ? categories[0] : 'existing item'
+    notes.push(`Removal requests: ${intent.removeObjectIds.length} ${pluralLabel(category, intent.removeObjectIds.length)}.`)
+  }
+  if (intent.replace.length) {
+    const replacements = intent.replace.map((item) => `${item.count} ${pluralLabel(item.category, item.count)}`).join(', ')
+    notes.push(`Replacement requests for ${intent.replace.length} existing ${intent.replace.length === 1 ? 'item' : 'items'}: ${replacements}.`)
+  }
+  if (intent.add.length) {
+    const additions = intent.add.map((item) => `${item.count} ${pluralLabel(item.category, item.count)}`).join(', ')
+    notes.push(`Addition requests: ${additions}.`)
+  }
+  return { summary: topics.length ? `Requested room design with ${joinedTopics(topics)}.` : 'No room changes requested.', notes }
+}
 
 /** Minimal validated server response; all user-visible proposal facts are computed locally from current-room intent. */
 export type RoomDesignResponse = { intent: RoomDesignIntent }
