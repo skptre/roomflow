@@ -181,7 +181,7 @@ const BLOCK_GUIDE: Readonly<Record<string, Readonly<Record<string, string>>>> = 
   plant: { bush: 'bushy leafy plant', fiddle: 'fiddle-leaf fig tree', snake: 'upright sword leaves', palm: 'palm fronds', trailing: 'trailing vines', none: 'no plant (empty planter)' },
   edge: { none: 'plain edges', fringe: 'fringe or tassels at the ends' },
   mat: { none: 'no mat', white: 'white mat border' },
-  profile: { bud: 'small bud vase', amphora: 'rounded belly with a neck', cylinder: 'straight cylinder', bowl: 'wide bowl', bottle: 'bottle with a long neck', sphere: 'sphere', tray: 'flat tray with a low rim' },
+  profile: { bud: 'small bud vase', amphora: 'rounded belly with a neck', cylinder: 'straight cylinder', bowl: 'wide bowl', bottle: 'bottle with a long neck', sphere: 'sphere', tray: 'rectangular flat tray with a low rim', 'round-tray': 'round flat tray with a low rim' },
   seat: { flat: 'hard flat seat', cushion: 'separate cushion on the seat', upholstered: 'upholstered seat' },
   shelf: { none: 'no lower shelf', lower: 'a lower shelf' },
   drawer: { none: 'no drawer', '1': 'one drawer', '2': 'two drawers' },
@@ -570,6 +570,32 @@ export function readingsFrom(answer: GeminiAnswer, product: SnapshotProduct, fam
   return out
 }
 
+/**
+ * Block choices a photo may refine even when the listing's words decided the
+ * block: "Tray" names the object, not its outline, so the photo says whether it is round.
+ */
+const REFINES: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = { profile: { tray: ['round-tray'] } }
+
+/** RGB distance above which two part colors are clearly different materials, not lighting. */
+const DISTINCT_COLOR = 100
+
+function rgbDistance(a: string, b: string): number {
+  const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+  const [x, y] = [channels(a), channels(b)]
+  return Math.hypot(x[0]! - y[0]!, x[1]! - y[1]!, x[2]! - y[2]!)
+}
+
+/**
+ * Storage draws its top and sides as one case. A reading of a piece with a
+ * different top (marble, microcement, a contrasting wood) colors that case from
+ * the top, which paints the sides wrong; when the case and fronts clearly differ,
+ * the case follows the fronts. Called only when the reading names a top it can't
+ * show, so a genuinely two-tone case (painted case, wood fronts) keeps its colors.
+ */
+function caseFromFronts(colors: Record<string, string>): void {
+  if (colors.body && colors.fronts && rgbDistance(colors.body, colors.fronts) >= DISTINCT_COLOR) colors.body = colors.fronts
+}
+
 export type MergeInput = {
   product: SnapshotProduct
   trace: { recipe: Recipe; fired: ReadonlySet<string> }
@@ -586,7 +612,9 @@ export function mergeGemini({ product, trace, answer, images, readings, model }:
   const familyId = rules.family
 
   const blocks = { ...rules.blocks }
-  for (const [name, option] of Object.entries(answer.blocks)) if (!trace.fired.has(name)) blocks[name] = option
+  for (const [name, option] of Object.entries(answer.blocks)) {
+    if (!trace.fired.has(name) || REFINES[name]?.[rules.blocks[name] ?? '']?.includes(option)) blocks[name] = option
+  }
   const params = { ...rules.params }
   for (const [name, value] of Object.entries(answer.params)) if (!trace.fired.has(name)) params[name] = value
   const materialKind = { ...rules.materialKind }
@@ -621,6 +649,17 @@ export function mergeGemini({ product, trace, answer, images, readings, model }:
     // Art: a store's main art photo is almost always the artwork, so "none of them" keeps it.
     // Rugs: a room scene laid on the floor looks wrong, so "none" means flat color.
     image = picked ? { url: picked.url } : familyId === 'art' ? rules.image : undefined
+  }
+  // Art on its main photo: when the reading still sees a frame, that photo is the framed piece
+  // (store main photos show it framed), so our own frame and mat would frame it twice.
+  if (familyId === 'art' && image?.url === product.imageUrl && answer.blocks.frame !== undefined && answer.blocks.frame !== 'none') {
+    blocks.frame = 'none'
+    blocks.mat = 'none'
+  }
+
+  if (familyId === 'storage' && blocks.layout !== 'shelves' && answer.unmatched.some((phrase) => /\btops?\b/i.test(phrase))) {
+    caseFromFronts(defaultColors)
+    for (const values of Object.values(optionColors)) for (const slots of Object.values(values)) caseFromFronts(slots)
   }
 
   const unmatched = [...new Set([...(rules.unmatched ?? []), ...answer.unmatched.map((phrase) => phrase.trim().slice(0, 80)).filter(Boolean)])].slice(0, 20)

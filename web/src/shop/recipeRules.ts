@@ -120,6 +120,7 @@ const RULES: Readonly<Record<string, Rule[]>> = {
     [/\bframeless\b|\bbeveled\b/, 'frame', 'none'],
   ],
   vase: [
+    [/\b(round|circular)\b.*\btrays?\b|\btrays?\b.*\b(round|circular)\b/, 'profile', 'round-tray'],
     [/\btrays?\b/, 'profile', 'tray'],
     [/\bbud\b/, 'profile', 'bud'],
     [/\bbottle\b/, 'profile', 'bottle'],
