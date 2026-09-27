@@ -2,7 +2,7 @@
 import { Shape } from 'three'
 import { defineFamily } from '../family'
 import { align, cushion, extrudeShape, pillowForm, place, slab } from '../kit'
-import { HARD, leg, legGrid } from './shared'
+import { PROPORTION, hardEdge, leg, legGrid } from './shared'
 
 /** Headboard outline (x across, y up) for the shaped styles. */
 function headboardShape(style: 'arched' | 'rounded', w: number, h: number, bottom: number): Shape {
@@ -26,6 +26,9 @@ export const bed = defineFamily({
     frame: { options: ['legged', 'platform', 'upholstered'], default: 'legged' },
     footboard: { options: ['none', 'low'], default: 'none' },
     pillows: { options: ['2', '4'], default: '2' },
+    proportion: PROPORTION,
+    // A folded throw across the foot, draped over the sides. Styling, not the product (not offered to Gemini).
+    throw: { options: ['none', 'folded'], default: 'none' },
   },
   params: {
     frameHeight: { min: 0.12, max: 0.5, default: 0.3 },
@@ -37,6 +40,7 @@ export const bed = defineFamily({
     headboard: { kind: 'wood', color: '#9a7452' },
     bedding: { kind: 'fabric', color: '#efebe4' },
     pillows: { kind: 'fabric', color: '#f5f2ec' },
+    throw: { kind: 'fabric', color: '#c2704f' },
   },
   build(ctx) {
     const { w, h, d } = ctx
@@ -45,8 +49,11 @@ export const bed = defineFamily({
     if (frameStyle === 'upholstered') ctx.suggest('frame', 'fabric', '#c9bfae')
     if (frameStyle === 'upholstered' || style === 'channel' || style === 'wingback') ctx.suggest('headboard', 'fabric', '#c9bfae')
     const soft = frameStyle === 'upholstered' || style === 'channel' || style === 'wingback'
+    // Chunky: a thick padded headboard, a plump mattress and duvet, fat pillows, generous radii.
+    const chunky = ctx.block('proportion') === 'chunky'
+    const HARD = hardEdge(chunky)
 
-    const hbD = style === 'none' ? 0 : Math.min(ctx.param('headboardThickness'), d * 0.1)
+    const hbD = style === 'none' ? 0 : Math.min(chunky ? Math.max(ctx.param('headboardThickness'), 0.13) : ctx.param('headboardThickness'), d * 0.1)
     const back = -d / 2 + hbD
     // Bedding needs room below the listed height; a low headboard caps it.
     const frameH = Math.min(ctx.param('frameHeight'), h * 0.45)
@@ -61,21 +68,39 @@ export const bed = defineFamily({
       ctx.add('frame', slab(-w / 2, w / 2, 0.05, frameH, back, front, 0.006))
     } else if (frameStyle === 'upholstered') {
       ctx.add('frame', slab(-w / 2 + 0.04, w / 2 - 0.04, 0, 0.05, back + 0.04, front - 0.04, HARD))
-      ctx.add('frame', slab(-w / 2, w / 2, 0.05, frameH, back, front, 0.03))
+      ctx.add('frame', slab(-w / 2, w / 2, 0.05, frameH, back, front, chunky ? 0.06 : 0.03))
     } else {
       const railBottom = Math.max(0.06, frameH - 0.16)
-      ctx.add('frame', slab(-w / 2, w / 2, railBottom, frameH, back, front, 0.006))
-      for (const [x, z] of legGrid(-w / 2, w / 2, back, front, 'tapered', 0.02)) ctx.add('frame', leg('tapered', railBottom + 0.002, x, z))
+      ctx.add('frame', slab(-w / 2, w / 2, railBottom, frameH, back, front, chunky ? HARD : 0.006))
+      for (const [x, z] of legGrid(-w / 2, w / 2, back, front, 'tapered', 0.02, chunky)) ctx.add('frame', leg('tapered', railBottom + 0.002, x, z, chunky))
     }
 
     // Mattress, sunk slightly into the frame so the seam reads as one piece.
     const mattFront = front - 0.02
-    ctx.add('bedding', slab(-w / 2 + side, w / 2 - side, frameH - 0.03, mattTop, back + 0.01, mattFront, 0.04))
+    ctx.add('bedding', slab(-w / 2 + side, w / 2 - side, frameH - 0.03, mattTop, back + 0.01, mattFront, chunky ? 0.075 : 0.04))
     // Duvet: covers the lower two thirds, draping a little over the sides and foot; a rolled fold at its head.
     const duvetStart = back + Math.min(0.62, (mattFront - back) * 0.32)
     const drape = Math.min(0.2, mattTop - frameH + 0.02)
-    ctx.add('bedding', align(cushion(w - 2 * side + 0.02, drape + 0.035, mattFront - duvetStart + 0.012, 0.035, 0.015), { cx: 0, y0: mattTop - drape, z1: mattFront + 0.012 }))
-    ctx.add('bedding', slab(-w / 2 + side - 0.008, w / 2 - side + 0.008, mattTop - 0.02, mattTop + 0.055, duvetStart - 0.06, duvetStart + 0.04, 0.035))
+    const loft = chunky ? 0.06 : 0.035
+    ctx.add('bedding', align(cushion(w - 2 * side + 0.02, drape + loft, mattFront - duvetStart + 0.012, chunky ? 0.07 : 0.035, chunky ? 0.035 : 0.015), { cx: 0, y0: mattTop - drape, z1: mattFront + 0.012 }))
+    const fold = chunky ? Math.min(0.085, h - mattTop - 0.002) : 0.055
+    ctx.add('bedding', slab(-w / 2 + side - 0.008, w / 2 - side + 0.008, mattTop - 0.02, mattTop + fold, duvetStart - (chunky ? 0.08 : 0.06), duvetStart + 0.04, chunky ? 0.05 : 0.035))
+
+    // Throw: a folded band across the foot, resting on the duvet, its ends falling over both sides.
+    if (ctx.block('throw') === 'folded') {
+      const t = 0.045
+      const y1 = Math.min(mattTop + loft + t - 0.015, h)
+      const z0 = mattFront - Math.min(0.55, (mattFront - duvetStart) * 0.45)
+      const z1 = mattFront - 0.12
+      const inner = w / 2 - side + 0.012
+      ctx.add('throw', slab(-inner, inner, y1 - t, y1, z0, z1, 0.02))
+      const drop = Math.max(frameH + 0.02, mattTop - 0.14)
+      for (const sign of [-1, 1]) {
+        const x0 = sign < 0 ? -w / 2 + 0.002 : inner - 0.01
+        const x1 = sign < 0 ? -inner + 0.01 : w / 2 - 0.002
+        ctx.add('throw', slab(x0, x1, drop, y1 - 0.01, z0, z1, 0.008))
+      }
+    }
 
     // Pillows lean against the headboard.
     const across = w < 1.2 ? 1 : 2
@@ -87,8 +112,8 @@ export const bed = defineFamily({
         const height = row === 0 ? ph : ph * 0.82
         for (let i = 0; i < across; i++) {
           const x = across === 1 ? 0 : (i === 0 ? -1 : 1) * (pw / 2 + 0.01)
-          const pillow = place(pillowForm(pw, height, 0.14, 'square'), { rx: -0.32 })
-          ctx.add('pillows', align(pillow, { cx: x, y0: mattTop - 0.03, z0: back + 0.015 + row * 0.12 }))
+          const pillow = place(pillowForm(pw, height, chunky ? 0.2 : 0.14, 'square'), { rx: -0.32 })
+          ctx.add('pillows', align(pillow, { cx: x, y0: mattTop - 0.03, z0: back + 0.015 + row * (chunky ? 0.15 : 0.12) }))
         }
       }
     }
@@ -102,7 +127,7 @@ export const bed = defineFamily({
     const z0 = -d / 2
     switch (style) {
       case 'panel':
-        hb(-w / 2, w / 2, 0, h, z0, back, soft ? 0.025 : 0.008)
+        hb(-w / 2, w / 2, 0, h, z0, back, chunky ? 0.05 : soft ? 0.025 : 0.008)
         break
       case 'channel': {
         hb(-w / 2, w / 2, 0, h, z0, z0 + hbD * 0.45, 0.012)
@@ -135,7 +160,7 @@ export const bed = defineFamily({
       }
       case 'arched':
       case 'rounded':
-        ctx.add('headboard', place(extrudeShape(headboardShape(style, w, h, 0), hbD, soft ? 0.02 : 0.008), { z: z0 }))
+        ctx.add('headboard', place(extrudeShape(headboardShape(style, w, h, 0), hbD, chunky ? Math.min(0.05, hbD * 0.4) : soft ? 0.02 : 0.008), { z: z0 }))
         break
     }
   },

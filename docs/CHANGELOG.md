@@ -40,6 +40,43 @@ Updated `web/src/roomDesigner/contract.ts` and `contract.test.ts` so model summa
 
 Added `web/src/roomDesigner/contract.ts` and `contract.test.ts` to define the redacted, consented text request and strict intent-only model response. Public schemas/types are `RoomSummary`, `RoomDesignRequest`, `RoomDesignIntent`, and `RoomDesignResponse`; `ROOM_DESIGN_CATEGORIES`, `roomSummary`, and `parseRoomDesignIntent` bound categories, output size, planned count, identities, and duplicate references. This keeps scan evidence and purchase facts out of Gemini while leaving coordinate, catalog, and budget decisions to deterministic browser code.
 
+### 2026-09-27 — web: rotate ring sits above everything
+
+- `web/src/scene/FurnitureObject.tsx`: the selected object's rotate ring and knob draw with `depthTest` off at `HANDLE_RENDER_ORDER`, so a bed, rug or wall never hides them. A wider invisible grab band uses new `raycastOnTop` (every hit reported at distance 0), so the ring wins pointer events over furniture drawn above it; before, a rug or neighbor caught the press and the ring couldn't be grabbed.
+
+### 2026-09-27 — web: dragging in the room no longer selects text
+
+- `web/src/index.css`: `.room-stage` and `.welcome-room` are `user-select: none`, so a drag to orbit or move furniture never starts a text selection over the hint, hover tags or notices.
+
+### 2026-09-27 — web: no flicker at wall corners
+
+- `web/src/scene/Architecture.tsx`: exterior walls' corner extensions stop 1 mm (`CORNER_TUCK`) short of the neighboring wall's outer face. Before, one wall's end face lay exactly on the other's outer face, and the two z-fought: a flickering zigzag down each outside corner, most visible on cut-away stubs.
+
+### 2026-09-27 — web: sample room back to the original bedroom
+
+- `generate-demo-home.mjs` / `demo-home.roomplan.json`: the original sample bedroom's layout (bed's head on the north wall, dresser on the south wall, open door on the south wall, window on the east wall), 4.4 × 3.8 m instead of 4 × 3.5. The desk and chair moved to the west wall so nothing stands under the window's curtains. No armchair.
+- `demoRoom.ts`: four scanned pieces (bed, desk, desk chair, dresser) in chunky recipes, the importer's default finishes (the original colors), and one lamp, painting, rug, plant and curtains. Tests unchanged in intent (sparse, $0 start, no collisions or blocked doorway); checked in the browser.
+
+### 2026-09-27 — web: simpler sample bedroom; paintings slide along their wall; fixes
+
+- Sample room back to one small bedroom (`generate-demo-home.mjs`, `demoRoom.ts`): 4.6 × 4.0 m, five scanned pieces (bed, nightstand, desk, desk chair, armchair) and one of each decor (lamp, painting, rug, plant, curtains). The bathroom is gone; `Room.zones` stays as a supported, now unused, capability.
+- Hung pieces (paintings, mirrors) now drag along their own wall, left/right and up/down, instead of refusing to move ("remove it and add it again"). New `wallPlacement`, `slideOnWall`, `coversOpening` (`domain/layout.ts`), `wallPoint` (`scene/floorPointer.ts`); `FurnitureObject` slides on the wall and refuses covering a window or door. The `move` command takes an optional `y` (bottom height), so a slide is one undoable step; `moveObject(id, position, y?)`. Inspector arrows on a hung piece slide it on the wall (`nudgeOnWall` in `ui/editorActions.ts`).
+- Prints sold in many sizes started at the first listed (smallest, 25 cm), so every painting landed tiny and identical: `defaultVariantIndex` (`domain/catalog.ts`) starts wall pieces at the listed size nearest a typical one; `ProductCard` uses it. Art without listed sizes still shows the category's estimated size.
+- Barrel armchair legs were near the rim, outside its rounded bottom, and looked detached: now tucked under the seat (`families/seating.ts`).
+- Tests: wall slide/clamp/opening cover, `move` with a height, nudge direction and undo, default variant, the smaller sample room. Checked in the browser: sample room, armchair legs close up, dragging the painting along the wall, arrow nudges.
+
+### 2026-09-27 — web: demo sample home (two rooms, chunky models, room zones)
+
+"Explore sample room" now opens a furnished two-room home built for the live demo instead of the bare synthetic bedroom.
+- `web/scripts/generate-demo-home.mjs` → `web/src/fixtures/demo-home.roomplan.json`: synthetic RoomPlan-shaped scan of an L-shaped plan, a 4.8 × 4.2 m bedroom and a 2.6 × 3.2 m bathroom joined by a door in the wall between them. Goes through the real importer. `synthetic-bedroom.roomplan.json` stays as the test fixture.
+- `web/src/fixtures/demoRoom.ts`: `demoRoom()`, `furnish()`, `DEMO_RECIPES`. Names scanned pieces (nightstand, dresser, desk, desk chair, armchair, vanity), draws them with chunky `demo:*` recipes in one palette, adds owned decor (lamps, plants, art, rug, bench, bath mat, mirror, curtains via `windowSpot`), sage/carpet bedroom finishes and a white-tile bathroom zone. Everything is `captured`/`owned`, so the subtotal starts at $0. `App.tsx` uses it for the sample and the welcome preview.
+- `web/src/domain/schema.ts`: new optional `Room.zones` (`Zone`: name, polygon, wall/floor/`floorTexture` incl. `'tile'`). Rooms without zones render as before; looks still restyle `room.finishes`.
+- `web/src/scene/zonePaint.ts`: `zoneAt`, `wallFaceColors`, `FaceColors`. `Architecture.tsx` lays zone floors over the slab and paints each wall face for the room it looks into (`splitFaces` regroups extruded wall caps). `materials.ts`: `'tile'` texture.
+- `web/src/scene/cutaway.ts`: `wallsToCut` now also cuts interior partitions that face the camera (either side), so the wall between rooms drops to a stub.
+- Blocks: new `proportion` block (`PROPORTION`, `CHUNKY_EDGE`, `hardEdge` in `families/shared.ts`; `leg`, `legGrid`, `legHalfWidth`, `handle` take `chunky`) on bed, storage, table, dining-chair, sofa, chair: fat rounded legs, soft edges, big knobs, plump bedding. Bed `throw` block + slot; art `motif` block (`arches`, `sun`, `shapes`) with `accent`/`accent2` slots. All default to today's look, so catalog models are unchanged.
+- `web/src/shop/recipeGemini.ts`: `proportion`, `throw`, `motif` blocks and art `accent*` slots are left out of the Gemini prompt, so prompt text and the answer cache are unchanged.
+- Tests: `demoRoom.test.ts` (clean import, rooms/zones, pieces in the right room, $0 start, every recipe builds, no collisions or blocked doorways), `zonePaint.test.ts`, updated `cutaway.test.ts`. Checked in the browser: overview, four orbits, and preview → commit → undo of an armchair swap ($1,344 → $0).
+
 ### 2026-09-27 — integration: real catalog renderer with room capture
 
 Merged the demo-ready real-catalog branch into the Designer and native piece-import work. Existing RoomPlan furniture, wall art, Gemini appearance previews, and scanned pieces now use the validated recipe renderer (`web/src/blocks/`) alongside the real catalog. Built-in closet fronts remain measured placeholders because RoomPlan supplies only their thin door plane; an invalid recipe now also falls back to a visible size placeholder instead of blanking the canvas. The Vite server mounts both the price-refresh API and the local-only Gemini recognition endpoint. No scan evidence, prices, or preview-isolation rules changed.

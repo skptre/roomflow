@@ -48,9 +48,17 @@ describe('wallsToCut', () => {
     expect(wallsToCut(walls, floor, dir(below, Math.sqrt(1 - below * below)), new Set(['east'])).has('east')).toBe(false)
   })
 
-  it('never cuts an interior partition', () => {
-    const partition = wall('partition', { x: -2, z: 0 }, { x: 0, z: 0 }, false)
-    expect(wallsToCut([...walls, partition], floor, dir(0, 1), new Set()).has('partition')).toBe(false)
+  it('cuts a partition between two rooms when it faces the camera, from either side', () => {
+    // A wall between rooms stands across the view and would hide the room behind it.
+    const across = wall('across', { x: -2, z: 0 }, { x: 0, z: 0 }, false)
+    const reversed = wall('reversed', { x: 0, z: 0 }, { x: -2, z: 0 }, false)
+    expect(wallsToCut([...walls, across], floor, dir(0, 1), new Set()).has('across')).toBe(true)
+    expect(wallsToCut([...walls, reversed], floor, dir(0, 1), new Set()).has('reversed')).toBe(true)
+  })
+
+  it('keeps a partition that runs along the view', () => {
+    const along = wall('along', { x: 0.5, z: -1.75 }, { x: 0.5, z: 1.75 }, false)
+    expect(wallsToCut([...walls, along], floor, dir(0, 1), new Set()).has('along')).toBe(false)
   })
 
   it('cuts nothing when looking straight down', () => {

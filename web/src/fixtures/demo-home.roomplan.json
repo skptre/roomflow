@@ -1,0 +1,361 @@
+{
+  "_synthetic": true,
+  "_note": "Synthetic fixture shaped like RoomPlan CapturedRoom JSON. Not a real scan.",
+  "identifier": "DEMO-HOME",
+  "version": 2,
+  "walls": [
+    {
+      "category": {
+        "wall": {}
+      },
+      "identifier": "WALL-SOUTH",
+      "confidence": {
+        "high": {}
+      },
+      "dimensions": [
+        4.4,
+        2.6,
+        0
+      ],
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1.4,
+        0,
+        1.1,
+        1
+      ],
+      "parentIdentifier": null,
+      "completedEdges": [],
+      "polygonCorners": []
+    },
+    {
+      "category": {
+        "wall": {}
+      },
+      "identifier": "WALL-EAST",
+      "confidence": {
+        "high": {}
+      },
+      "dimensions": [
+        3.8,
+        2.6,
+        0
+      ],
+      "transform": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0,
+        3.6,
+        0,
+        3,
+        1
+      ],
+      "parentIdentifier": null,
+      "completedEdges": [],
+      "polygonCorners": []
+    },
+    {
+      "category": {
+        "wall": {}
+      },
+      "identifier": "WALL-NORTH",
+      "confidence": {
+        "high": {}
+      },
+      "dimensions": [
+        4.4,
+        2.6,
+        0
+      ],
+      "transform": [
+        -1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        -1,
+        0,
+        1.4,
+        0,
+        4.9,
+        1
+      ],
+      "parentIdentifier": null,
+      "completedEdges": [],
+      "polygonCorners": []
+    },
+    {
+      "category": {
+        "wall": {}
+      },
+      "identifier": "WALL-WEST",
+      "confidence": {
+        "high": {}
+      },
+      "dimensions": [
+        3.8,
+        2.6,
+        0
+      ],
+      "transform": [
+        0,
+        0,
+        -1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        -0.8,
+        0,
+        3,
+        1
+      ],
+      "parentIdentifier": null,
+      "completedEdges": [],
+      "polygonCorners": []
+    }
+  ],
+  "doors": [
+    {
+      "category": {
+        "door": {
+          "isOpen": true
+        }
+      },
+      "identifier": "DOOR-ENTRY",
+      "confidence": {
+        "high": {}
+      },
+      "dimensions": [
+        0.9,
+        2.05,
+        0
+      ],
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0.95,
+        -0.275,
+        1.1,
+        1
+      ],
+      "parentIdentifier": "WALL-SOUTH",
+      "completedEdges": [],
+      "polygonCorners": []
+    }
+  ],
+  "windows": [
+    {
+      "category": {
+        "window": {}
+      },
+      "identifier": "WINDOW-EAST",
+      "confidence": {
+        "high": {}
+      },
+      "dimensions": [
+        1.2,
+        1.2,
+        0
+      ],
+      "transform": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0,
+        3.6,
+        0.2,
+        3,
+        1
+      ],
+      "parentIdentifier": "WALL-EAST",
+      "completedEdges": [],
+      "polygonCorners": []
+    }
+  ],
+  "openings": [],
+  "objects": [
+    {
+      "category": {
+        "bed": {}
+      },
+      "identifier": "OBJ-BED",
+      "confidence": {
+        "high": {}
+      },
+      "dimensions": [
+        1.6,
+        1.05,
+        2.1
+      ],
+      "transform": [
+        -1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        -1,
+        0,
+        0.75,
+        -0.775,
+        3.85,
+        1
+      ],
+      "parentIdentifier": null
+    },
+    {
+      "category": {
+        "table": {}
+      },
+      "identifier": "OBJ-DESK",
+      "confidence": {
+        "high": {}
+      },
+      "dimensions": [
+        1.2,
+        0.75,
+        0.6
+      ],
+      "transform": [
+        0,
+        0,
+        -1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        -0.5,
+        -0.925,
+        2.15,
+        1
+      ],
+      "parentIdentifier": null
+    },
+    {
+      "category": {
+        "chair": {}
+      },
+      "identifier": "OBJ-DESK-CHAIR",
+      "confidence": {
+        "high": {}
+      },
+      "dimensions": [
+        0.56,
+        0.86,
+        0.56
+      ],
+      "transform": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0,
+        0.15,
+        -0.87,
+        2.15,
+        1
+      ],
+      "parentIdentifier": null
+    },
+    {
+      "category": {
+        "storage": {}
+      },
+      "identifier": "OBJ-DRESSER",
+      "confidence": {
+        "high": {}
+      },
+      "dimensions": [
+        1,
+        0.82,
+        0.46
+      ],
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        2.2,
+        -0.89,
+        1.33,
+        1
+      ],
+      "parentIdentifier": null
+    }
+  ],
+  "floors": [],
+  "sections": []
+}

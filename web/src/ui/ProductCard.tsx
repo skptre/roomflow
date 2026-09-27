@@ -3,7 +3,7 @@ import { useStore } from 'zustand'
 import { catalogStore } from '../catalog/appCatalog'
 import { sizedImage } from '../catalog/display'
 import { pickVariant } from '../catalog/snapshotCatalog'
-import type { CatalogEntry, PlacementTarget } from '../domain/catalog'
+import { defaultVariantIndex, type CatalogEntry, type PlacementTarget } from '../domain/catalog'
 import { designStore } from '../domain/designStore'
 import { formatSizeWithSource } from '../domain/labels'
 import { formatMoney } from '../domain/money'
@@ -12,7 +12,7 @@ import { FurnitureThumbnail } from './FurnitureThumbnail'
 import { StudioIcon } from './StudioIcon'
 
 export function ProductCard({ variants, target }: { variants: CatalogEntry[]; target: PlacementTarget }) {
-  const [variantIndex, setVariantIndex] = useState(0)
+  const [variantIndex, setVariantIndex] = useState(() => defaultVariantIndex(variants))
   const [quantity, setQuantity] = useState(1)
   const [problem, setProblem] = useState<string | null>(null)
   const [photoFailed, setPhotoFailed] = useState<string | null>(null)

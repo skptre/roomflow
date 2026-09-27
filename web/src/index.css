@@ -322,6 +322,8 @@ select {
 .welcome-room {
   position: relative;
   min-height: clamp(500px, 73dvh, 820px);
+  -webkit-user-select: none;
+  user-select: none;
 }
 .welcome-scene {
   position: absolute;
@@ -450,6 +452,9 @@ select {
   min-width: 0;
   overflow: hidden;
   isolation: isolate;
+  /* Dragging to orbit or move furniture must never start a text selection (hints, hover tags, notices). */
+  -webkit-user-select: none;
+  user-select: none;
 }
 .stage-title {
   position: absolute;

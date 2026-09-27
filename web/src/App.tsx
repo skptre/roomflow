@@ -4,7 +4,7 @@ import { useStore } from 'zustand'
 import { catalogSource, catalogStore } from './catalog/appCatalog'
 import { designStore, viewRoom } from './domain/designStore'
 import { budgetForChoice, type SummarySources } from './domain/purchases'
-import sampleScan from './fixtures/synthetic-bedroom.roomplan.json?raw'
+import { demoRoom } from './fixtures/demoRoom'
 import { MAX_IMPORT_BYTES, parseRoomPlanJson, type ImportResult } from './import/roomplan'
 import { isZipArchive, MAX_PACKAGE_BYTES, parseRoomflowPackage, type PackageImportResult } from './import/roomflowPackage'
 import { RoomScene } from './scene/RoomScene'
@@ -32,7 +32,7 @@ import { ThemePicker } from './ui/ThemePicker'
 import { TopBar } from './ui/TopBar'
 import { useEditorShortcuts } from './ui/useEditorShortcuts'
 
-const sampleResult = parseRoomPlanJson(sampleScan)
+const sampleResult = demoRoom()
 const sampleRoom = sampleResult.ok ? sampleResult.room : null
 const BlockSheet = lazy(() => import('./scene/dev/BlockSheet').then((m) => ({ default: m.BlockSheet })))
 const blocksParam = new URLSearchParams(window.location.search).get('blocks')
@@ -179,7 +179,7 @@ function Workspace() {
           error={error}
           busy={busy}
           onImportFile={importFile}
-          onOpenSample={() => open(parseRoomPlanJson(sampleScan))}
+          onOpenSample={() => open(demoRoom())}
           onResume={committed ? () => setWelcome(false) : undefined}
         >
           {sampleRoom && <RoomScene room={sampleRoom} sources={sources} decorative />}
