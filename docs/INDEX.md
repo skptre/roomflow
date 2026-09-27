@@ -7,6 +7,7 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | --- | --- |
 | What every file does, with key types/functions | `docs/ARCHITECTURE.md` |
 | What changed and when | `docs/CHANGELOG.md` |
+| Gemini room-designer design and safety contract | `docs/superpowers/specs/2026-09-27-gemini-room-designer-design.md` |
 | Why a past tradeoff was made | `docs/DECISIONS.md` |
 | When to update which document | `.claude/documentation.md` |
 | Product behavior and scope | `spec.md` |
