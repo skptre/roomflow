@@ -1,5 +1,9 @@
 # Changelog
 
+### 2026-09-27 — web: prevent imported art from being buried by its wall
+
+Updated `web/src/import/roomflowPackage.ts`: `wallArtObject` now applies a 1 cm `WALL_ART_GAP` from the scanned wall face after preserving the measured art size, normal, wall association, and standoff. A flush back was coplanar with the standing wall and could be depth-occluded at some camera angles. The package import regression now asserts the gap.
+
 ### 2026-09-27 — web: keep paintings visible in the dollhouse cutaway
 
 Updated `web/src/scene/RoomScene.tsx` so `wall-art` remains visible while its host wall drops to the low cutaway stub. Imported art is already positioned with its back on the wall and front facing into the room; hiding it with the cut wall made paintings disappear from the very overview intended to reveal the room. Mirrors and built-in closets retain their existing cutaway behavior.

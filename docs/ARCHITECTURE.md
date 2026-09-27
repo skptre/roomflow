@@ -120,7 +120,7 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | --- | --- |
 | `web/src/main.tsx`, `App.tsx`, `index.css` | App entry, root component, design tokens |
 | `web/src/import/roomplan.ts` | Imports raw RoomPlan JSON (contract: `docs/contracts/room-import.md`): `parseRoomPlanJson`; floor outline = wall loop → `outlineFromFloors` → `alignedBoundsOutline`; built-in closets (`isBuiltInCloset`, `closetOnWall`, `isClosetDoor` drops their doors) |
-| `web/src/import/roomflowPackage.ts` | Imports `.roomflow.zip` (`parseRoomflowPackage`, `isZipArchive`): manifest + SHA-256 checks, raw scan via `parseRoomPlanJson`, evidence (`PackageEvidence`, `PackagePhoto`, `PhotoRegion`); scanned floor color → `finishes.floor` + `floorTexture: 'plain'` (`MIN_FLOOR_SAMPLES`); optional `wallArt.json` → locked `wall-art` objects (`readWallArt`, `wallArtObject`), photos in `PackageEvidence.artPhotos` |
+| `web/src/import/roomflowPackage.ts` | Imports `.roomflow.zip` (`parseRoomflowPackage`, `isZipArchive`): manifest + SHA-256 checks, raw scan via `parseRoomPlanJson`, evidence (`PackageEvidence`, `PackagePhoto`, `PhotoRegion`); scanned floor color → `finishes.floor` + `floorTexture: 'plain'` (`MIN_FLOOR_SAMPLES`); optional `wallArt.json` → locked `wall-art` objects with a small render-safe wall gap (`readWallArt`, `wallArtObject`), photos in `PackageEvidence.artPhotos` |
 | `web/src/import/zip.ts` | Dependency-free ZIP reader (`readZip`, `crc32`, `ZipError`, `DEFAULT_ZIP_LIMITS`) |
 | `web/src/ui/evidenceStore.ts` | In-memory package evidence beside the loaded room (`evidenceStore.set`, `regionsFor`, `artPhotoFor`) |
 | `web/src/test/zipWriter.ts` | Test-only ZIP builder (`makeZip`) with tampering options |

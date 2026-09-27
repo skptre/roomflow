@@ -28,6 +28,8 @@ const ART_PHOTO = /^art\/([0-9A-Fa-f-]{36})\.jpg$/
 const WALL_ART_WARNING = "The package's wall art couldn't be read, so it was left out."
 /** Wall art thinner than this is drawn this deep so the frame reads (format.md: depth = max(0.03, standoff)). */
 const MIN_ART_DEPTH = 0.03
+/** Visible clearance from the scanned wall face, avoiding depth-buffer occlusion of a flush art frame. */
+const WALL_ART_GAP = 0.01
 
 const Finite = z.number()
 const Uuid = z.string().uuid()
@@ -144,8 +146,9 @@ async function sha256Hex(data: Uint8Array): Promise<string> {
 }
 
 /**
- * Wall art as room objects, per format.md: native center/normal (RoomPlan frame) moved by `nativeToApp`; the back
- * touches the wall, `y` is the bottom, and yaw turns local +Z (front) along the normal. Measured estimates, approximate.
+ * Wall art as room objects, per format.md: native center/normal (RoomPlan frame) moved by `nativeToApp`; a small
+ * visual gap keeps its back clear of the wall, `y` is the bottom, and yaw turns local +Z (front) along the normal.
+ * Measured estimates, approximate.
  */
 function wallArtObject(item: WallArtItem, nativeToApp: Vec3): RoomObject {
   const [nx, ny, nz] = item.normal as [number, number, number]
@@ -153,8 +156,8 @@ function wallArtObject(item: WallArtItem, nativeToApp: Vec3): RoomObject {
   const n = { x: nx / length, y: ny / length, z: nz / length }
   const [cx, cy, cz] = item.center as [number, number, number]
   const depth = Math.max(MIN_ART_DEPTH, item.standoff)
-  // The wall surface behind the piece, then out by half the depth to the object's middle.
-  const mid = { x: cx - n.x * item.standoff + n.x * (depth / 2), z: cz - n.z * item.standoff + n.z * (depth / 2) }
+  // The wall surface behind the piece, then out by half the depth plus a small render-safe gap.
+  const mid = { x: cx - n.x * item.standoff + n.x * (depth / 2 + WALL_ART_GAP), z: cz - n.z * item.standoff + n.z * (depth / 2 + WALL_ART_GAP) }
   return {
     id: item.artId,
     name: 'Wall art',
