@@ -5,6 +5,12 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### iOS: wall-art spike, round 2
+- `WallArtSpike.swift`: groups sightings by 3D position instead of live wall ID (the device log showed wall `836B`
+  replaced by `91A5` mid-scan, splitting one object into two groups); rejects surfaces more than 8 cm behind the wall
+  (seen through a doorway/window); summary shows first-seen time, height above floor, and the final wall matched by
+  position.
+
 ### iOS: spike: log possible wall art during scanning
 - New `ios/RoomFlow/Services/WallArtSpike.swift` (DEBUG only): `WallArtSpike` (`reset()`, `process(frame:surfaces:objects:)`,
   `logSummary(finalRoom:)`). Vision rectangle detection every 500 ms; corners cast onto live walls; rejects by LiDAR depth

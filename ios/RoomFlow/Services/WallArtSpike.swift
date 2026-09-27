@@ -21,6 +21,8 @@ nonisolated final class WallArtSpike: @unchecked Sendable {
         var center: SIMD3<Float>
         var sizes: [SIMD2<Float>] = []
         var cameraPositions: [SIMD3<Float>] = []
+        /// Seconds into the scan when first accepted, to match a group with what was being pointed at.
+        var firstSeen: TimeInterval = 0
     }
 
     private struct Camera {
@@ -77,7 +79,7 @@ nonisolated final class WallArtSpike: @unchecked Sendable {
             guard !found.isEmpty else { return }
             emit(String(format: "t=%.1fs frame#%d: %d rectangle(s)", elapsed, index, found.count))
             for (n, observation) in found.enumerated() {
-                let verdict = judge(observation, camera: camera, surfaces: surfaces, objects: objects, depth: depth)
+                let verdict = judge(observation, camera: camera, surfaces: surfaces, objects: objects, depth: depth, elapsed: elapsed)
                 emit("  rect\(n + 1) conf=\(String(format: "%.2f", observation.confidence)) \(verdict)")
             }
         }
@@ -86,24 +88,25 @@ nonisolated final class WallArtSpike: @unchecked Sendable {
     /// Logs the art candidates seen from enough frames and positions, and whether their wall survived.
     func logSummary(finalRoom: CapturedRoom) {
         lock.lock(); let all = clusters; lock.unlock()
-        let finalWalls = Set(finalRoom.walls.map(\.identifier))
+        let floorY = finalRoom.floors.first.map { $0.transform.columns.3.y }
+            ?? finalRoom.walls.map { $0.transform.columns.3.y - $0.dimensions.y / 2 }.min() ?? 0
         emit("summary: \(all.count) candidate group(s); ART = seen ≥3 times from camera spots ≥0.2 m apart")
         for (n, cluster) in all.enumerated() {
             let count = Float(cluster.sizes.count)
             let w = cluster.sizes.map(\.x).reduce(0, +) / count, h = cluster.sizes.map(\.y).reduce(0, +) / count
             let spread = Self.spread(cluster.cameraPositions)
             let status = cluster.sizes.count >= 3 && spread >= 0.2 ? "ART" : "weak"
-            emit(String(format: "  group%d %@ wall=%@ %.0f×%.0f cm at (%.2f, %.2f, %.2f) sightings=%d spread=%.2fm finalWall=%@",
-                        n + 1, status, String(cluster.wallId.uuidString.prefix(4)), w * 100, h * 100,
-                        cluster.center.x, cluster.center.y, cluster.center.z, cluster.sizes.count, spread,
-                        finalWalls.contains(cluster.wallId) ? "yes" : "NO"))
+            let wall = Self.finalWall(for: cluster.center, in: finalRoom).map { String($0.identifier.uuidString.prefix(4)) } ?? "none"
+            emit(String(format: "  group%d %@ first t=%.0fs %.0f×%.0f cm, center %.2f m above floor, sightings=%d spread=%.2fm finalWall=%@",
+                        n + 1, status, cluster.firstSeen, w * 100, h * 100, cluster.center.y - floorY,
+                        cluster.sizes.count, spread, wall))
         }
     }
 
     // MARK: - Judging one rectangle
 
     private func judge(_ observation: VNRectangleObservation, camera: Camera, surfaces: [LiveSurface],
-                       objects: [LiveObject], depth: CVPixelBuffer?) -> String {
+                       objects: [LiveObject], depth: CVPixelBuffer?, elapsed: TimeInterval) -> String {
         // Vision: normalized, bottom-left origin → top-left origin.
         let corners = [observation.topLeft, observation.topRight, observation.bottomRight, observation.bottomLeft]
             .map { SIMD2<Float>(Float($0.x), 1 - Float($0.y)) }
@@ -133,6 +136,7 @@ nonisolated final class WallArtSpike: @unchecked Sendable {
             let delta = measured - expected
             depthNote = String(format: "depthΔ=%+.2fm", delta)
             if delta < -0.08 { return "REJECT \(size) wall=\(wallName) something in front (\(depthNote))" }
+            if delta > 0.08 { return "REJECT \(size) wall=\(wallName) surface behind the wall, seen through a gap (\(depthNote))" }
         }
         guard (0.15...2.0).contains(width), (0.15...2.0).contains(height), max(width, height) / min(width, height) <= 5 else {
             return "REJECT \(size) wall=\(wallName) size out of range (\(depthNote))"
@@ -157,23 +161,33 @@ nonisolated final class WallArtSpike: @unchecked Sendable {
                 return "REJECT \(size) wall=\(wallName) overlaps TV (\(depthNote))"
             }
         }
-        let group = record(wallId: wall.sourceId, center: center, size: SIMD2(width, height), camera: camera.position)
+        let group = record(wallId: wall.sourceId, center: center, size: SIMD2(width, height), camera: camera.position, elapsed: elapsed)
         return String(format: "ACCEPT %@ wall=%@ at (%.2f, %.2f, %.2f) %@ → group%d",
                       size, wallName, center.x, center.y, center.z, depthNote, group)
     }
 
-    /// Adds a sighting to the group on the same wall within 15 cm, or starts one. Returns its 1-based number.
-    private func record(wallId: UUID, center: SIMD3<Float>, size: SIMD2<Float>, camera: SIMD3<Float>) -> Int {
+    /// Adds a sighting to the group within 15 cm, or starts one. Returns its 1-based number. Grouped by
+    /// position, not wall ID: live wall IDs change while RoomPlan merges walls (seen on device).
+    private func record(wallId: UUID, center: SIMD3<Float>, size: SIMD2<Float>, camera: SIMD3<Float>, elapsed: TimeInterval) -> Int {
         lock.lock(); defer { lock.unlock() }
-        if let i = clusters.firstIndex(where: { $0.wallId == wallId && simd_distance($0.center, center) < 0.15 }) {
+        if let i = clusters.firstIndex(where: { simd_distance($0.center, center) < 0.15 }) {
             let n = Float(clusters[i].sizes.count)
             clusters[i].center = (clusters[i].center * n + center) / (n + 1)
+            clusters[i].wallId = wallId
             clusters[i].sizes.append(size)
             clusters[i].cameraPositions.append(camera)
             return i + 1
         }
-        clusters.append(Cluster(wallId: wallId, center: center, sizes: [size], cameraPositions: [camera]))
+        clusters.append(Cluster(wallId: wallId, center: center, sizes: [size], cameraPositions: [camera], firstSeen: elapsed))
         return clusters.count
+    }
+
+    /// The final room's wall whose plane the point lies on (within 10 cm) and inside of, if any.
+    private static func finalWall(for point: SIMD3<Float>, in room: CapturedRoom) -> CapturedRoom.Surface? {
+        room.walls.first { wall in
+            let local = wall.transform.inverse * SIMD4(point, 1)
+            return abs(local.z) < 0.1 && abs(local.x) <= wall.dimensions.x / 2 + 0.05 && abs(local.y) <= wall.dimensions.y / 2 + 0.05
+        }
     }
 
     // MARK: - Geometry helpers
