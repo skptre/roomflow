@@ -192,10 +192,10 @@ describe('parseRoomflowPackage', () => {
         asset: { kind: 'recipe', recipeId: 'default:wall-art' },
       })
       expect(art.dimensions).toEqual({ width: 0.38, height: 0.95, depth: 0.03, source: 'captured' })
-      // nativeToApp for the fixture is (-3.2, 1.4, -2.45). A 1 cm visual gap keeps the frame clear of the wall.
+      // nativeToApp for the fixture is (-3.2, 1.4, -2.45). A 2 mm visual gap keeps the frame clear of the wall.
       expect(art.pose.position.x).toBeCloseTo(0, 6)
       expect(art.pose.position.y).toBeCloseTo(1.0 + 1.4 - 0.95 / 2, 6)
-      expect(art.pose.position.z).toBeCloseTo(4.2 - 0.025 - 2.45, 6)
+      expect(art.pose.position.z).toBeCloseTo(4.2 - 0.017 - 2.45, 6)
       expect(Math.abs(art.pose.yaw)).toBeCloseTo(Math.PI, 6) // faces -z (normal was normalized)
       expect(hostWall(room, art)).toBe('WALL-C-NORTH')
       expect(isWallHung(art)).toBe(true) // so it hides with its wall in the cutaway

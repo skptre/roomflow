@@ -29,7 +29,7 @@ const WALL_ART_WARNING = "The package's wall art couldn't be read, so it was lef
 /** Wall art thinner than this is drawn this deep so the frame reads (format.md: depth = max(0.03, standoff)). */
 const MIN_ART_DEPTH = 0.03
 /** Visible clearance from the scanned wall face, avoiding depth-buffer occlusion of a flush art frame. */
-const WALL_ART_GAP = 0.01
+const WALL_ART_GAP = 0.002
 
 const Finite = z.number()
 const Uuid = z.string().uuid()
