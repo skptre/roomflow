@@ -23,3 +23,16 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+
+  ios:
+    if: github.event_name == 'pull_request'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Choose an available iPhone simulator
+        id: simulator
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(device["udid"] for runtime in devices.values() for device in runtime if device["name"].startswith("iPhone")))')
+          echo "id=$DEVICE_ID" >> "$GITHUB_OUTPUT"
+      - name: Build and test iPhone app
+        run: xcodebuild test -project ios/RoomFlow.xcodeproj -scheme RoomFlow -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}' CODE_SIGNING_ALLOWED=NO

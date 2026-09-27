@@ -4,6 +4,7 @@ import UIKit
 /// Room details and the files RoomFlow can hand off.
 /// The raw RoomPlan file (for the web importer) and RoomFlow's editable JSON are different artifacts.
 struct ScanSummaryView: View {
+    @EnvironmentObject private var pairing: BrowserPairingManager
     let room: RoomModel
     /// True for the debug sample room, which must never look like a real scan.
     var isSample = false
@@ -24,6 +25,7 @@ struct ScanSummaryView: View {
     @State private var packageResult: RoomPackageExport.Result?
     @State private var isPreparingPackage = false
     @State private var packageError: String?
+    @State private var showPairing = false
 
     var body: some View {
         List {
@@ -41,6 +43,21 @@ struct ScanSummaryView: View {
             }
 
             if let rawCapture {
+                Section("Browser") {
+                    Button(pairing.pairing == nil ? "Connect to browser" : "Send scan to browser",
+                           systemImage: "qrcode.viewfinder") {
+                        if pairing.pairing == nil { showPairing = true }
+                        else { Task { await pairing.send(rawCapture.data) } }
+                    }
+                    if case .sent(let host) = pairing.transfer {
+                        Text("Sent to \(host)").foregroundStyle(Color.rfSecondaryText)
+                    } else if case .failed(let message) = pairing.transfer {
+                        Text(message).font(.footnote).foregroundStyle(.red)
+                    }
+                } footer: {
+                    Text("Scan the code shown in your browser. The original RoomPlan scan opens there automatically.")
+                }
+
                 Section {
                     NavigationLink {
                         RoomEvidenceReviewView(captureID: rawCapture.id, room: room, photos: photos)
@@ -157,6 +174,7 @@ struct ScanSummaryView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.rfBackground)
+        .sheet(isPresented: $showPairing) { BrowserPairingView(rawCapture: rawCapture) }
         .navigationTitle(isSample ? "Sample Room" : "Scan Result")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: room) {

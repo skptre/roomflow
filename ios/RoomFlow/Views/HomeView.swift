@@ -2,7 +2,9 @@ import RoomPlan
 import SwiftUI
 
 struct HomeView: View {
+    @EnvironmentObject private var pairing: BrowserPairingManager
     @State private var isScanning = false
+    @State private var showPairing = false
     @State private var showUnsupported = false
     @State private var pendingScan: ScanCaptureResult?
     /// Opt-in: keep calibrated reference photos during the scan.
@@ -25,20 +27,40 @@ struct HomeView: View {
             ZStack {
                 Color.rfBackground.ignoresSafeArea()
 
-                VStack(spacing: 12) {
-                    Spacer()
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Roomflow")
+                        .font(.system(size: 27, weight: .semibold))
+                        .tracking(-1.2)
+                        .foregroundStyle(Color.rfInk)
+                        .padding(.top, 22)
 
-                    Text("ROOMFLOW")
-                        .font(.system(size: 40, weight: .semibold))
-                        .tracking(8)
-                        .foregroundStyle(.white)
-                    Text("Your room, with anything you find.")
-                        .font(.subheadline)
+                    Spacer(minLength: 42)
+
+                    Text("YOUR SPACE, READY TO EXPLORE")
+                        .font(.system(size: 11, weight: .bold))
+                        .tracking(1.5)
+                        .foregroundStyle(Color.rfAccent)
+                    Text("Your room,\nwith anything\nyou find.")
+                        .font(.system(size: 49, weight: .regular))
+                        .tracking(-2.8)
+                        .lineSpacing(-3)
+                        .foregroundStyle(Color.rfInk)
+                        .padding(.top, 15)
+                    Text("Scan here. Arrange and try new pieces in your browser.")
+                        .font(.body)
                         .foregroundStyle(Color.rfSecondaryText)
+                        .padding(.top, 16)
 
-                    Spacer()
+                    Spacer(minLength: 38)
 
-                    Button("Scan a Room", systemImage: "viewfinder") {
+                    if let connected = pairing.pairing {
+                        Label("Connected to \(connected.displayHost). Your next scan will open there.", systemImage: "checkmark.circle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(Color.rfAccent)
+                            .padding(.bottom, 15)
+                    }
+
+                    Button("Scan my room", systemImage: "viewfinder") {
                         if RoomScanService.isSupported {
                             isScanning = true
                         } else {
@@ -46,6 +68,11 @@ struct HomeView: View {
                         }
                     }
                     .buttonStyle(RFButtonStyle())
+                    .padding(.bottom, 10)
+
+                    Button("Connect to browser", systemImage: "qrcode.viewfinder") { showPairing = true }
+                        .buttonStyle(RFButtonStyle(prominent: false))
+                        .padding(.bottom, 20)
 
                     Toggle(isOn: $includeReferencePhotos) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -56,7 +83,7 @@ struct HomeView: View {
                                 .foregroundStyle(Color.rfSecondaryText)
                         }
                     }
-                    .tint(.accentColor)
+                    .tint(Color.rfAccent)
                     .padding(.vertical, 4)
 
                     NavigationLink {
@@ -64,13 +91,15 @@ struct HomeView: View {
                     } label: {
                         Label("Saved Rooms", systemImage: "square.stack.3d.up")
                     }
-                    .buttonStyle(RFButtonStyle(prominent: false))
+                    .foregroundStyle(Color.rfAccent)
+                    .padding(.vertical, 16)
 
                     #if DEBUG
                     debugMenu
                     #endif
                 }
-                .padding(24)
+                .padding(.horizontal, 26)
+                .padding(.bottom, 28)
             }
             .navigationDestination(isPresented: $showEditor) {
                 if let latestRoom {
@@ -87,9 +116,15 @@ struct HomeView: View {
                 isScanning = false
             }
         }
+        .sheet(isPresented: $showPairing) { BrowserPairingView() }
+        .preferredColorScheme(.light)
+        .tint(Color.rfAccent)
         .alert("Couldn't save this room", isPresented: $showSaveError) {
             Button("Retry") { Task { await saveAndOpenLatest() } }
-            Button("Continue Without Saving", role: .cancel) { showEditor = true }
+            Button("Continue Without Saving", role: .cancel) {
+                showEditor = true
+                sendIfPaired()
+            }
         } message: {
             Text("\(saveError ?? "") The scan is still open and can be shared, but it won't appear in Saved Rooms.")
         }
@@ -132,10 +167,16 @@ struct HomeView: View {
                 temporarySessions.forEach { RoomEvidenceRecorder.removeTemporaryFiles(sessionID: $0) }
             }
             showEditor = true
+            sendIfPaired()
         } catch {
             saveError = error.localizedDescription
             showSaveError = true
         }
+    }
+
+    private func sendIfPaired() {
+        guard let raw = latestRawCapture, pairing.pairing != nil else { return }
+        Task { await pairing.send(raw.data) }
     }
 
     #if DEBUG
@@ -179,4 +220,5 @@ struct HomeView: View {
 
 #Preview {
     HomeView()
+        .environmentObject(BrowserPairingManager())
 }

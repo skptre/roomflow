@@ -8,7 +8,7 @@ import { roomflowApi } from './server/api'
 export default defineConfig({
   plugins: [react(), tailwindcss(), roomflowApi()],
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'server/**/*.test.ts'],
     environment: 'node',
   },
 })

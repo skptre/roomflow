@@ -42,6 +42,7 @@ struct RoomScanView: View {
             await scanner.start()
         }
         .onDisappear { scanner.cancel() }
+        .preferredColorScheme(.dark)
     }
 
     @ViewBuilder
@@ -53,7 +54,7 @@ struct RoomScanView: View {
             VStack(spacing: 12) {
                 statusText("Walk slowly around the room. Point at every wall, door, window, and piece of furniture.")
                 Button("Done Scanning") { scanner.finish() }
-                    .buttonStyle(RFButtonStyle())
+                    .buttonStyle(RFScanButtonStyle())
             }
         case .processing:
             HStack(spacing: 10) {
@@ -68,16 +69,16 @@ struct RoomScanView: View {
                     onComplete(ScanCaptureResult(room: room, colors: scanner.colorEstimates, photos: scanner.photos))
                 }
             }
-            .buttonStyle(RFButtonStyle())
+            .buttonStyle(RFScanButtonStyle())
         case .failed(let failure):
             VStack(spacing: 12) {
                 statusText(failure.message)
                 if failure == .cameraAccessDenied, let settings = URL(string: UIApplication.openSettingsURLString) {
                     Button("Open Settings") { openURL(settings) }
-                        .buttonStyle(RFButtonStyle())
+                        .buttonStyle(RFScanButtonStyle())
                 }
                 Button("Close") { dismiss() }
-                    .buttonStyle(RFButtonStyle(prominent: false))
+                    .buttonStyle(RFScanButtonStyle(prominent: false))
             }
         }
     }
