@@ -13,7 +13,7 @@ import { matchColor, matchColorParts, type ColorMatch } from './colors'
 import type { SnapshotProduct } from './snapshot'
 
 /** Extra listing text the snapshot doesn't keep (from the raw feed). Only the product type is read for shape. */
-export type ListingText = { productType?: string }
+export type ListingText = { productType?: string; description?: string; images?: readonly string[] }
 
 export const RULES_VERSION = 'rules-1'
 
@@ -227,6 +227,27 @@ function drawerGrid(count: number): { rows: number; cols: number } {
 }
 
 export function rulesRecipe(product: SnapshotProduct, text: ListingText = {}): Recipe {
+  return rulesTrace(product, text).recipe
+}
+
+/** Whether an option's name could name a color (not a size, fill, configuration, style…). */
+export function mayNameColor(optionName: string): boolean {
+  return !NOT_COLOR.test(optionName.toLowerCase())
+}
+
+/** Which slots an option's values color in a family (and whether one color paints all of them); null when it colors nothing. */
+export function colorOptionSlots(familyId: string, optionName: string): { slots: readonly string[]; spread: boolean } | null {
+  const lower = optionName.toLowerCase()
+  if (NOT_COLOR.test(lower)) return null
+  const map = (OPTION_SLOTS[familyId] ?? []).find((entry) => entry.name.test(lower))
+  return map ? { slots: map.slots, spread: !!map.spread } : null
+}
+
+/**
+ * The rules recipe plus what the listing's own words decided (`fired` blocks
+ * and params). A photo tier keeps those: the merchant's words beat a reading.
+ */
+export function rulesTrace(product: SnapshotProduct, text: ListingText = {}): { recipe: Recipe; fired: ReadonlySet<string> } {
   const defaultId = defaultRecipeId(product.category)
   const base = defaultId ? getRecipe(defaultId) : undefined
   if (!base) throw new Error(`No block family for category "${product.category}"`)
@@ -245,8 +266,14 @@ export function rulesRecipe(product: SnapshotProduct, text: ListingText = {}): R
     fired.add(block)
     matchedShape = true
   }
-  if (family.id === 'sofa') matchedShape = sofaShape(product, words, blocks) || matchedShape
-  if (family.id === 'storage') matchedShape = storageLayout(product.category, words, blocks, params) || matchedShape
+  if (family.id === 'sofa' && sofaShape(product, words, blocks)) {
+    fired.add('shape')
+    matchedShape = true
+  }
+  if (family.id === 'storage' && storageLayout(product.category, words, blocks, params)) {
+    for (const name of ['layout', 'rows', 'cols']) fired.add(name)
+    matchedShape = true
+  }
   if (family.id === 'planter' && product.category === 'plant' && !fired.has('plant')) blocks.plant = 'bush'
   if (family.id === 'art' && !fired.has('frame')) {
     // A print sold as paper or canvas arrives without a frame unless the listing says framed.
@@ -331,7 +358,7 @@ export function rulesRecipe(product: SnapshotProduct, text: ListingText = {}): R
   }
   const result = validateRecipe(recipe)
   if (!result.ok) throw new Error(`rules recipe for ${product.id}: ${result.error}`)
-  return result.recipe
+  return { recipe: result.recipe, fired }
 }
 
 /** A tag that is nothing but a color name ("Blue", "Ivory"). */
