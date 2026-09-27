@@ -2,6 +2,10 @@
 
 Non-obvious tradeoffs, each with the alternative that was rejected. Routine "only way to do it" changes don't belong here.
 
+## Model-requested categories match offerable catalog categories
+
+The intent schema accepts only categories represented in the committed real catalog for additions and replacements. Captured furniture and structural category strings remain in the redacted room summary, where existing object IDs can be targeted, but cannot request a new invented product. Task 2 maps generic language such as “chairs” to available chair categories and skips unsupported inventory. Rejected: allowing every RoomPlan category in add/replace requests, which could turn fixtures such as a sink or closet into fabricated shopping items.
+
 ## Gemini room design returns intent, not edits
 
 The room-designer request projects only structural geometry, current finishes, and minimal object facts; the response names categories and existing object IDs without positions, dimensions, prices, URLs, or executable commands. The browser will resolve actual edits against its current room and catalog. Rejected: asking Gemini to return a full room or product plan, which could leak capture and purchase evidence and let fabricated model facts cross the trusted boundary.
