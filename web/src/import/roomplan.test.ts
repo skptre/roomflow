@@ -132,6 +132,14 @@ describe('parseRoomPlanJson — interpretation', () => {
     expect(room.walls.filter((w) => w.exterior)).toHaveLength(4)
   })
 
+  it('keeps whether each door stood open when scanned (absent means closed)', () => {
+    expect(load().room.openings.find((o) => o.id === 'DOOR-1')).toMatchObject({ kind: 'door', open: true })
+    const closed = load(mutate((raw) => (raw.doors[0].category = { door: { isOpen: false } }))).room.openings.find((o) => o.id === 'DOOR-1')!
+    expect(closed).not.toHaveProperty('open')
+    const bare = load(mutate((raw) => (raw.doors[0].category = 'door'))).room.openings.find((o) => o.id === 'DOOR-1')!
+    expect(bare).not.toHaveProperty('open')
+  })
+
   it('maps an unknown category to "unknown" with a placeholder and a warning', () => {
     const text = mutate((raw) => {
       raw.objects[0].category = { hologram: {} }
@@ -393,7 +401,7 @@ describe('parseRoomPlanJson — built-in closets', () => {
     const closets = room.objects.filter((o) => o.category === 'closet')
     expect(closets).toHaveLength(1)
     const closet = closets[0]!
-    expect(closet).toMatchObject({ id: 'OBJ-CLOSET', name: 'Closet', keep: true, lockPlacement: true, asset: { kind: 'placeholder' } })
+    expect(closet).toMatchObject({ id: 'OBJ-CLOSET', name: 'Closet', keep: true, lockPlacement: true, asset: { kind: 'recipe', recipeId: 'default:closet' } })
     expect(closet.dimensions).toMatchObject({ width: 1.3, height: 2.2, depth: 0.04, source: 'captured' })
     // West wall is at app x = -2; the back touches it and the front faces +x (into the room).
     expect(closet.pose.position.x).toBeCloseTo(-2 + 0.02 + 0.002, 4)
