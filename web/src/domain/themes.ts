@@ -13,7 +13,7 @@ import { filterHard, rankSoft, type CatalogEntry } from './catalog'
 import { CATEGORIES, alternativeCategories } from './categories'
 import { applyCommands, type Command } from './commands'
 import { purchaseLine } from './designStore'
-import { aboveSpot, anchorObject, besideSpot, cornerSpot, rugSpot, wallSpot } from './layout'
+import { aboveSpot, anchorObject, besideSpot, cornerSpot, rugSpot, wallSpot, windowSpot } from './layout'
 import { formatMoney, subtotal } from './money'
 import { purchaseSummary, type PurchaseSummary, type SummarySources } from './purchases'
 import type { Finishes, Money, Offer, Room, RoomObject } from './schema'
@@ -63,8 +63,8 @@ export type Proposal = {
   conflicts: string[]
 }
 
-/** Categories every look tries to include if the room has none, in priority order. */
-const ESSENTIALS = ['floor-lamp', 'rug', 'plant', 'wall-art'] as const
+/** Categories every look tries to include if the room has none, in priority order (curtains only where there's a window). */
+const ESSENTIALS = ['floor-lamp', 'rug', 'plant', 'wall-art', 'curtain'] as const
 
 function signed(amountMinor: number, currency: string): string {
   if (amountMinor === 0) return `±${formatMoney({ amountMinor: 0, currency })}`
@@ -166,6 +166,7 @@ export function buildProposal(
   const wallHeight = Math.min(...room.walls.map((wall) => wall.height), 2.6)
   for (const category of ESSENTIALS) {
     if (working.objects.some((object) => object.category === category)) continue
+    if (category === 'curtain' && !working.openings.some((opening) => opening.kind === 'window')) continue
     const anchor = anchorObject(working)
     let added = false
     let blockedByBudget = false
@@ -197,7 +198,9 @@ export function buildProposal(
             ? besideSpot(working, candidate, anchor)
             : category === 'plant'
               ? cornerSpot(working, candidate)
-              : (aboveSpot(working, candidate, anchor, wallHeight) ?? wallSpot(working, candidate, 1.2))
+              : category === 'curtain'
+                ? windowSpot(working, candidate)
+                : (aboveSpot(working, candidate, anchor, wallHeight) ?? wallSpot(working, candidate, 1.2))
       if (!placed) continue
       const command: Command = { type: 'add', object: placed }
       const next = tryCommands([command])

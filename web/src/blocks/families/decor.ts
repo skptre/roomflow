@@ -371,10 +371,33 @@ export const mirror = defineFamily({
   },
 })
 
+/** A pleated band of fabric from xa to xb: a sine wave across, extruded down from `top` to just above the floor. */
+function pleats(xa: number, xb: number, pleat: number, amplitude: number, top: number): Geo {
+  const waves = Math.max(2, Math.round((xb - xa) / pleat))
+  const thickness = 0.004
+  const steps = waves * 12
+  const front: Vector3[] = []
+  for (let i = 0; i <= steps; i++) {
+    const x = xa + ((xb - xa) * i) / steps
+    front.push(new Vector3(x, Math.sin((i / steps) * waves * Math.PI * 2) * (amplitude - thickness / 2), 0))
+  }
+  const shape = new Shape()
+  shape.moveTo(front[0]!.x, front[0]!.y + thickness / 2)
+  for (const p of front) shape.lineTo(p.x, p.y + thickness / 2)
+  for (const p of [...front].reverse()) shape.lineTo(p.x, p.y - thickness / 2)
+  shape.closePath()
+  // Shape XY → XZ (y → −z), extruded up from the hem.
+  return place(extrudeShape(shape, top - 0.01, 0, 1).rotateX(-Math.PI / 2), { y: 0.01 })
+}
+
 export const curtain = defineFamily({
   id: 'curtain',
   label: 'Curtain',
-  blocks: { rod: { options: ['metal', 'wood', 'none'], default: 'metal' } },
+  blocks: {
+    rod: { options: ['metal', 'wood', 'none'], default: 'metal' },
+    // How it hangs, not what it is: open (gathered at both ends, the window showing between) or drawn closed.
+    draw: { options: ['open', 'closed'], default: 'open' },
+  },
   params: { fullness: { min: 0.5, max: 2, default: 1 } },
   slots: {
     fabric: { kind: 'fabric', color: '#e8e1d4' },
@@ -386,33 +409,26 @@ export const curtain = defineFamily({
     if (rod === 'wood') ctx.suggest('rod', 'wood', '#8b6a4c')
     const rodR = 0.012
     const top = rod === 'none' ? h : h - 2 * rodR - 0.015
-    // Pleats: a soft wave across the width, extruded down the length.
     const amplitude = Math.max(0.004, Math.min(d / 2 - 0.004, 0.035))
-    const waves = Math.max(2, Math.round((w / 0.13) * ctx.param('fullness')))
-    const thickness = 0.004
+    const pleat = 0.13 / ctx.param('fullness')
     const x0 = -w / 2 + 0.005
     const x1 = w / 2 - 0.005
-    const steps = waves * 12
-    const front: Vector3[] = []
-    for (let i = 0; i <= steps; i++) {
-      const x = x0 + ((x1 - x0) * i) / steps
-      front.push(new Vector3(x, Math.sin((i / steps) * waves * Math.PI * 2) * (amplitude - thickness / 2), 0))
+    if (ctx.block('draw') === 'closed') {
+      ctx.add('fabric', pleats(x0, x1, pleat, amplitude, top))
+    } else {
+      // Drawn open: the fabric gathers into a deeper, tighter stack at each end.
+      const stack = Math.max(0.12, Math.min(w * 0.28, 0.6))
+      ctx.add('fabric', pleats(x0, x0 + stack, pleat * 0.55, Math.max(0.004, d / 2 - 0.004), top))
+      ctx.add('fabric', pleats(x1 - stack, x1, pleat * 0.55, Math.max(0.004, d / 2 - 0.004), top))
     }
-    const shape = new Shape()
-    shape.moveTo(front[0]!.x, front[0]!.y + thickness / 2)
-    for (const p of front) shape.lineTo(p.x, p.y + thickness / 2)
-    for (const p of [...front].reverse()) shape.lineTo(p.x, p.y - thickness / 2)
-    shape.closePath()
-    const length = top - 0.01
-    // Shape XY → XZ (y → −z), extruded up from the hem.
-    ctx.add('fabric', place(extrudeShape(shape, length, 0, 1).rotateX(-Math.PI / 2), { y: 0.01 }))
     if (rod === 'none') return
     ctx.add('rod', place(cylinder(rodR, rodR, w - 0.05, 16), { rz: Math.PI / 2, y: h - rodR - 0.004 }))
     for (const sign of [-1, 1]) ctx.add('rod', place(sphere(0.02, 0.02, 0.02, 14, 10), { x: sign * (w / 2 - 0.021), y: h - 0.021 }))
-    // Rings holding the heading.
+    // Rings holding the heading, where there is fabric.
     const rings = Math.max(3, Math.round(w / 0.15))
     for (let i = 0; i < rings; i++) {
       const x = x0 + 0.02 + ((x1 - x0 - 0.04) * i) / (rings - 1)
+      if (ctx.block('draw') !== 'closed' && Math.abs(x) < w / 2 - Math.max(0.12, Math.min(w * 0.28, 0.6))) continue
       ctx.add('rod', place(cylinder(0.006, 0.006, top < h ? h - rodR - top + 0.004 : 0.01, 8), { x, y: (h - rodR + top) / 2 }))
     }
   },

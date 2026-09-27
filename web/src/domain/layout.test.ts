@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { sampleRoom } from '../test/rooms'
+import { collisions } from './commands'
 import { footprintsOverlap, insideRoom } from './geometry'
-import { blocksDoorway, freeSpot, hostWall } from './layout'
+import { blocksDoorway, freeSpot, hostWall, windowSpot } from './layout'
 
 describe('freeSpot', () => {
   it('finds a spot inside the room that overlaps nothing', () => {
@@ -70,5 +71,51 @@ describe('hostWall', () => {
     }
     expect(hostWall(room, art)).toBe('WALL-A-SOUTH')
     expect(hostWall(room, room.objects.find((o) => o.id === 'OBJ-CHAIR')!)).toBeNull()
+  })
+})
+
+describe('windowSpot', () => {
+  const curtain = (height: number) => ({
+    ...sampleRoom().objects[0]!,
+    id: 'curtain',
+    category: 'curtain',
+    sourceKind: 'product' as const,
+    dimensions: { width: 1.27, height, depth: 0.05, source: 'merchant' as const },
+  })
+
+  it('hangs a curtain centered on the window, rod above it, in front of the wall and facing in', () => {
+    const room = sampleRoom()
+    const window = room.openings.find((o) => o.kind === 'window')!
+    const wall = room.walls.find((w) => w.id === window.wallId)!
+    const placed = windowSpot(room, curtain(2.13))!
+    expect(placed).not.toBeNull()
+    const length = Math.hypot(wall.end.x - wall.start.x, wall.end.z - wall.start.z)
+    const along = ((placed.pose.position.x - wall.start.x) * (wall.end.x - wall.start.x) + (placed.pose.position.z - wall.start.z) * (wall.end.z - wall.start.z)) / length
+    expect(along).toBeCloseTo(window.offsetAlongWall, 6)
+    const rod = Math.min(window.bottom + window.height + 0.15, wall.height - 0.02)
+    expect(placed.pose.position.y + 2.13).toBeCloseTo(Math.max(rod, 2.13), 6)
+    expect(hostWall(room, placed)).toBeNull() // hangs clear of the wall, over the frame
+    expect(insideRoom(placed, room.floorPolygon)).toBe(true)
+  })
+
+  it('rests a curtain longer than the rod height on the floor, and skips a window that already has one', () => {
+    const room = sampleRoom()
+    const long = windowSpot(room, curtain(2.7))
+    if (long) expect(long.pose.position.y).toBe(0)
+    const once = windowSpot(room, curtain(2.13))!
+    expect(windowSpot({ ...room, objects: [...room.objects, once] }, { ...curtain(2.13), id: 'second' })).toBeNull()
+  })
+
+  it('falls behind the desk under the window, but two curtains in one spot still collide', () => {
+    const room = sampleRoom()
+    const placed = windowSpot(room, curtain(2.13))!
+    expect(collisions(room, placed)).toEqual([])
+    const withOne = { ...room, objects: [...room.objects, placed] }
+    expect(collisions(withOne, { ...placed, id: 'second' }).map((o) => o.id)).toEqual(['curtain'])
+  })
+
+  it('finds nothing in a room without windows', () => {
+    const room = sampleRoom()
+    expect(windowSpot({ ...room, openings: room.openings.filter((o) => o.kind !== 'window') }, curtain(2.13))).toBeNull()
   })
 })

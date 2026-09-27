@@ -52,8 +52,8 @@ const SLOT_MATERIALS: Readonly<Record<string, readonly MaterialKind[]>> = {
   'dining-chair.seat': ['wood', 'fabric', 'leather', 'metal'],
 }
 
-/** Blocks that style the scene rather than describe the product (a bed's pillows). */
-const UNREAD_BLOCKS: Readonly<Record<string, readonly string[]>> = { bed: ['pillows'] }
+/** Blocks that style the scene rather than describe the product (a bed's pillows, whether a curtain is drawn). */
+const UNREAD_BLOCKS: Readonly<Record<string, readonly string[]>> = { bed: ['pillows'], curtain: ['draw'] }
 
 function materialChoices(family: Family, slot: string): readonly MaterialKind[] {
   return SLOT_MATERIALS[`${family.id}.${slot}`] ?? MATERIAL_CHOICES[family.slots[slot]!.kind]
