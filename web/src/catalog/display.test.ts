@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CatalogEntry } from '../domain/catalog'
-import { inStockFirst, matchesMood, sizedImage } from './display'
+import { inStockFirst, matchesMood, moodsOfColors, sizedImage } from './display'
 
 function entry(name: string, label = 'Standard', tags: string[] = []): CatalogEntry {
   return {
@@ -51,5 +51,17 @@ describe('matchesMood', () => {
     // "oaken" is not oak; "redwood" is not red.
     expect(matchesMood(entry('Oaken Stool'), 'natural')).toBe(false)
     expect(matchesMood(entry('Redwood Planter'), 'colorful')).toBe(false)
+  })
+})
+
+describe('moodsOfColors', () => {
+  it('reads moods from the colors a piece is drawn in', () => {
+    expect(moodsOfColors(['#2c6e4f'])).toEqual(['colorful']) // emerald
+    expect(moodsOfColors(['#b8643e'])).toEqual(['colorful']) // terracotta
+    expect(moodsOfColors(['#5b3a24'])).toEqual(['natural']) // walnut
+    expect(moodsOfColors(['#d8ccb4'])).toEqual(['natural']) // oatmeal
+    expect(moodsOfColors(['#f2f0eb', '#1d1d1f'])).toEqual(['minimal']) // white and black
+    expect(moodsOfColors(['#efe8d8', '#5b3a24']).sort()).toEqual(['minimal', 'natural']) // ivory on walnut legs
+    expect(moodsOfColors([])).toEqual([])
   })
 })

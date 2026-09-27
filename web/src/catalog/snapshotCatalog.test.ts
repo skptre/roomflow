@@ -193,6 +193,13 @@ describe('product recipes', () => {
     expect(entries[1]!.variant.asset).toMatchObject({ blocks: { shape: 'round' }, imageUrl: 'https://cdn.shopify.com/s/files/blue.jpg' })
   })
 
+  it('tag each variant with the moods its drawn colors suggest (for looks)', () => {
+    const green = { ...recipe, optionColors: { ...recipe.optionColors, Fabric: { 'Ivory - Performance Basketweave': { upholstery: '#2c6e4f' } } } }
+    const entry = snapshotEntries(snapshot, new Map([[sofaProduct.id, green]]))[0]!
+    // The listing's words say ivory; the color it is drawn in is green.
+    expect(entry.product.tags).toContain('colorful')
+  })
+
   it('load with the snapshot; a bad recipe is skipped, one for an unknown product ignored', async () => {
     const bad = { ...recipe, id: 'bad', productId: sofaProduct.id, blocks: { arm: 'wing' } }
     const stray = { ...recipe, id: 'stray', productId: 'shop:elsewhere.com:1' }
