@@ -24,17 +24,15 @@ Gemini returns a strict JSON intent, not a room model:
 
 ```ts
 type RoomDesignIntent = {
-  summary: string
   palette?: { mode: 'preserve' | 'darken' | 'lighten' | 'set'; color?: '#rrggbb' }
   rearrange: 'none' | 'gentle' | 'full'
   removeObjectIds: string[]
   replace: Array<{ objectId: string; category: string; count: number }>
   add: Array<{ category: string; count: number }>
-  notes: string[]
 }
 ```
 
-The server rejects malformed output, unknown object IDs, duplicate IDs, unsupported categories, counts outside 1–12, a supplied color when the mode is not `set`, output over the fixed size limit, or an explanation that exceeds its cap. The browser independently repeats the identity/category/count checks before it creates commands.
+The server rejects malformed output, unknown object IDs, duplicate IDs, unsupported categories, counts outside 1–12, a supplied color when the mode is not `set`, output over the fixed size limit, or any extra prose field. The browser independently repeats the identity/category/count checks before it creates commands. The browser composes neutral summary and notes from validated intent and allowlisted local category labels; Gemini never supplies display prose.
 
 Requests such as “randomly reorganize” become `rearrange: 'full'`; deterministic seeded placement keeps a request stable for one preview. “Turn everything black” is a palette intent that applies only to safe material slots. “Replace the room with chairs” removes or replaces eligible objects and adds catalog chair variants until placement, budget, or room capacity stops the proposal.
 
@@ -46,7 +44,7 @@ Existing and owned objects add no new cost. Replacement removes an existing purc
 
 ## Preview and interaction
 
-Submitting a request starts no edit. The dialog shows Gemini’s short summary, a change list, proposed total/budget status, warnings, and the visual room preview. `Try this design` calls `designStore.startPreview(commands, { actor: 'auto', baseRevision })`; only the dialog that owns that preview may cancel or apply it. A stale revision blocks apply and requires generating a fresh proposal. Apply commits the entire proposal as one undoable edit, including spatial and financial changes. Escape, close, and Discard cancel exactly that preview.
+Submitting a request starts no edit. The dialog shows a locally composed summary, a change list, proposed total/budget status, warnings, and the visual room preview. `Try this design` calls `designStore.startPreview(commands, { actor: 'auto', baseRevision })`; only the dialog that owns that preview may cancel or apply it. A stale revision blocks apply and requires generating a fresh proposal. Apply commits the entire proposal as one undoable edit, including spatial and financial changes. Escape, close, and Discard cancel exactly that preview.
 
 The UI has clear consent text: the request and room summary go to Google Gemini; no photos are sent; the model may incur the disclosed estimated charge. A user can use the existing non-AI editing tools without consent.
 

@@ -1,5 +1,9 @@
 # Changelog
 
+### 2026-09-27 — web: author room-design copy locally
+
+Updated `web/src/roomDesigner/contract.ts` and `contract.test.ts` to remove model-generated `summary` and `notes` from `RoomDesignIntent`; strict parsing rejects either field. New `RoomDesignDescription` and `describeRoomDesignIntent` produce neutral browser copy from validated structured intent and allowlisted local category labels, avoiding unbounded prose claims. Updated the Gemini room-designer design spec to match the boundary.
+
 ### 2026-09-27 — web: close room-designer intent bypasses
 
 Updated `web/src/roomDesigner/contract.ts` and `contract.test.ts` so model summary/notes reject price, URL, measurement, coordinate, and command claims; `ROOM_DESIGN_CATEGORIES` now allows only committed catalog categories for additions and replacements. `RoomDesignResponse` is now a type with the new `parseRoomDesignResponse(value, room)` factory, which validates the envelope through the size- and current-room-bound `parseRoomDesignIntent`. This prevents consumers from accepting independently parsed responses that bypass identity checks.

@@ -2,6 +2,10 @@
 
 Non-obvious tradeoffs, each with the alternative that was rejected. Routine "only way to do it" changes don't belong here.
 
+## Room-designer descriptions are composed in the browser
+
+The model returns only structured intent; the browser composes summary and notes from validated fields and a fixed category vocabulary. Rejected: accepting short model prose after filtering apparent prices, dimensions, links, coordinates, or commands. Natural language can express the same unsupported claims in unlimited forms, so a regex cannot make those fields a reliable data boundary.
+
 ## Model-requested categories match offerable catalog categories
 
 The intent schema accepts only categories represented in the committed real catalog for additions and replacements. Captured furniture and structural category strings remain in the redacted room summary, where existing object IDs can be targeted, but cannot request a new invented product. Task 2 maps generic language such as “chairs” to available chair categories and skips unsupported inventory. Rejected: allowing every RoomPlan category in add/replace requests, which could turn fixtures such as a sink or closet into fabricated shopping items.
