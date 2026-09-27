@@ -25,10 +25,11 @@ export const Recipe = z.strictObject({
   /** Material per slot where it differs from the family's (e.g. metal legs, leather upholstery). */
   materialKind: z.record(Name, MaterialKind).optional(),
   defaultColors: z.record(Name, Hex).optional(),
-  /** Store option → the slot it colors and a color per option value (applied per variant). */
-  optionColors: z
-    .record(z.string().min(1).max(100), z.strictObject({ slot: Name, values: z.record(z.string().min(1).max(200), Hex) }))
-    .optional(),
+  /**
+   * Store option → option value → the slot colors that value sets, applied per
+   * variant over defaultColors. One value can paint several slots ("Ivory / Walnut").
+   */
+  optionColors: z.record(z.string().min(1).max(100), z.record(z.string().min(1).max(200), z.record(Name, Hex))).optional(),
   /** The product's own photo, for families that show it (art canvas, rug top). https only. */
   image: z.strictObject({ url: z.url({ protocol: /^https$/ }) }).optional(),
   tier: z.enum(['default', 'rules', 'gemini']),
@@ -66,11 +67,30 @@ export function validateRecipe(input: unknown): RecipeResult {
   const slots = [
     ...Object.keys(recipe.materialKind ?? {}),
     ...Object.keys(recipe.defaultColors ?? {}),
-    ...Object.values(recipe.optionColors ?? {}).map((option) => option.slot),
+    ...Object.values(recipe.optionColors ?? {}).flatMap((values) => Object.values(values).flatMap((colors) => Object.keys(colors))),
   ]
   for (const slot of slots) {
     if (!Object.hasOwn(family.slots, slot)) return { ok: false, error: `${family.id} has no slot "${slot}"` }
   }
   if (recipe.image && !family.imageSlot) return { ok: false, error: `${family.id} can't show a product image` }
   return { ok: true, recipe }
+}
+
+/**
+ * Slot colors for one variant: the recipe's defaults, then each chosen option
+ * value's colors (options matched by name). Undefined when the recipe names no
+ * colors, so the family's neutral defaults apply.
+ */
+export function variantColors(
+  recipe: Pick<Recipe, 'defaultColors' | 'optionColors'>,
+  optionNames: readonly string[],
+  optionValues: readonly string[],
+): Record<string, string> | undefined {
+  const colors: Record<string, string> = { ...recipe.defaultColors }
+  optionNames.forEach((name, index) => {
+    const values = recipe.optionColors && Object.hasOwn(recipe.optionColors, name) ? recipe.optionColors[name] : undefined
+    const value = optionValues[index]
+    if (values && value !== undefined && Object.hasOwn(values, value)) Object.assign(colors, values[value])
+  })
+  return Object.keys(colors).length > 0 ? colors : undefined
 }
