@@ -1,6 +1,6 @@
 # Recipe coverage
 
-Generated 2026-09-27T05:30:41.696Z from the snapshot retrieved 2026-09-26T19:28:27.651Z · photo tier: gemini-3.8-flash, low thinking.
+Generated 2026-09-27T06:11:37.355Z from the snapshot retrieved 2026-09-26T19:28:27.651Z · photo tier: gemini-3.8-flash, low thinking.
 Tier: `gemini` = read from the store photos; `rules` = from listing words only (free). Evidence says where colors and shape came from.
 
 ## chair (410)
@@ -100,16 +100,16 @@ Tier: `gemini` = read from the store photos; `rules` = from listing words only (
 
 - tiers: gemini 69, rules 4
 - colors from: photo 69, default 4
-- frame: none 47, thin 25, float 1
-- mat: none 49, white 20, (default) 4
+- frame: none 72, thin 1
+- mat: none 68, (default) 4, white 1
 - can't show yet (top 12): fringed edges 7; shadow box frame 4; shadowbox frame 4; deckled edge paper 2; hooked wool textile 2; shadowbox depth 2; tapestry weave 2; wrapped edges 2; deckled paper edge 1; textured paper collage 1; woven 1; woven textured paper squares 1
 
 ## vase (68)
 
 - tiers: gemini 68
 - colors from: photo 68
-- profile: tray 19, bowl 19, amphora 18, cylinder 10, sphere 1, bud 1
-- can't show yet (top 12): pedestal base 7; scalloped rim 4; cutout handles 3; flared rim 3; loop handles 3; organic wavy rim 2; ruffled wavy rim 2; speckled finish 2; layered clay strips 2; splatter pattern 2; marbled pattern 2; leaf vein pattern 2
+- profile: amphora 19, bowl 17, tray 12, cylinder 10, round-tray 7, bud 2, sphere 1
+- can't show yet (top 12): pedestal base 6; flared rim 4; marble veining 4; scalloped rim 4; irregular rim 2; ruffled edges 2; splatter pattern 2; organic wavy rim 2; vertical stripes 2; side handles 2; oval shape 2; cutout handles on bottom edge 1
 
 ## planter (63)
 
