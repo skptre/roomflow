@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { isWallHung, isWallMounted } from '../domain/categories'
 import { footprintBounds } from '../domain/geometry'
+import { hostWall } from '../domain/layout'
 import { Room } from '../domain/schema'
 import fixtureText from '../fixtures/synthetic-bedroom.roomplan.json?raw'
 import { MAX_IMPORT_BYTES, MAX_IMPORT_OBJECTS, MAX_IMPORT_WALLS, parseRoomPlanJson } from './roomplan'
@@ -284,5 +286,152 @@ describe('parseRoomPlanJson — hostile input', () => {
       }),
       /no walls/i,
     )
+  })
+})
+
+
+// --- Floor outline when the walls don't close (e.g. an open-ended room) ---
+
+const areaOf = (points: ReadonlyArray<{ x: number; z: number }>) =>
+  Math.abs(points.reduce((sum, p, i) => {
+    const q = points[(i + 1) % points.length]!
+    return sum + p.x * q.z - q.x * p.z
+  }, 0)) / 2
+
+/** Rotates every surface of a scan about the vertical axis (column-major transforms). */
+function rotateScan(raw: RawScan, degrees: number) {
+  const a = (degrees * Math.PI) / 180
+  const c = Math.cos(a), s = Math.sin(a)
+  const rotate = (x: number, z: number) => [c * x + s * z, -s * x + c * z] as const
+  for (const key of ['walls', 'doors', 'windows', 'openings', 'objects', 'floors']) {
+    for (const surface of (raw[key] ?? []) as RawScan[]) {
+      const m = surface.transform as number[]
+      for (const col of [0, 4, 8, 12]) {
+        const [x, z] = rotate(m[col]!, m[col + 2]!)
+        m[col] = x
+        m[col + 2] = z
+      }
+    }
+  }
+}
+
+/** RoomPlan-style floor surface whose local (x, y) are the native (x, z) of the given corners. */
+function floorSurface(corners: ReadonlyArray<{ x: number; z: number }>, floorY: number) {
+  return {
+    identifier: 'floor-1',
+    transform: [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, floorY, 0, 1],
+    polygonCorners: corners.map((p) => [p.x, p.z, 0]),
+  }
+}
+
+describe('parseRoomPlanJson — floor outline without a closed wall loop', () => {
+  const closed = load()
+  const offset = closed.room.source.nativeToApp
+  if (!offset) throw new Error('the fixture import should record nativeToApp')
+  const nativeFloor = closed.room.floorPolygon.map((p) => ({ x: p.x - offset.x, z: p.z - offset.z }))
+
+  it("uses RoomPlan's floor polygon when a wall is missing", () => {
+    const result = load(
+      mutate((raw) => {
+        raw.walls.splice(0, 1)
+        raw.floors = [floorSurface(nativeFloor, -offset.y)]
+      }),
+    )
+    expect(areaOf(result.room.floorPolygon)).toBeCloseTo(areaOf(closed.room.floorPolygon), 3)
+    expect(result.warnings.join(' ')).not.toMatch(/closed outline/)
+  })
+
+  it('falls back to a rectangle aligned with the walls, not the world axes', () => {
+    const result = load(
+      mutate((raw) => {
+        rotateScan(raw, 30)
+        raw.walls.splice(0, 1)
+      }),
+    )
+    // An axis-aligned box around a 30°-turned 4 × 3.5 m room would be ~26 m²; the aligned one stays ~14 m².
+    expect(areaOf(result.room.floorPolygon)).toBeCloseTo(areaOf(closed.room.floorPolygon), 1)
+    expect(result.warnings.join(' ')).toMatch(/closed outline/)
+  })
+
+  it('ignores a malformed floor list with a warning instead of failing', () => {
+    const result = load(
+      mutate((raw) => {
+        raw.walls.splice(0, 1)
+        raw.floors = [{ identifier: 'f', transform: [1, 2], polygonCorners: 'nope' }]
+      }),
+    )
+    expect(result.warnings.join(' ')).toMatch(/floor outline/i)
+    expect(areaOf(result.room.floorPolygon)).toBeGreaterThan(0.5)
+  })
+
+  it('keeps using the closed wall loop when the walls do close', () => {
+    const result = load(
+      mutate((raw) => {
+        raw.floors = [floorSurface([{ x: 0, z: 0 }, { x: 9, z: 0 }, { x: 9, z: 9 }], -offset.y)]
+      }),
+    )
+    expect(areaOf(result.room.floorPolygon)).toBeCloseTo(areaOf(closed.room.floorPolygon), 3)
+  })
+})
+
+describe('parseRoomPlanJson — built-in closets', () => {
+  const WEST = [0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, 0] // local X along the west wall, local Z into the room
+  /** The fixture plus a closet front on the west wall (RoomPlan: tall storage, no depth) and its door. */
+  function withCloset(depth = 0.004) {
+    return mutate((raw) => {
+      raw.objects.push({ identifier: 'OBJ-CLOSET', category: { storage: {} }, confidence: { high: {} }, dimensions: [1.3, 2.2, depth], transform: [...WEST, 1.2, -0.3, 2.5, 1] })
+      raw.doors.push(
+        { identifier: 'DOOR-CLOSET', category: { door: { isOpen: false } }, dimensions: [1.1, 2.05, 0], transform: [...WEST, 1.2, -0.375, 2.45, 1], parentIdentifier: 'WALL-D-WEST' },
+        // Only 5 cm of this door's 80 cm lies within the closet: a real passage.
+        { identifier: 'DOOR-PASSAGE', category: { door: { isOpen: false } }, dimensions: [0.8, 2.05, 0], transform: [...WEST, 1.2, -0.375, 3.5, 1], parentIdentifier: 'WALL-D-WEST' },
+      )
+    })
+  }
+
+  it('turns a tall, depthless storage into closet doors flush on the inside of its wall', () => {
+    const { room, warnings } = load(withCloset())
+    const closets = room.objects.filter((o) => o.category === 'closet')
+    expect(closets).toHaveLength(1)
+    const closet = closets[0]!
+    expect(closet).toMatchObject({ id: 'OBJ-CLOSET', name: 'Closet', keep: true, lockPlacement: true, asset: { kind: 'parametric', assemblyId: 'closet-front' } })
+    expect(closet.dimensions).toMatchObject({ width: 1.3, height: 2.2, depth: 0.04, source: 'captured' })
+    // West wall is at app x = -2; the back touches it and the front faces +x (into the room).
+    expect(closet.pose.position.x).toBeCloseTo(-2 + 0.02 + 0.002, 4)
+    expect(closet.pose.position.y).toBe(0)
+    expect(closet.pose.position.z).toBeCloseTo(0.05, 4)
+    expect(closet.pose.yaw).toBeCloseTo(Math.PI / 2, 6)
+    expect(hostWall(room, closet)).toBe('WALL-D-WEST')
+    expect(warnings).toContain('Built-in closet shown as closet doors.')
+  })
+
+  it('removes the closet door so the wall stays solid, and keeps doors that are real passages', () => {
+    const ids = load(withCloset()).room.openings.map((o) => o.id)
+    expect(ids).not.toContain('DOOR-CLOSET')
+    expect(ids).toEqual(expect.arrayContaining(['DOOR-1', 'DOOR-PASSAGE', 'WINDOW-1']))
+  })
+
+  it('accepts a closet front with exactly zero depth', () => {
+    expect(load(withCloset(0)).room.objects.some((o) => o.id === 'OBJ-CLOSET' && o.category === 'closet')).toBe(true)
+  })
+
+  it('keeps ordinary storage (low, or tall and deep) as storage furniture', () => {
+    const text = mutate((raw) => {
+      raw.objects.push({ identifier: 'OBJ-WARDROBE', category: { storage: {} }, dimensions: [1.0, 2.0, 0.6], transform: [...WEST, 1.6, -0.4, 2.5, 1] })
+    })
+    const { room, warnings } = load(text)
+    for (const id of ['OBJ-STORAGE', 'OBJ-WARDROBE']) {
+      const object = room.objects.find((o) => o.id === id)!
+      expect(object.category).toBe('storage')
+      expect(object.asset).toEqual({ kind: 'parametric', assemblyId: 'dresser' })
+      expect(object.lockPlacement).toBe(false)
+    }
+    expect(warnings.join(' ')).not.toMatch(/closet/)
+  })
+
+  it('goes with its wall in the cutaway, but still counts as floor-standing for dragging rules', () => {
+    const closet = load(withCloset()).room.objects.find((o) => o.category === 'closet')!
+    expect(isWallMounted(closet)).toBe(true)
+    expect(isWallHung(closet)).toBe(false)
+    expect(isWallMounted({ category: 'bed' })).toBe(false)
   })
 })

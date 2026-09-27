@@ -2106,3 +2106,10 @@ select {
   .discovery-preview .discovery-details > :not(.appearance-actions):not([role="status"]):not([role="alert"]) { display: none; }
   .discovery-preview .appearance-result { padding: 0; border: 0; margin: 0; }
 }
+.auto-match-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; max-height: 320px; overflow-y: auto; }
+.auto-match-tile { display: grid; gap: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.auto-match-tile img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; background: #eee8df; }
+.auto-match-tile span { display: flex; gap: 6px; align-items: center; }
+.auto-match-tile input { width: 18px; height: 18px; accent-color: #8c513b; }
+.auto-match-tile.excluded img { opacity: .35; }
+.auto-match-progress { width: 100%; height: 8px; accent-color: #8c513b; }

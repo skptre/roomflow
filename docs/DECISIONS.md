@@ -55,3 +55,46 @@ The web app already edits furniture (keep/lock/undo). iOS focuses on accurate ca
 ### 2026-09-27 — Photographed furniture uses templates and supplied dimensions
 
 Use opt-in Gemini to select an authored approximate shape and colors. Reject single-photo metric inference and claims of exact 3D reconstruction: neither is established by this input. Require user-supplied assembled dimensions (or explicit estimates). Embed found-item purchase facts in room snapshots instead of a mutable external registry so one undo reverses both placement and cost. Photos are transient and not persisted in room JSON. Local-only middleware is development infrastructure; authenticated deployment and cross-device room persistence remain separate work before actual in-store remote use.
+## Floor outline: wall loop, then RoomPlan's floor, then a wall-aligned rectangle
+A closed wall loop stays first (unchanged, tested behavior). When walls don't close (open-ended rooms), RoomPlan's own
+`floors[].polygonCorners` are used — verified on two real scans to land exactly on wall ends. Rejected: the world-axis
+bounding box, which turned a 45 m² room at 52.5° into a ~136 m² diamond; and preferring the floor polygon even when
+walls close, which would change results Yash's tests already pin down.
+
+## Package checksums are enforced, not advisory
+A file whose SHA-256 or size doesn't match the manifest rejects the whole package. Rejected: warning and continuing,
+which would let a damaged or edited raw scan through as if it were the phone's original.
+
+## Web zip reading has no dependency
+A ~150-line reader on the platform `DecompressionStream`, limited to what packages contain (stored/deflate, no ZIP64,
+no encryption), with CRC and size checks. Rejected: JSZip/fflate — a new dependency for a narrow, well-specified format.
+
+## User names become display names, never categories
+An annotation sets the object's `name`; `category`, dimensions and provenance stay as scanned, so ranking and
+furniture templates keep using RoomPlan's classification. Rejected: overwriting `category` from free text.
+
+## Auto-match asks once, then sends items one at a time and reconciles at the end
+One consent screen shows every crop that will be sent; requests go sequentially because the local server analyzes one
+photo at a time and allows 6 a minute (a 429 is a local refusal, so that item is sent once more after 61 s; a second
+refusal stops). All matches apply as one change so one undo reverts them; items removed or restyled while matching are
+left as the person set them. Rejected: silently matching on import (sends private photos without consent), one consent
+per item (defeats "automatic"), and raising the server rate limit (it is the local spending guard).
+
+## Scan photo crops are turned upright from the camera pose
+Phone photos are stored in sensor orientation, so the crop is rotated by quarter turns until world up points up,
+computed from `cameraToWorld`. Rejected: sending sideways crops (worse recognition) and reading EXIF (the phone strips it).
+
+## Built-in closets become closet doors set in the wall
+RoomPlan reports a built-in closet as a `storage` with only its front (depth ≈ 0) and often a door on the same wall.
+The web turns a `storage` thinner than 10 cm and at least 1.2 m tall into a locked `closet` drawn as a 4 cm door
+front flush on the wall's inside face, and drops doors on that wall with ≥ 50 % of their width inside the closet.
+Depth 0.04 m is a visual stand-in: the true depth behind the doors was never seen, yet dimensions keep
+`source: 'captured'` because width and height are captured (the depth caveat lives here and in the importer).
+Rejected: keeping the zero-depth dresser (a floating slab), inventing a deep wardrobe (an unmeasured volume that
+would block floor space), or keeping the door as an opening (a framed hole into nothing, left standing in the cutaway).
+A door only partly over the closet (< 50 %) is kept, since it is more likely a real passage beside it.
+
+## Wall-mounted items hide with their wall regardless of height
+`isWallMounted` (any `mount: 'wall'`) decides cutaway hiding; `isWallHung` (wall + raised) still decides dragging.
+Rejected: changing `isWallHung` to include floor-standing wall items, which would also block dragging floor mirrors.
+

@@ -1,7 +1,8 @@
 # RoomFlow room package v1 (iOS → Designer)
 
-**Status: proposed — not yet accepted by the Designer/web side.** The web importer today reads only the
-raw RoomPlan file (`<capture-id>.roomplan.json`, see `docs/contracts/room-import.md` on the web branch).
+**Status: v1 accepted by the Designer/web side (2026-09-26).** The web app imports it in
+`web/src/import/roomflowPackage.ts` (zip reader: `web/src/import/zip.ts`), alongside the raw
+`<capture-id>.roomplan.json` (`docs/contracts/room-import.md`). Checksum mismatches are rejected.
 This package is an additional, evidence-aware format; nothing here changes the raw file.
 Owner (iOS): `ios/RoomFlow/Services/RoomPackageExport.swift`, `ios/RoomFlow/Models/RoomPackageManifest.swift`.
 

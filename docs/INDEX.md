@@ -28,6 +28,11 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | iOS — what's verified on a real phone | `docs/ios-room-evidence-verification.md` |
 | iOS — build/test commands, simulator/device gotchas | `docs/ARCHITECTURE.md` › iOS › Commands |
 | **Web** (Yash) — RoomPlan import on the web side | `web/src/import/roomplan.ts`, `docs/contracts/room-import.md` |
+| Web — `.roomflow.zip` import (manifest, checksums, evidence) | `web/src/import/roomflowPackage.ts`, `web/src/import/zip.ts` |
+| Web — package evidence at runtime (photos/regions per object) | `web/src/ui/evidenceStore.ts` |
+| Web — wall art from the package, built-in closets (import rules, rendering) | `web/src/import/roomflowPackage.ts` (`readWallArt`), `web/src/import/roomplan.ts` (`closetOnWall`), `web/src/scene/ArtPhoto.tsx` |
+| Web — floor outline rules for imported scans | `web/src/import/roomplan.ts` (`outlineFromFloors`, `alignedBoundsOutline`) |
+| Web — photo matching (Gemini) and auto-match from scan photos | `web/src/recognition/`, `web/src/ui/AutoMatchDialog.tsx`, `web/server/recognition.ts` |
 | Web — domain logic (geometry, money, commands, themes) | `web/src/domain/` |
 | Web — 3D scene / UI | `web/src/scene/`, `web/src/ui/` |
 | Web — run/test commands | `web/README.md`, `AGENTS.md` |
