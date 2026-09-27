@@ -225,3 +225,24 @@ describe('readingsFrom and mergeGemini', () => {
     expect(pick(0).defaultColors?.canvas).toBe('#88aa99')
   })
 })
+
+describe('mergeGemini — option parts', () => {
+  it('when the reading says which parts an option recolors, name colors follow it too', () => {
+    const chair = product('angelica', 'dining-chair', 'Angelica Dining Chair', ['Color'], [[['Cream'], 'cream.jpg'], [['Black'], 'black.jpg']])
+    const family = getFamily('dining-chair')!
+    const trace = rulesTrace(chair)
+    // Rules spread "Color" over frame and seat.
+    expect(trace.recipe.optionColors?.Color?.Cream).toEqual({ frame: COLOR_LEXICON.cream!.hex, seat: COLOR_LEXICON.cream!.hex })
+    const images = promptImages(chair, family, [], {})
+    const parsed = parseAnswer(
+      { blocks: { seat: 'cushion', back: 'slats', base: 'four-legs', legStyle: 'straight' }, params: {}, materials: { seat: 'fabric', frame: 'wood' }, colors: { seat: '#ece2cc', frame: '#3b302a' }, optionSlots: [{ option: 'Color', slots: ['seat'] }], unmatched: [] },
+      family,
+      chair,
+      images,
+    )
+    if (!parsed.ok) throw new Error(parsed.error)
+    const { recipe } = mergeGemini({ product: chair, trace, answer: parsed.answer, images, readings: new Map(), model: 'm' })
+    expect(recipe.optionColors?.Color?.Cream).toEqual({ seat: COLOR_LEXICON.cream!.hex })
+    expect(recipe.defaultColors?.frame).toBe('#3b302a')
+  })
+})

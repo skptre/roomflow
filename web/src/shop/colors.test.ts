@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { COLOR_LEXICON, colorsAgree, hueFamily, matchColor, matchColorParts } from './colors'
+import { clearlyDifferent, COLOR_LEXICON, colorsAgree, hueFamily, isPlainColorName, matchColor, matchColorParts } from './colors'
 
 describe('color lexicon', () => {
   it('has at least 150 names, every one a valid sRGB hex', () => {
@@ -109,3 +109,21 @@ function lightness(hex: string): number {
   const b = n & 255
   return (Math.max(r, g, b) + Math.min(r, g, b)) / 510
 }
+
+describe('isPlainColorName and clearlyDifferent', () => {
+  it('a plain name is a color and nothing else (material words allowed)', () => {
+    expect(isPlainColorName('Navy')).toBe(true)
+    expect(isPlainColorName('Walnut - Wood')).toBe(true)
+    expect(isPlainColorName('Black - Metal')).toBe(true)
+    expect(isPlainColorName('Botanical Green')).toBe(false)
+    expect(isPlainColorName('Black/White')).toBe(false)
+    expect(isPlainColorName('Truffle Pink Textured Dupioni Silk Room Darkening Curtain')).toBe(false)
+  })
+
+  it('only far-apart readings are clearly different (a dark bronze photo is not)', () => {
+    expect(clearlyDifferent('#25324a', '#d07a30')).toBe(true) // navy vs orange
+    expect(clearlyDifferent('#f2f0eb', '#1d1d1f')).toBe(true) // white vs black
+    expect(clearlyDifferent('#6e5436', '#333538')).toBe(false) // bronze vs its dark photo
+    expect(clearlyDifferent('#4f7a4a', '#667f73')).toBe(false) // green vs grey-green
+  })
+})

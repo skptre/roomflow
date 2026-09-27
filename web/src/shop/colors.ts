@@ -388,10 +388,10 @@ function words(text: string): string[] {
     .filter(Boolean)
 }
 
-/** The color a store option value names, or null when it names none. `kind` picks readings like natural wood vs natural fabric. */
-export function matchColor(text: string, kind?: MaterialKind): ColorMatch | null {
-  const tokens = words(text)
-  type Hit = { name: string; start: number; length: number }
+type Hit = { name: string; start: number; length: number }
+
+/** The lexicon phrase a value names, by position (longest, then earliest; material words only when alone). */
+function bestHit(tokens: readonly string[]): Hit | null {
   const hits: Hit[] = []
   for (let start = 0; start < tokens.length; start++) {
     for (let length = Math.min(LONGEST, tokens.length - start); length >= 1; length--) {
@@ -404,7 +404,13 @@ export function matchColor(text: string, kind?: MaterialKind): ColorMatch | null
   // not a fabric line in front of a name we don't know ("Cotton Canvas Moon Dust").
   const bare = hits.filter((hit) => tokens.every((token, i) => i === hit.start || Object.hasOwn(MATERIAL_HINTS, token) || GENERIC_WORDS.has(token)))
   const pool = strong.length > 0 ? strong : bare
-  const best = pool.reduce<Hit | null>((a, b) => (!a || b.length > a.length || (b.length === a.length && b.start < a.start) ? b : a), null)
+  return pool.reduce<Hit | null>((a, b) => (!a || b.length > a.length || (b.length === a.length && b.start < a.start) ? b : a), null)
+}
+
+/** The color a store option value names, or null when it names none. `kind` picks readings like natural wood vs natural fabric. */
+export function matchColor(text: string, kind?: MaterialKind): ColorMatch | null {
+  const tokens = words(text)
+  const best = bestHit(tokens)
   if (!best) return null
 
   const entry = COLOR_LEXICON[best.name]!
@@ -493,4 +499,29 @@ export function colorsAgree(a: string, b: string): boolean {
   if (xNeutral || yNeutral) return isMuted(xNeutral ? y : x)
   const hueGap = Math.min(Math.abs(x.h - y.h), 360 - Math.abs(x.h - y.h))
   return hueGap <= 50 || (isMuted(x) && isMuted(y))
+}
+
+/**
+ * Whether a value is a color name and nothing else ("Navy", "Walnut - Wood"),
+ * as opposed to a brand name that contains one ("Botanical Green") or a mix
+ * ("Black/White"). Only plain names are confident enough to question a photo.
+ */
+export function isPlainColorName(text: string): boolean {
+  const tokens = words(text)
+  const best = bestHit(tokens)
+  if (!best) return false
+  return tokens.every(
+    (token, i) => (i >= best.start && i < best.start + best.length) || Object.hasOwn(MATERIAL_HINTS, token) || GENERIC_WORDS.has(token) || MATERIAL_WORDS.has(token),
+  )
+}
+
+/** Two readings far apart: opposite lightness, or strongly different hues that are both clearly colored. */
+export function clearlyDifferent(a: string, b: string): boolean {
+  const x = toHsl(a)
+  const y = toHsl(b)
+  if (Math.abs(x.l - y.l) > 0.5) return true
+  // Both must be clearly colored (navy counts; greys and dark bronzes don't).
+  if ((x.c ?? 0) < 0.1 || (y.c ?? 0) < 0.1) return false
+  const hueGap = Math.min(Math.abs(x.h - y.h), 360 - Math.abs(x.h - y.h))
+  return hueGap > 90
 }
