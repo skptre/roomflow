@@ -5,6 +5,19 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### iOS: judge rectangles as possible wall art
+- New `ios/RoomFlow/Services/WallArtDetector.swift`: pure `WallArtDetector.judge(quad:camera:surfaces:objects:depthAt:)`,
+  extracted and TDD-tested from `WallArtSpike`'s judging logic (the spike itself is untouched; it is deleted in a
+  later task). Produces `WallArtSighting` (measured corners/normal/standoff/width/height/center/frontality) or
+  `WallArtVerdict.rejected(WallArtRejection)` (`notOnWall`, `spansWalls`, `uneven`, `behindWall`, `tooFarInFront`,
+  `sizeOutOfRange`, `nearFloor`, `overlapsOpening`, `overlapsTV`, `likelyTV`). Adds a `likelyTV` rule (16:9-ish,
+  ≥55 cm wide) the spike didn't have, since RoomPlan sometimes misses TVs entirely.
+- New `ios/RoomFlowTests/WallArtDetectorTests.swift`: 6 tests covering a flush and a standoff panel, uneven/behind/
+  too-far-in-front depth, off-wall/small/low/TV-shaped rejections, door and TV overlap, and a rectangle spanning
+  past a wall's edge.
+- Why: Task 1 of the wall-art-detection plan pulls the spike's ad hoc judging into a pure, unit-tested type so
+  later tasks (scanning integration, spike removal) can build on deterministic, verified geometry.
+
 ### iOS: wall-art spike, round 3 (layered canvases)
 - `WallArtSpike.swift`: LiDAR sampled at five points; a consistent surface up to 30 cm in front of the wall counts as a
   panel standing off the wall (layered canvas) and is measured on its own plane; uneven depth is still "something in
