@@ -25,8 +25,12 @@ export const RoomSummary = z.strictObject({
 })
 export type RoomSummary = z.infer<typeof RoomSummary>
 
-/** Builds the only room projection allowed in a design request. Never spread a Room into this object: it contains private source evidence and purchase facts. */
-export function roomSummary(room: Room): RoomSummary {
+/**
+ * Builds the only room projection allowed in a design request. Never spread a Room into this object: it contains private source evidence and purchase facts.
+ * With `allowKeptChanges`, every object is summarized as not kept (lockPlacement unchanged) so the model may propose removing or replacing it;
+ * the room itself is never modified.
+ */
+export function roomSummary(room: Room, options: { allowKeptChanges?: boolean } = {}): RoomSummary {
   const xs = room.floorPolygon.map((point) => point.x)
   const zs = room.floorPolygon.map((point) => point.z)
   return {
@@ -41,7 +45,7 @@ export function roomSummary(room: Room): RoomSummary {
       category: object.category,
       dimensions: { width: object.dimensions.width, height: object.dimensions.height, depth: object.dimensions.depth, source: object.dimensions.source },
       pose: { position: { x: object.pose.position.x, y: object.pose.position.y, z: object.pose.position.z }, yaw: object.pose.yaw },
-      keep: object.keep,
+      keep: options.allowKeptChanges ? false : object.keep,
       lockPlacement: object.lockPlacement,
       colors: [...new Set([
         ...(object.asset.kind === 'recipe' ? Object.values(object.asset.colors ?? {}) : []),
@@ -51,13 +55,17 @@ export function roomSummary(room: Room): RoomSummary {
   }
 }
 
-/** Consented, text-only planning input. Budget is integer minor units with explicit ISO currency; baseRevision binds the eventual proposal to the committed room. */
+/**
+ * Consented, text-only planning input. Budget is integer minor units with explicit ISO currency; baseRevision binds the eventual proposal to the committed room.
+ * `allowKeptChanges` (default false) is the user's one-tap "allow changes to kept pieces for this design": it only shapes prompt input (Keep lifted in the summary).
+ */
 export const RoomDesignRequest = z.strictObject({
   brief: z.string().trim().min(1).max(600),
   consent: z.literal(true),
   budget: z.strictObject({ amountMinor: z.number().int().nonnegative(), currency: z.string().regex(/^[A-Z]{3}$/) }).optional(),
   baseRevision: z.number().int().nonnegative(),
   roomSummary: RoomSummary,
+  allowKeptChanges: z.boolean().optional(),
 })
 export type RoomDesignRequest = z.infer<typeof RoomDesignRequest>
 

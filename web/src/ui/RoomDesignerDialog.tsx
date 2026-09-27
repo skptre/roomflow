@@ -4,12 +4,13 @@ import type { CatalogEntry } from '../domain/catalog'
 import { designStore, type Preview } from '../domain/designStore'
 import { formatMoney } from '../domain/money'
 import type { PurchaseRow, SummarySources } from '../domain/purchases'
-import { roomSummary } from '../roomDesigner/contract'
+import { roomSummary, type RoomDesignRequest } from '../roomDesigner/contract'
 import { noticeStore } from './noticeStore'
 import {
   applyRoomDesignerPreview,
   beginRoomDesignerPreview,
   cancelRoomDesignerPreview,
+  keptChangesRequest,
   ownedRoomDesignerPreview,
   parseBudgetInput,
   prepareRoomDesign,
@@ -47,6 +48,8 @@ export function RoomDesignerDialog({
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const request = useRef<AbortController | null>(null)
+  /** The last request sent, so the one-tap Keep re-send reuses exactly the same brief and budget. */
+  const lastRequest = useRef<RoomDesignRequest | null>(null)
   const committed = useStore(designStore, (state) => state.committed)
   const preview = useStore(designStore, (state) => state.preview)
   const [brief, setBrief] = useState('')
@@ -85,15 +88,29 @@ export function RoomDesignerDialog({
     const budget = parseBudgetInput(amount, currency)
     if (!budget.ok) { setError(budget.error); return }
     if (!consent) { setError('Agree to send your request and room summary to Google Gemini first.'); return }
+    await send(
+      { brief: brief.trim(), consent: true, baseRevision: current.revision, roomSummary: roomSummary(current.room), ...(budget.budget ? { budget: { amountMinor: budget.budget.amountMinor, currency: budget.budget.currency } } : {}) },
+      current,
+    )
+  }
+
+  /** One more request with the same brief and budget, allowing changes to kept pieces for this design only. */
+  async function allowKeptChanges() {
+    const current = designStore.getState().committed
+    const previous = lastRequest.current
+    if (!current || !previous || busy) return
+    if (!consent) { setError('Agree to send your request and room summary to Google Gemini first.'); return }
+    await send(keptChangesRequest(previous, current), current)
+  }
+
+  async function send(body: RoomDesignRequest, current: NonNullable<typeof committed>) {
     discardPreview(); setPrepared(null); setError(''); setBusy(true)
+    lastRequest.current = body
     const controller = new AbortController()
     request.current = controller
     const baseRevision = current.revision
-    const result = await requestRoomDesign(
-      { brief: brief.trim(), consent: true, baseRevision, roomSummary: roomSummary(current.room), ...(budget.budget ? { budget: { amountMinor: budget.budget.amountMinor, currency: budget.budget.currency } } : {}) },
-      current.room,
-      { signal: controller.signal },
-    )
+    const budget = body.budget ?? null
+    const result = await requestRoomDesign(body, current.room, { signal: controller.signal })
     if (controller.signal.aborted) return
     setBusy(false)
     if (!result.ok) { setError(result.error); return }
@@ -103,7 +120,7 @@ export function RoomDesignerDialog({
       return
     }
     try {
-      setPrepared(prepareRoomDesign(result.intent, { room: current.room, catalog, budget: budget.budget, baseRevision, sources }))
+      setPrepared(prepareRoomDesign(result.intent, { room: current.room, catalog, budget, baseRevision, sources, allowKeptChanges: body.allowKeptChanges === true }))
     } catch {
       setError('This design could not be matched to your room. Try again. Your room is unchanged.')
     }
@@ -197,8 +214,20 @@ export function RoomDesignerDialog({
               <h4>What will change</h4>
               {proposal.notes.length > 0
                 ? <ul className="designer-list">{proposal.notes.map((note, index) => <li key={index}>{note}</li>)}</ul>
-                : <p>Nothing in this plan could be applied safely.</p>}
+                : <p>{prepared.keepNotice ? 'Nothing will change.' : 'Nothing in this plan could be applied safely.'}</p>}
             </div>
+            {prepared.keepNotice && (
+              <div className="designer-group designer-keep">
+                <h4>Marked Keep</h4>
+                <p>{prepared.keepNotice}</p>
+                <button className="studio-secondary full-width" onClick={() => void allowKeptChanges()} disabled={busy || !consent} aria-describedby="designer-keep-hint">
+                  Allow changes to kept pieces for this design
+                </button>
+                <p className="appearance-disclosure" id="designer-keep-hint">
+                  Sends one more request to Google Gemini with the same words and budget. Your Keep settings change only if you apply the design.{consent ? '' : ' Tick the box above to send it.'}
+                </p>
+              </div>
+            )}
             {(proposal.skipped.length > 0 || proposal.warnings.length > 0) && (
               <div className="designer-group designer-skipped">
                 <h4>Not included</h4>

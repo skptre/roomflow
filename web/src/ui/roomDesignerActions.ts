@@ -6,7 +6,7 @@
  * and a proposal built before a newer edit is refused, never applied over it.
  */
 import type { CatalogEntry } from '../domain/catalog'
-import { designStore, type ApplyResult, type Preview } from '../domain/designStore'
+import { designStore, type ApplyOptions, type ApplyResult, type Preview } from '../domain/designStore'
 import { formatMoney } from '../domain/money'
 import { formatSubtotal, purchaseSummary, type PurchaseRow, type PurchaseSummary, type SummarySources } from '../domain/purchases'
 import type { Money, Room } from '../domain/schema'
@@ -14,6 +14,7 @@ import {
   describeRoomDesignIntent,
   parseRoomDesignResponse,
   RoomDesignRequest,
+  roomSummary,
   type RoomDesignDescription,
   type RoomDesignIntent,
 } from '../roomDesigner/contract'
@@ -33,6 +34,15 @@ export function ownedRoomDesignerPreview(): Preview | null {
 }
 
 /**
+ * Store options for a proposal. Ordinary designs are automated edits that may never touch Keep/lock. A design built with
+ * allowKeptChanges was requested by the user's one-tap consent and was already checked against every lock rule while it was
+ * built, so it applies as the user's edit — still bound to its base revision (stale results are refused) and one undo step.
+ */
+function proposalOptions(proposal: RoomDesignProposal): ApplyOptions {
+  return proposal.allowKeptChanges ? { actor: 'user', baseRevision: proposal.baseRevision } : { actor: 'auto', baseRevision: proposal.baseRevision }
+}
+
+/**
  * Shows the proposal in the room without touching the committed design. Drops the
  * designer's previous preview and any catalog hover preview first. Stale or empty
  * proposals are refused.
@@ -41,7 +51,7 @@ export function beginRoomDesignerPreview(proposal: RoomDesignProposal): ApplyRes
   cancelRoomDesignerPreview()
   cancelCatalogPreview()
   if (proposal.commands.length === 0) return { ok: false, error: 'This design has no changes to try in your room.' }
-  const result = designStore.getState().startPreview(proposal.commands, { actor: 'auto', baseRevision: proposal.baseRevision })
+  const result = designStore.getState().startPreview(proposal.commands, proposalOptions(proposal))
   if (!result.ok) return result.stale ? { ...result, error: STALE_TEXT } : result
   owned = designStore.getState().preview
   return result
@@ -71,7 +81,7 @@ export function applyRoomDesignerPreview(proposal: RoomDesignProposal): ApplyRes
   }
   const live = ownedRoomDesignerPreview()
   if (!live || live.baseRevision !== proposal.baseRevision) return { ok: false, error: 'Preview this design in your room before applying it.' }
-  const result = designStore.getState().apply(proposal.commands, { actor: 'auto', baseRevision: proposal.baseRevision })
+  const result = designStore.getState().apply(proposal.commands, proposalOptions(proposal))
   if (!result.ok) {
     cancelRoomDesignerPreview()
     return result.stale ? { ...result, error: STALE_TEXT } : result
@@ -115,7 +125,27 @@ export function designerCostReport(before: PurchaseSummary, after: PurchaseSumma
   }
 }
 
-export type PreparedRoomDesign = { proposal: RoomDesignProposal; description: RoomDesignDescription; cost: DesignerCostReport }
+/**
+ * Local explanation shown with a result, or null.
+ * `keepNotice`: why kept pieces were left alone — when the proposal skipped kept pieces, or the plan asked for nothing while the room has kept pieces.
+ * Never shown for a design already built with allowKeptChanges.
+ */
+export type PreparedRoomDesign = { proposal: RoomDesignProposal; description: RoomDesignDescription; cost: DesignerCostReport; keepNotice: string | null }
+
+function isEmptyIntent(intent: RoomDesignIntent): boolean {
+  return (!intent.palette || intent.palette.mode === 'preserve') && intent.rearrange === 'none' &&
+    intent.removeObjectIds.length === 0 && intent.replace.length === 0 && intent.add.length === 0
+}
+
+/** Plain-language reason kept pieces were not removed or replaced; null when Keep did not stop anything. */
+function keepNoticeFor(intent: RoomDesignIntent, room: Room, proposal: RoomDesignProposal): string | null {
+  if (proposal.allowKeptChanges) return null
+  const kept = room.objects.filter((object) => object.keep).length
+  const count = proposal.keptBlocked.length || (isEmptyIntent(intent) ? kept : 0)
+  if (count === 0) return null
+  if (kept === room.objects.length) return 'Everything in this room is marked Keep, so nothing was removed or replaced.'
+  return count === 1 ? 'This piece is marked Keep, so Gemini won’t remove or replace it.' : 'These pieces are marked Keep, so Gemini won’t remove or replace them.'
+}
 
 /**
  * Resolves a validated intent against the room it was requested for. Throws if the
@@ -124,13 +154,29 @@ export type PreparedRoomDesign = { proposal: RoomDesignProposal; description: Ro
  */
 export function prepareRoomDesign(
   intent: RoomDesignIntent,
-  context: { room: Room; catalog: readonly CatalogEntry[]; budget: Money | null; baseRevision: number; sources: SummarySources },
+  context: { room: Room; catalog: readonly CatalogEntry[]; budget: Money | null; baseRevision: number; sources: SummarySources; allowKeptChanges?: boolean },
 ): PreparedRoomDesign {
-  const { room, catalog, budget, baseRevision, sources } = context
-  const proposal = buildRoomDesignProposal({ intent, room, catalog, budget, baseRevision })
+  const { room, catalog, budget, baseRevision, sources, allowKeptChanges = false } = context
+  const proposal = buildRoomDesignProposal({ intent, room, catalog, budget, baseRevision, allowKeptChanges })
   const description = describeRoomDesignIntent(intent, room)
   const cost = designerCostReport(purchaseSummary(room, sources, budget), proposal.summary, budget)
-  return { proposal, description, cost }
+  return { proposal, description, cost, keepNotice: keepNoticeFor(intent, room, proposal) }
+}
+
+/**
+ * The one-tap "allow changes to kept pieces for this design" request: the same brief, budget and consent as `previous`,
+ * against the current committed room and revision, with Keep lifted in the summary (locks unchanged). The room's own Keep
+ * settings are untouched; only applying the resulting design changes the room.
+ */
+export function keptChangesRequest(previous: RoomDesignRequest, current: { room: Room; revision: number }): RoomDesignRequest {
+  return {
+    brief: previous.brief,
+    consent: previous.consent,
+    ...(previous.budget ? { budget: { ...previous.budget } } : {}),
+    baseRevision: current.revision,
+    roomSummary: roomSummary(current.room, { allowKeptChanges: true }),
+    allowKeptChanges: true,
+  }
 }
 
 export type RoomDesignRequestResult = { ok: true; intent: RoomDesignIntent } | { ok: false; error: string }

@@ -15,6 +15,8 @@ export type RoomDesignProposalInput = {
   room: Room
   budget: Money | null
   baseRevision: number
+  /** The user's one-tap consent for this design only: kept pieces may be removed or replaced (placement locks still hold). Default false. */
+  allowKeptChanges?: boolean
 }
 
 /** A proposal can be partial only when each omitted request has a visible reason. */
@@ -25,6 +27,10 @@ export type RoomDesignProposal = {
   warnings: string[]
   skipped: string[]
   summary: PurchaseSummary
+  /** IDs of pieces left alone only because they are marked Keep (always empty when kept changes are allowed). */
+  keptBlocked: string[]
+  /** True when built with allowKeptChanges: its commands may remove/replace kept pieces, so they apply as the user's explicit, revision-bound edit. */
+  allowKeptChanges: boolean
 }
 
 function stableHash(value: string): number {
@@ -56,9 +62,21 @@ function validEntry(entry: CatalogEntry): boolean {
     entry.variant.productId === entry.product.id && entry.offer.variantId === entry.variant.id
 }
 
-/** Builds a safe, possibly partial proposal. Every emitted command is checked against the latest working room with the automated actor. */
+/** For trial application only: the targets of remove/replace commands shown as not kept, so the automated actor still enforces every lock rule. */
+function liftKeepForTargets(room: Room, commands: readonly Command[]): Room {
+  const targets = new Set(commands.flatMap((command) => command.type === 'remove' || command.type === 'replace' ? [command.id] : []))
+  if (![...targets].some((id) => room.objects.some((object) => object.id === id && object.keep))) return room
+  return { ...room, objects: room.objects.map((object) => targets.has(object.id) && object.keep ? { ...object, keep: false } : object) }
+}
+
+/**
+ * Builds a safe, possibly partial proposal. Every emitted command is checked against the latest working room with the automated actor.
+ * With `allowKeptChanges`, a remove/replace of a kept piece is checked as if that piece were not kept (locks still apply); the removal or
+ * replacement takes the kept piece out of the room, so the working room stays exact.
+ */
 export function buildRoomDesignProposal(input: RoomDesignProposalInput): RoomDesignProposal {
   const { room, budget, baseRevision } = input
+  const allowKeptChanges = input.allowKeptChanges === true
   const intent = parseRoomDesignIntent(input.intent, room)
   const catalog = input.catalog.filter(validEntry)
   // A sold-out offer still prices an already placed item; only new choices need confirmed stock.
@@ -68,11 +86,12 @@ export function buildRoomDesignProposal(input: RoomDesignProposalInput): RoomDes
   const notes: string[] = []
   const warnings: string[] = []
   const skipped: string[] = []
+  const keptBlocked: string[] = []
   let working = room
   const summary = (candidate: Room) => purchaseSummary(candidate, { offers }, budget)
 
   const attempt = (nextCommands: Command[]): { ok: true } | { ok: false; reason: string } => {
-    const result = applyCommands(working, nextCommands, 'auto')
+    const result = applyCommands(allowKeptChanges ? liftKeepForTargets(working, nextCommands) : working, nextCommands, 'auto')
     if (!result.ok) return { ok: false, reason: result.error }
     if (result.warnings.length) return { ok: false, reason: result.warnings.join(' ') }
     const next = summary(result.room)
@@ -105,11 +124,11 @@ export function buildRoomDesignProposal(input: RoomDesignProposalInput): RoomDes
 
   for (const id of intent.removeObjectIds) {
     const object = working.objects.find((item) => item.id === id)!
-    if (object.keep) { skipped.push(`Kept ${object.name} because it is marked to keep.`); continue }
-    if (tryCommand({ type: 'remove', id })) notes.push(`Removed ${object.name}.`)
+    if (object.keep && !allowKeptChanges) { skipped.push(`Kept ${object.name} because it is marked to keep.`); keptBlocked.push(id); continue }
+    if (tryCommand({ type: 'remove', id })) notes.push(`Removed ${object.name}${object.keep ? ' (was marked Keep)' : ''}.`)
   }
 
-  const choose = (category: string, count: number, target: { mode: 'swap'; objectId: string } | { mode: 'add' }): boolean => {
+  const choose = (category: string, count: number, target: { mode: 'swap'; objectId: string; label?: string } | { mode: 'add' }): boolean => {
     const candidates = selectable.filter((entry) => entry.product.category === category)
       .sort((a, b) => (a.offer.price?.amountMinor ?? Number.MAX_SAFE_INTEGER) - (b.offer.price?.amountMinor ?? Number.MAX_SAFE_INTEGER) || a.variant.id.localeCompare(b.variant.id))
     if (!candidates.length) { skipped.push(`No in-stock catalog item is available for ${category}.`); return false }
@@ -121,7 +140,7 @@ export function buildRoomDesignProposal(input: RoomDesignProposalInput): RoomDes
       const proposed = placementCommands(working, entry, target, count)
       if (!proposed) { reason = `No free space or safe spot is available for ${category}.`; continue }
       if (proposed.length !== 1) { reason = `Could not safely place ${category}.`; continue }
-      if (tryCommand(proposed[0]!)) { notes.push(`${target.mode === 'swap' ? 'Replaced an item with' : 'Added'} ${entry.product.name}.`); return true }
+      if (tryCommand(proposed[0]!)) { notes.push(`${target.mode === 'swap' ? `Replaced ${target.label ?? 'an item'} with` : 'Added'} ${entry.product.name}.`); return true }
       reason = skipped.pop() ?? reason
       skipped.length = before
     }
@@ -131,8 +150,8 @@ export function buildRoomDesignProposal(input: RoomDesignProposalInput): RoomDes
 
   for (const item of intent.replace) {
     const object = working.objects.find((candidate) => candidate.id === item.objectId)!
-    if (object.keep) { skipped.push(`Kept ${object.name} because it is marked to keep.`); continue }
-    if (choose(item.category, 1, { mode: 'swap', objectId: object.id })) {
+    if (object.keep && !allowKeptChanges) { skipped.push(`Kept ${object.name} because it is marked to keep.`); keptBlocked.push(object.id); continue }
+    if (choose(item.category, 1, { mode: 'swap', objectId: object.id, ...(object.keep ? { label: `${object.name} (was marked Keep)` } : {}) })) {
       for (let i = 1; i < item.count; i++) choose(item.category, 1, { mode: 'add' })
     }
   }
@@ -198,5 +217,5 @@ export function buildRoomDesignProposal(input: RoomDesignProposalInput): RoomDes
 
   const finalSummary = summary(working)
   if (budget && finalSummary.budget === 'unknown') warnings.push('The budget status is unknown because one or more prices are unknown.')
-  return { baseRevision, commands, notes, warnings, skipped, summary: finalSummary }
+  return { baseRevision, commands, notes, warnings, skipped, summary: finalSummary, keptBlocked, allowKeptChanges }
 }

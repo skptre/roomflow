@@ -209,6 +209,25 @@ describe('local room design endpoint: prompt and output boundary', () => {
     expect(sentPrompt(call)).not.toMatch(/data:image|https?:\/\/|offer|price|roomplan|baseRevision/i)
   })
 
+  it('with allowKeptChanges, sends the same instruction and a summary with Keep lifted, never the flag itself', async () => {
+    const { post, call } = await setup()
+    const lockedSofa = { ...sofa, lockPlacement: true }
+    const body = { ...request, allowKeptChanges: true, roomSummary: { ...request.roomSummary, objects: [lockedSofa] } }
+    expect((await post(JSON.stringify(body))).status).toBe(200)
+    const paid = call.mock.calls[0]![0]
+    expect(paid.parts[0]).toEqual({ text: ROOM_DESIGN_SYSTEM_INSTRUCTION })
+    const sent = JSON.parse(sentPrompt(call)) as { roomSummary: { objects: { keep: boolean; lockPlacement: boolean }[] } }
+    expect(Object.keys(sent).sort()).toEqual(['brief', 'budget', 'roomSummary'])
+    expect(sent.roomSummary.objects).toEqual([{ ...lockedSofa, keep: false }])
+    expect(sentPrompt(call)).not.toMatch(/allowKeptChanges/)
+  })
+
+  it('rejects a non-boolean allowKeptChanges before Gemini', async () => {
+    const { post, call } = await setup()
+    expect((await post(JSON.stringify({ ...request, allowKeptChanges: 'yes' }))).status).toBe(400)
+    expect(call).not.toHaveBeenCalled()
+  })
+
   it('omits an absent budget instead of inventing one', async () => {
     const { post, call } = await setup()
     const { budget: _budget, ...withoutBudget } = request
