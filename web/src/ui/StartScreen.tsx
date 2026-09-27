@@ -1,18 +1,21 @@
 import { useId, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { StudioIcon, Wordmark } from './StudioIcon'
+import { PairScanDialog } from './PairScanDialog'
 
 type StartScreenProps = {
   onImportFile: (file: File) => void
   onOpenSample: () => void
+  onPairedScan: (scan: string) => boolean
   onResume?: () => void
   error?: string | null
   busy?: boolean
   children: ReactNode
 }
 
-export function StartScreen({ onImportFile, onOpenSample, onResume, error, busy = false, children }: StartScreenProps) {
+export function StartScreen({ onImportFile, onOpenSample, onPairedScan, onResume, error, busy = false, children }: StartScreenProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
+  const [pairing, setPairing] = useState(false)
   const errorId = useId()
   function handleDrop(event: DragEvent) {
     event.preventDefault()
@@ -54,14 +57,15 @@ export function StartScreen({ onImportFile, onOpenSample, onResume, error, busy 
             <button
               className="welcome-import"
               disabled={busy}
-              aria-describedby={error ? errorId : undefined}
-              onClick={() => inputRef.current?.click()}
+              onClick={() => setPairing(true)}
             >
-              <StudioIcon name="upload" size={18} />
-              {busy ? 'Opening your scan…' : 'Open my scan'}
+              <StudioIcon name="grid" size={18} />
+              Open my scan
               <StudioIcon name="arrow" size={17} />
             </button>
-            <p className="scan-handoff">Scan your room on your iPhone, export its RoomPlan JSON file, then open that file here.</p>
+            <p className="scan-handoff">Connect the Roomflow iPhone app. Your scan appears here when it finishes.</p>
+            <button className="saved-scan-link" disabled={busy} aria-describedby={error ? errorId : undefined}
+              onClick={() => inputRef.current?.click()}>Use a saved scan file</button>
             <input
               ref={inputRef}
               type="file"
@@ -83,7 +87,6 @@ export function StartScreen({ onImportFile, onOpenSample, onResume, error, busy 
         </section>
         <div className="welcome-room" aria-label="Sample bedroom preview">
           <div className="welcome-scene">{children}</div>
-          <span className="welcome-room-label">SAMPLE BEDROOM</span>
         </div>
       </div>
       {dragging && (
@@ -93,6 +96,7 @@ export function StartScreen({ onImportFile, onOpenSample, onResume, error, busy 
           <p>Drop your RoomPlan .json scan to begin.</p>
         </div>
       )}
+      {pairing && <PairScanDialog onClose={() => setPairing(false)} onReceive={onPairedScan} />}
     </div>
   )
 }

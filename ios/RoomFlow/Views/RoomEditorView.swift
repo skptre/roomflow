@@ -3,6 +3,7 @@ import SwiftUI
 /// Top-down floor plan of a room: walls, doors, windows, and furniture drawn to scale
 /// in their scanned colors. Tap furniture to select it.
 struct RoomEditorView: View {
+    @EnvironmentObject private var pairing: BrowserPairingManager
     @State private var editor: RoomEditorState
     private let isSample: Bool
     /// The untouched scan bytes this room came from; nil for debug/sample rooms.
@@ -41,6 +42,22 @@ struct RoomEditorView: View {
             .accessibilityLabel("Floor plan, \(editor.room.objects.count) objects")
         }
         .background(Color.rfBackground)
+        .overlay(alignment: .top) {
+            if rawCapture != nil {
+                switch pairing.transfer {
+                case .sending:
+                    Label("Sending your scan to the browser…", systemImage: "arrow.up.circle")
+                        .browserStatusStyle()
+                case .sent:
+                    Label("Your scan is open in the browser", systemImage: "checkmark.circle.fill")
+                        .browserStatusStyle()
+                case .failed:
+                    Label("Could not send. Open room details to retry.", systemImage: "exclamationmark.triangle")
+                        .browserStatusStyle()
+                default: EmptyView()
+                }
+            }
+        }
         .safeAreaInset(edge: .bottom) { bottomPanel }
         .navigationTitle(isSample ? "Sample Room" : "Your Room")
         .navigationBarTitleDisplayMode(.inline)
@@ -77,6 +94,16 @@ struct RoomEditorView: View {
         .frame(height: 124, alignment: .bottom)
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
+    }
+}
+
+private extension View {
+    func browserStatusStyle() -> some View {
+        self.font(.footnote.weight(.semibold))
+            .foregroundStyle(Color.rfInk)
+            .padding(12)
+            .background(Color.rfSurface, in: RoundedRectangle(cornerRadius: 10))
+            .padding(12)
     }
 }
 

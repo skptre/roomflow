@@ -8,6 +8,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { refreshOffer, type OfferRefresh } from '../src/shop/offerRefresh'
+import { createPairingApi } from './pairing'
 
 const PER_MINUTE = 30
 
@@ -19,11 +20,13 @@ function send(res: ServerResponse, status: number, body: unknown): void {
 }
 
 export function roomflowApi(): Plugin {
+  const pairings = createPairingApi()
   const inFlight = new Map<string, Promise<OfferRefresh>>()
   let windowStart = 0
   let windowCount = 0
 
   async function handle(req: IncomingMessage, res: ServerResponse, next: () => void): Promise<void> {
+    if (await pairings(req, res)) return
     const url = new URL(req.url ?? '/', 'http://localhost')
     if (url.pathname !== '/api/offer') return next()
     if (req.method !== 'GET') return send(res, 405, { ok: false, error: 'Use GET.' })

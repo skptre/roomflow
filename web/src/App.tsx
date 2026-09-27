@@ -93,11 +93,11 @@ function Workspace() {
     setSwapId(null)
     setPanel(next)
   }
-  function open(text: string) {
+  function open(text: string): boolean {
     const result = parseRoomPlanJson(text)
     if (!result.ok) {
       setError(result.error)
-      return
+      return false
     }
     setError(null)
     cancelCatalogPreview()
@@ -105,6 +105,7 @@ function Workspace() {
     setWelcome(false)
     setPanel('room')
     setSwapId(null)
+    return true
   }
   async function importFile(file: File) {
     if (file.size > MAX_IMPORT_BYTES) {
@@ -131,6 +132,7 @@ function Workspace() {
           busy={busy}
           onImportFile={importFile}
           onOpenSample={() => open(sampleScan)}
+          onPairedScan={open}
           onResume={committed ? () => setWelcome(false) : undefined}
         >
           {sampleRoom && <RoomScene room={sampleRoom} sources={sources} decorative />}
