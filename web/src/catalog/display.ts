@@ -5,6 +5,7 @@
  * and tags — since store tags carry no mood of their own.
  */
 import type { CatalogEntry } from '../domain/catalog'
+import { hueFamily } from '../shop/colors'
 
 /** A width-limited rendition from the Shopify CDN (other hosts unchanged). */
 export function sizedImage(url: string, width: number): string {
@@ -46,4 +47,29 @@ export function matchesMood(entry: CatalogEntry, mood: string): boolean {
   const pattern = MOOD_PATTERNS[mood]
   if (!pattern) return entry.product.tags.includes(mood)
   return pattern.test(fold([entry.product.name, entry.variant.label, ...entry.product.tags].join(' ')))
+}
+
+/** Colorfulness of an sRGB hex: max − min channel, 0–1. */
+function chroma(hex: string): number {
+  const n = Number.parseInt(hex.slice(1), 16)
+  const channels = [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+  return (Math.max(...channels) - Math.min(...channels)) / 255
+}
+
+/**
+ * The moods the colors a piece is drawn in suggest (for looks): neutrals and
+ * near-white warm tones read minimal, woods and muted earth tones natural,
+ * clear colors colorful. Soft ranking only, like the word moods.
+ */
+export function moodsOfColors(hexes: readonly string[]): string[] {
+  const moods = new Set<string>()
+  for (const hex of hexes) {
+    const family = hueFamily(hex)
+    const c = chroma(hex)
+    if (family.endsWith('neutral')) moods.add('minimal')
+    else if (family === 'brown') moods.add('natural')
+    else if (family === 'orange' || family === 'yellow') moods.add(c < 0.12 ? 'minimal' : c < 0.3 ? 'natural' : 'colorful')
+    else moods.add('colorful')
+  }
+  return [...moods]
 }

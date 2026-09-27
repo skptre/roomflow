@@ -13,7 +13,7 @@ import { recipeAsset, registerRecipes } from '../blocks/registry'
 import { categoryInfo } from '../domain/categories'
 import type { AssetRef, Offer } from '../domain/schema'
 import { Snapshot, variantId, variantLabel, variantUrl } from '../shop/snapshot'
-import { moodsOf } from './display'
+import { moodsOf, moodsOfColors } from './display'
 
 /**
  * How one variant is drawn: its product's recipe in this variant's colors and
@@ -39,8 +39,11 @@ export function snapshotEntries(snapshot: Snapshot, recipes: ReadonlyMap<string,
   return snapshot.products.flatMap((p) =>
     p.variants.map((sv): CatalogEntry => {
       const v = { ...sv, id: variantId(p, sv), label: variantLabel(sv), url: variantUrl(p, sv), imageUrl: sv.imageUrl ?? p.imageUrl }
-      // Store tags carry no mood; the listing's own material and color words do (for looks and ranking).
-      const tags = [...new Set([...p.tags, ...moodsOf([p.name, v.label, ...p.tags])])]
+      const asset = variantAsset(p, sv, recipes.get(p.id))
+      // Store tags carry no mood; the listing's own material and color words do, and so do the colors
+      // this variant is drawn in (for looks and ranking).
+      const drawn = asset.kind === 'recipe' && asset.recipeId !== `default:${p.category}` ? Object.values(asset.colors ?? {}) : []
+      const tags = [...new Set([...p.tags, ...moodsOf([p.name, v.label, ...p.tags]), ...moodsOfColors(drawn)])]
       return {
         product: {
           id: p.id,
@@ -58,7 +61,7 @@ export function snapshotEntries(snapshot: Snapshot, recipes: ReadonlyMap<string,
           productId: p.id,
           label: v.label,
           dimensions: v.dimensions,
-          asset: variantAsset(p, sv, recipes.get(p.id)),
+          asset,
           optionValues: v.optionValues,
           ...(v.imageUrl ? { imageUrl: v.imageUrl } : {}),
         },
