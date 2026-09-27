@@ -2,6 +2,20 @@
 
 Non-obvious tradeoffs, each with the alternative that was rejected. Routine "only way to do it" changes don't belong here.
 
+## TV-shaped rectangles are skipped
+`WallArtDetector` rejects a wall rectangle whose aspect ratio is 1.70…1.85 (16:9-ish) and whose width is ≥0.55 m,
+even if it otherwise measures as plausible art. Rejected: trusting the TV-overlap check alone — RoomPlan
+sometimes fails to detect a real television as an object, so there is nothing for the wall rectangle to overlap.
+A shape/size heuristic catches that case at the cost of also skipping an unusually TV-shaped painting, which is
+the rarer case.
+
+## Panels measured on their own plane
+When LiDAR shows a rectangle standing consistently in front of the wall plane (up to 30 cm, ≤6 cm spread across
+five samples), `WallArtDetector` re-casts the corner rays onto that measured plane — not the wall plane — to get
+`corners`/`width`/`height`. Rejected: always measuring on the wall plane, which overstates a standoff panel's
+size (a panel 20 cm off the wall projects larger on the farther wall plane) and reports its corners floating in
+front of where the surface actually is.
+
 ## iOS exports the RoomPlan capture untouched
 `RoomPlanFileExport` writes exactly `JSONEncoder().encode(CapturedRoom)`, encoded once and saved as frozen bytes.
 Rejected: sending the iOS `RoomModel` or a normalized file to the web. The web importer normalizes itself
