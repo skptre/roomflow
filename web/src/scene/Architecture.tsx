@@ -25,7 +25,7 @@ export function Architecture({ room, cut, reducedMotion }: ArchitectureProps) {
   const finishes = paletteName === 'warm' ? room.finishes : { ...room.finishes, wall: palette.wall, floor: palette.floor }
   return (
     <group>
-      <Floor polygon={room.floorPolygon} color={finishes.floor} />
+      <Floor polygon={room.floorPolygon} color={finishes.floor} plain={finishes.floorTexture === 'plain'} />
       {room.walls.map((wall) => (
         <WallMesh
           key={wall.id}
@@ -41,7 +41,8 @@ export function Architecture({ room, cut, reducedMotion }: ArchitectureProps) {
   )
 }
 
-function Floor({ polygon, color }: { polygon: readonly Vec2[]; color: string }) {
+/** `plain`: a matte floor with no wood grain, for a color sampled from the real room. */
+function Floor({ polygon, color, plain }: { polygon: readonly Vec2[]; color: string; plain: boolean }) {
   const geometry = useMemo(() => {
     // Shape (x, -z) rotated -90° about X lands on (x, 0, z); extrusion then points up.
     const shape = new Shape(polygon.map((p) => new Vector2(p.x, -p.z)))
@@ -52,10 +53,12 @@ function Floor({ polygon, color }: { polygon: readonly Vec2[]; color: string }) 
   // Materials are owned here (not by JSX) so unmounting never disposes the shared wood texture.
   const materials = useMemo(
     () => [
-      new MeshStandardMaterial({ color, map: proceduralTexture('woodgrain'), roughness: 0.72 }),
+      plain
+        ? new MeshStandardMaterial({ color, roughness: 0.95 })
+        : new MeshStandardMaterial({ color, map: proceduralTexture('woodgrain'), roughness: 0.72 }),
       new MeshStandardMaterial({ color: palette.trim, roughness: 0.9 }),
     ],
-    [color],
+    [color, plain],
   )
   useEffect(() => () => geometry.dispose(), [geometry])
   useEffect(() => () => materials.forEach((material) => material.dispose()), [materials])

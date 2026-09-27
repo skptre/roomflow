@@ -4,7 +4,7 @@
  */
 import { collisions } from './commands'
 import { blocksFloor, clampIntoRoom, footprint, footprintBounds, footprintsOverlap, insideRoom, pointInPolygon } from './geometry'
-import type { Dimensions, Room, RoomObject, Vec2 } from './schema'
+import type { Dimensions, Room, RoomObject, Vec2, Wall } from './schema'
 import type { Pose } from './units'
 
 const STEP = 0.1
@@ -91,8 +91,11 @@ const DOOR_CLEARANCE = 0.8
 /** Things hung higher than this don't get in the way of walking through a door. */
 const HEADROOM = 1.0
 
-/** Unit normal of a wall pointing into the room (toward the floor). */
-function inwardNormal(room: Room, wall: Room['walls'][number]): Vec2 {
+/**
+ * Unit normal of a wall pointing into the room (toward the floor). Only the floor outline is read, so the
+ * importer can call it before a Room exists. For an interior partition both sides are floor; the left side wins.
+ */
+export function inwardNormal(room: Pick<Room, 'floorPolygon'>, wall: Pick<Wall, 'start' | 'end'>): Vec2 {
   const dx = wall.end.x - wall.start.x
   const dz = wall.end.z - wall.start.z
   const length = Math.hypot(dx, dz) || 1

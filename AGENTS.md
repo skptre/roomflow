@@ -2,6 +2,8 @@
 
 Follow `CLAUDE.md` and `spec.md`. They are the engineering rules and product authority for every change, including reviews.
 
+Before searching the code, read `docs/INDEX.md` and `docs/ARCHITECTURE.md`. Every code change also updates the project records as described in `.claude/documentation.md` (CHANGELOG entry, ARCHITECTURE/INDEX rows, DECISIONS for tradeoffs).
+
 The browser app lives in `web/` (Vite + React + TypeScript + React Three Fiber). Run checks from `web/`:
 
 ```

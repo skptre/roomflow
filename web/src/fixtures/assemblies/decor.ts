@@ -37,3 +37,22 @@ export const vase = assembly('vase', 'vase', [
   cyl('neck', [0.44, 0.34, 0.44], [0, 0.56, 0], c.clay, 'ceramic'),
   cyl('lip', [0.54, 0.1, 0.54], [0, 0.9, 0], c.rust, 'ceramic'),
 ])
+
+/**
+ * Built-in closet seen from the room: painted frame and two tall doors, set flush against the wall
+ * (depth is a few centimeters). A dark reveal behind the doors shows through the gaps.
+ */
+export const closetFront = assembly('closet-front', 'closet', [
+  box('reveal', [0.94, 0.96, 0.2], [0, 0.005, -0.4], c.charcoal, 'matte'),
+  box('jamb-left', [0.03, 1, 1], [-0.485, 0, 0], c.white, 'matte'),
+  box('jamb-right', [0.03, 1, 1], [0.485, 0, 0], c.white, 'matte'),
+  box('head', [0.94, 0.03, 1], [0, 0.97, 0], c.white, 'matte'),
+  box('door-left', [0.466, 0.958, 0.6], [-0.237, 0.008, 0], c.ceramic, 'matte'),
+  box('door-right', [0.466, 0.958, 0.6], [0.237, 0.008, 0], c.ceramic, 'matte'),
+  box('panel-left-upper', [0.36, 0.44, 0.06], [-0.237, 0.47, 0.33], c.white, 'matte'),
+  box('panel-left-lower', [0.36, 0.32, 0.06], [-0.237, 0.08, 0.33], c.white, 'matte'),
+  box('panel-right-upper', [0.36, 0.44, 0.06], [0.237, 0.47, 0.33], c.white, 'matte'),
+  box('panel-right-lower', [0.36, 0.32, 0.06], [0.237, 0.08, 0.33], c.white, 'matte'),
+  cyl('handle-left', [0.012, 0.12, 0.2], [-0.035, 0.42, 0.4], c.brass, 'metal'),
+  cyl('handle-right', [0.012, 0.12, 0.2], [0.035, 0.42, 0.4], c.brass, 'metal'),
+])

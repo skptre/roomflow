@@ -2,7 +2,7 @@
 import { scannedSeating } from './scannedSeating'
 import type { Assembly } from '../../domain/assembly'
 import { bed, dresser, nightstand } from './bedroom'
-import { mirror, plant, rug, vase, wallArt } from './decor'
+import { closetFront, mirror, plant, rug, vase, wallArt } from './decor'
 import { floorLamp, tableLamp } from './lighting'
 import { coffeeTable, loungeChair, sofa } from './living'
 import { bookshelf, desk, deskChair } from './workspace'
@@ -25,6 +25,7 @@ const all: Assembly[] = [
   wallArt,
   mirror,
   vase,
+  closetFront,
 ]
 
 export const assemblies: Readonly<Record<string, Assembly>> = Object.fromEntries(all.map((a) => [a.id, a]))
