@@ -177,8 +177,49 @@ function WallMesh({ wall, openings, floorPolygon, color, cut, reducedMotion }: W
 }
 
 const FRAME = 0.045
+const LEAF = 0.04
+/** How far an open door swings into the room. */
+const OPEN_ANGLE = (75 * Math.PI) / 180
+/** Knob height above the door's bottom. */
+const KNOB_HEIGHT = 0.95
 
-/** Simple jambs/head (and sill + glass for windows) inside an opening, in the wall's local frame. */
+/**
+ * Which way is into the room in the wall's local frame (+1: local +Z, -1: local -Z).
+ * An exterior wall's normal points outside; an interior wall has rooms on both sides.
+ */
+function intoRoom(wall: Wall, placement: Placement): 1 | -1 {
+  if (!wall.exterior) return 1
+  const left = { x: -placement.dir.z, z: placement.dir.x }
+  return placement.normal.x * left.x + placement.normal.z * left.z > 0 ? -1 : 1
+}
+
+/** A door leaf in its frame, closed or swung open into the room from its left jamb, with a knob on each face. */
+function DoorLeaf({ opening, wall, placement, u0, width, bottom, height }: { opening: Opening; wall: Wall; placement: Placement; u0: number; width: number; bottom: number; height: number }) {
+  const leafW = width - FRAME * 2 - 0.004
+  const leafH = height - FRAME - 0.012
+  if (leafW <= 0.1 || leafH <= 0.3) return null
+  const side = intoRoom(wall, placement)
+  const center = placement.zOffset + placement.thickness / 2
+  // Closed: in the middle of the wall. Open: hinged at the room-side face so it swings clear of the wall.
+  const hingeZ = opening.open ? center + side * (placement.thickness / 2 - LEAF / 2) : center
+  const knobY = Math.min(KNOB_HEIGHT, leafH * 0.5) - leafH / 2
+  return (
+    <group position={[u0 + FRAME + 0.002, bottom + 0.006 + leafH / 2, hingeZ]} rotation-y={opening.open ? -side * OPEN_ANGLE : 0}>
+      <mesh position={[leafW / 2, 0, 0]} castShadow receiveShadow>
+        <boxGeometry args={[leafW, leafH, LEAF]} />
+        <meshStandardMaterial color={palette.trim} roughness={0.55} />
+      </mesh>
+      {[1, -1].map((face) => (
+        <mesh key={face} position={[leafW - 0.07, knobY, face * (LEAF / 2 + 0.018)]} castShadow>
+          <sphereGeometry args={[0.024, 16, 12]} />
+          <meshStandardMaterial color={palette.shadow} roughness={0.35} metalness={0.6} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+/** Simple jambs/head (and sill + glass for windows, a leaf for doors) inside an opening, in the wall's local frame. */
 function OpeningFrame({ opening, placement, wall }: { opening: Opening; placement: Placement; wall: Wall }) {
   const length = wallLength(wall)
   const u0 = Math.max(0, opening.offsetAlongWall - opening.width / 2)
@@ -224,6 +265,7 @@ function OpeningFrame({ opening, placement, wall }: { opening: Opening; placemen
           />
         </mesh>
       ) : null}
+      {opening.kind === 'door' ? <DoorLeaf opening={opening} wall={wall} placement={placement} u0={u0} width={width} bottom={bottom} height={height} /> : null}
     </group>
   )
 }

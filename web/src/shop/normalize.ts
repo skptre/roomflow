@@ -24,6 +24,12 @@ export type NormalizeResult = { product: SnapshotProduct; truncatedVariants: num
 const SIZE_OPTION = /size|dimension|width|length/i
 const DEFAULT_TITLE = 'Default Title'
 
+/** The thickness a flat thing's listing never states (its size is its face). */
+const NOMINAL_AXES: Readonly<Partial<Record<SizeKind, readonly ('width' | 'height' | 'depth')[]>>> = { art: ['depth'], curtain: ['depth'], rug: ['height'] }
+
+/** A digital download sold beside prints: nothing arrives to hang. */
+const DIGITAL = /\bdigital\b|\bdownload\b/i
+
 function sizeKind(category: string): SizeKind {
   switch (category) {
     case 'curtain':
@@ -95,7 +101,9 @@ export function normalizeProduct(raw: ShopifyProduct, store: StoreInfo): Normali
   const titleWidth = kind === 'furniture' ? /(?:^|\s)(\d{2,3}(?:\.\d+)?)(?:"|”|″|&quot;)(?!\s*x)/.exec(raw.title) : null
   if (titleWidth && described.width === undefined) Object.assign(described, plausible({ width: Number(titleWidth[1]) * 0.0254 }))
 
-  const variants: SnapshotVariant[] = raw.variants.slice(0, MAX_VARIANTS).map((variant) => {
+  const physical = raw.variants.filter((variant) => ![variant.option1, variant.option2, variant.option3].some((value) => value && DIGITAL.test(value)))
+  if (physical.length === 0) return { excluded: 'digital-only' }
+  const variants: SnapshotVariant[] = physical.slice(0, MAX_VARIANTS).map((variant) => {
     const optionValues = options.map((_, index) => [variant.option1, variant.option2, variant.option3][index] ?? '')
     // A size option describes this variant; the description describes the product.
     let listed: ListedSize = { ...described }
@@ -115,7 +123,7 @@ export function normalizeProduct(raw: ShopifyProduct, store: StoreInfo): Normali
     if (landscape && listed.width !== undefined && listed.height !== undefined && listed.width < listed.height) {
       listed = { ...listed, width: listed.height, height: listed.width }
     }
-    const dimensions = completeDimensions(listed, estimate)
+    const dimensions = completeDimensions(listed, estimate, NOMINAL_AXES[kind])
     return {
       sid: variant.id,
       optionValues,

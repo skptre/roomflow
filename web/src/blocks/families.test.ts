@@ -4,7 +4,7 @@ import { buildParts } from './build'
 import type { Size } from './family'
 import { FAMILIES, FAMILY_SAMPLES } from './families'
 
-const EXPECTED = ['sofa', 'bed', 'table', 'storage', 'chair', 'lamp', 'planter', 'rug', 'art', 'curtain', 'pillow', 'mirror', 'vase', 'dining-chair', 'throw']
+const EXPECTED = ['sofa', 'bed', 'table', 'storage', 'chair', 'lamp', 'planter', 'rug', 'art', 'curtain', 'pillow', 'mirror', 'vase', 'dining-chair', 'throw', 'fridge', 'tv', 'appliance', 'sink', 'toilet', 'bathtub', 'fireplace', 'stairs', 'closet-doors']
 
 /** Merged bounds of every part, checked against the object's box (±1% of each size, at least 1 mm). */
 function expectInside(parts: ReturnType<typeof buildParts>['parts'], size: Size, label: string) {
