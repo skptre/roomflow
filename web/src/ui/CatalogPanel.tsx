@@ -9,6 +9,8 @@ import {
   type CatalogSource,
   type PlacementTarget,
 } from '../domain/catalog'
+import { inStockFirst, matchesMood } from '../catalog/display'
+import { matchesSearch } from '../catalog/snapshotCatalog'
 import { alternativeCategories, CATEGORIES } from '../domain/categories'
 import { designStore } from '../domain/designStore'
 import type { Money, RoomObject } from '../domain/schema'
@@ -24,6 +26,9 @@ const MOODS = [
   { id: 'minimal', label: 'Minimal' },
   { id: 'colorful', label: 'Playful' },
 ]
+/** Cards rendered at a time; "Show more" adds another page. */
+const PAGE = 24
+
 function byProduct(entries: readonly CatalogEntry[]): CatalogEntry[][] {
   const groups = new Map<string, CatalogEntry[]>()
   for (const entry of entries) {
@@ -54,7 +59,13 @@ export function CatalogPanel({
   const [mood, setMood] = useState('')
   const [search, setSearch] = useState('')
   const [retry, setRetry] = useState(0)
-  const [results, setResults] = useState<{ key: string; entries: CatalogEntry[]; error?: string } | null>(null)
+  const [shown, setShown] = useState(PAGE)
+  const [results, setResults] = useState<{
+    key: string
+    entries: CatalogEntry[]
+    source?: 'sample' | 'snapshot' | 'live'
+    error?: string
+  } | null>(null)
   const categories = useMemo(
     () => (selected ? alternativeCategories(selected.category) : category ? [category] : undefined),
     [selected, category],
@@ -72,7 +83,7 @@ export function CatalogPanel({
         const entries = filterHard(accepted, { category: categories, budgetRemaining }, room)
         // Warm the likeliest few models so trying one on doesn't wait on a download.
         prepareAssets(preloadPicks(rankSoft(entries, { tags: ['natural', 'warm'] }), 3))
-        setResults({ key: queryKey, entries })
+        setResults({ key: queryKey, entries, source: result.source })
       })
       .catch(() => {
         if (!cancelled)
@@ -88,17 +99,19 @@ export function CatalogPanel({
   }, [source, categories, budgetRemaining, revision, queryKey])
   useEffect(() => () => cancelCatalogPreview(), [])
   const loading = results?.key !== queryKey
-  const filtered =
-    results?.entries.filter(
-      (entry) =>
-        (!mood || entry.product.tags.includes(mood)) &&
-        `${entry.product.name} ${entry.product.tags.join(' ')} ${CATEGORIES[entry.product.category]?.label ?? ''}`
-          .toLowerCase()
-          .includes(search.trim().toLowerCase()),
-    ) ?? []
-  const products = byProduct(rankSoft(filtered, { tags: ['natural', 'warm'] }))
+  // Rank once per result; filtering on each keystroke then stays cheap on a large catalog.
+  const ranked = useMemo(() => inStockFirst(rankSoft(results?.entries ?? [], { tags: ['natural', 'warm'] })), [results])
+  const products = useMemo(
+    () => byProduct(ranked.filter((entry) => matchesMood(entry, mood) && matchesSearch(entry, search))),
+    [ranked, mood, search],
+  )
+  const pricesAsOf = useMemo(() => {
+    const times = (results?.entries ?? []).map((entry) => entry.offer.retrievedAt).sort()
+    return times[0] ? new Date(times[0]).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null
+  }, [results])
   function changeFilter(change: () => void) {
     cancelCatalogPreview()
+    setShown(PAGE)
     change()
   }
   return (
@@ -160,7 +173,7 @@ export function CatalogPanel({
         <span>
           {loading ? 'Finding pieces…' : `${products.length} ${products.length === 1 ? 'piece' : 'pieces'} to explore`}
         </span>
-        <span>Sample collection</span>
+        <span>{results?.source === 'sample' ? 'Sample collection' : pricesAsOf ? `Store prices as of ${pricesAsOf}` : 'Real store listings'}</span>
       </div>
       <div className="product-list" aria-busy={loading}>
         {loading && (
@@ -194,7 +207,7 @@ export function CatalogPanel({
           </div>
         )}
         {!loading &&
-          products.map((variants) => (
+          products.slice(0, shown).map((variants) => (
             <ProductCard
               key={`${variants[0]!.product.id}|${selected?.id ?? 'add'}`}
               variants={variants}
@@ -202,8 +215,15 @@ export function CatalogPanel({
             />
           ))}
       </div>
+      {!loading && products.length > shown && (
+        <button className="studio-secondary catalog-more" onClick={() => setShown(shown + PAGE)}>
+          Show more ({products.length - shown} left)
+        </button>
+      )}
       <p className="catalog-disclaimer">
-        Illustrative pieces and prices to explore your style. These aren’t live store listings.
+        {results?.source === 'sample'
+          ? 'Illustrative pieces and prices to explore your style. These aren’t live store listings.'
+          : 'Real products from each store’s public listings. Prices are product subtotals as listed then, before tax and shipping; check the store before buying.'}
       </p>
     </section>
   )

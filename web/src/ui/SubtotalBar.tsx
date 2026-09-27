@@ -2,10 +2,11 @@ import { useId, useMemo, useState } from 'react'
 import { useStore } from 'zustand'
 import { designStore } from '../domain/designStore'
 import { formatMoney } from '../domain/money'
-import { formatSubtotal, purchaseSummary, type PurchaseSummary, type SummarySources } from '../domain/purchases'
+import { formatSubtotal, purchaseSummary, type PurchaseRow, type PurchaseSummary, type SummarySources } from '../domain/purchases'
 import { Chip } from './Chip'
 import { StudioIcon } from './StudioIcon'
 import { noticeStore } from './noticeStore'
+import { refreshOfferPrice } from './priceActions'
 
 const CURRENCY = 'USD'
 
@@ -121,15 +122,18 @@ export function SubtotalBar({ sources }: { sources: SummarySources }) {
           ) : null}
           <ul className="divide-y divide-line">
             {summary.lines.map((line) => (
-              <li key={line.id} className="flex items-baseline justify-between gap-2 py-1.5 text-sm">
-                <span className="min-w-0 truncate text-ink">
-                  {line.name}
-                  {line.variantLabel ? <span className="text-muted"> · {line.variantLabel}</span> : null}
-                  {line.quantity > 1 ? <span className="text-muted"> × {line.quantity}</span> : null}
-                </span>
-                <span className={`shrink-0 tabular-nums ${line.lineTotal ? 'text-ink' : 'text-muted'}`}>
-                  {line.lineTotal ? formatMoney(line.lineTotal) : 'Price unknown'}
-                </span>
+              <li key={line.id} className="py-1.5 text-sm">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="min-w-0 truncate text-ink">
+                    {line.name}
+                    {line.variantLabel ? <span className="text-muted"> · {line.variantLabel}</span> : null}
+                    {line.quantity > 1 ? <span className="text-muted"> × {line.quantity}</span> : null}
+                  </span>
+                  <span className={`shrink-0 tabular-nums ${line.lineTotal ? 'text-ink' : 'text-muted'}`}>
+                    {line.lineTotal ? formatMoney(line.lineTotal) : 'Price unknown'}
+                  </span>
+                </div>
+                {!line.isSample && line.url && line.offerId ? <OfferSource line={line} offerId={line.offerId} url={line.url} /> : null}
               </li>
             ))}
           </ul>
@@ -140,6 +144,35 @@ export function SubtotalBar({ sources }: { sources: SummarySources }) {
         </div>
       ) : null}
     </section>
+  )
+}
+
+/** Where a real line's price came from, when it was read, and a way to re-check it. */
+function OfferSource({ line, offerId, url }: { line: PurchaseRow; offerId: string; url: string }) {
+  const [checking, setChecking] = useState(false)
+  const asOf = line.retrievedAt
+    ? new Date(line.retrievedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : null
+  return (
+    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted">
+      <a className="store-link mt-0" href={url} target="_blank" rel="noopener noreferrer">
+        {line.store ?? 'Store'} <span aria-hidden="true">↗</span>
+        <span className="sr-only"> (opens in a new tab)</span>
+      </a>
+      {asOf ? <span>price as of {asOf}</span> : null}
+      <button
+        type="button"
+        className="rounded px-1 underline underline-offset-2 hover:text-ink disabled:opacity-60"
+        disabled={checking}
+        aria-label={`Refresh price of ${line.name}`}
+        onClick={() => {
+          setChecking(true)
+          void refreshOfferPrice(offerId).finally(() => setChecking(false))
+        }}
+      >
+        {checking ? 'Checking…' : 'Refresh price'}
+      </button>
+    </div>
   )
 }
 

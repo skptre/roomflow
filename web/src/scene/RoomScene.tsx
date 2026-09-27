@@ -13,9 +13,10 @@ import { wallsToCut } from './cutaway'
 import { Effects } from './Effects'
 import { Lighting } from './Lighting'
 import { FurnitureObject } from './FurnitureObject'
+import { disposeIdleModels } from '../blocks/build'
+import { disposeBlockMaterials } from '../blocks/materials'
 import { disposeSharedMaterials } from './materials'
 import { palette } from './palette'
-import { disposePartGeometries } from './partGeometry'
 import { roomSphere } from './roomBounds'
 
 function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>) {
@@ -64,7 +65,8 @@ export function RoomScene({
   useEffect(
     () => () => {
       disposeSharedMaterials()
-      disposePartGeometries()
+      disposeBlockMaterials()
+      disposeIdleModels()
     },
     [],
   )

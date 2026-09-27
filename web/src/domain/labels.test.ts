@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { lamp, sampleRoom } from '../test/rooms'
-import { formatDimensions, priceLabel, provenanceLabel } from './labels'
+import { formatDimensions, formatSizeWithSource, priceLabel, provenanceLabel } from './labels'
 import type { Offer } from './schema'
 
 const offer: Offer = {
@@ -19,6 +19,14 @@ describe('formatDimensions', () => {
 
   it('keeps one decimal for small items', () => {
     expect(formatDimensions({ width: 0.184, height: 0.3, depth: 0.18 })).toBe('18.4 × 18 × 30 cm')
+  })
+})
+
+describe('formatSizeWithSource', () => {
+  it('says where a size came from, and marks a guess as approximate', () => {
+    expect(formatSizeWithSource({ width: 1.6, height: 0.95, depth: 2.1, source: 'merchant' })).toBe('160 × 210 × 95 cm · listed')
+    expect(formatSizeWithSource({ width: 2, height: 0.85, depth: 0.9, source: 'estimated' })).toBe('≈ 200 × 90 × 85 cm · estimated')
+    expect(formatSizeWithSource({ width: 2, height: 0.85, depth: 0.9, source: 'unknown' })).toBe('≈ 200 × 90 × 85 cm · unknown')
   })
 })
 

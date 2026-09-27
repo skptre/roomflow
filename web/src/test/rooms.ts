@@ -18,7 +18,7 @@ export function lamp(id = 'lamp-1', x = 0, z = 0): RoomObject {
     sourceKind: 'product',
     dimensions: { width: 0.4, height: 1.6, depth: 0.4, source: 'merchant' },
     pose: { position: { x, y: 0, z }, yaw: 0 },
-    asset: { kind: 'parametric', assemblyId: 'floor-lamp' },
+    asset: { kind: 'recipe', recipeId: 'default:floor-lamp' },
     fidelity: 'approximate',
     variantId: 'v-lamp',
     offerId: 'o-lamp',
