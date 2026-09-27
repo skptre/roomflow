@@ -105,19 +105,21 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | Path | Purpose |
 | --- | --- |
 | `web/src/main.tsx`, `App.tsx`, `index.css` | App entry, root component, design tokens |
-| `web/src/import/roomplan.ts` | Imports raw RoomPlan JSON (contract: `docs/contracts/room-import.md`): `parseRoomPlanJson`; floor outline = wall loop → `outlineFromFloors` → `alignedBoundsOutline` |
-| `web/src/import/roomflowPackage.ts` | Imports `.roomflow.zip` (`parseRoomflowPackage`, `isZipArchive`): manifest + SHA-256 checks, raw scan via `parseRoomPlanJson`, evidence (`PackageEvidence`, `PackagePhoto`, `PhotoRegion`); scanned floor color → `finishes.floor` + `floorTexture: 'plain'` (`MIN_FLOOR_SAMPLES`) |
+| `web/src/import/roomplan.ts` | Imports raw RoomPlan JSON (contract: `docs/contracts/room-import.md`): `parseRoomPlanJson`; floor outline = wall loop → `outlineFromFloors` → `alignedBoundsOutline`; built-in closets (`isBuiltInCloset`, `closetOnWall`, `isClosetDoor` drops their doors) |
+| `web/src/import/roomflowPackage.ts` | Imports `.roomflow.zip` (`parseRoomflowPackage`, `isZipArchive`): manifest + SHA-256 checks, raw scan via `parseRoomPlanJson`, evidence (`PackageEvidence`, `PackagePhoto`, `PhotoRegion`); scanned floor color → `finishes.floor` + `floorTexture: 'plain'` (`MIN_FLOOR_SAMPLES`); optional `wallArt.json` → locked `wall-art` objects (`readWallArt`, `wallArtObject`), photos in `PackageEvidence.artPhotos` |
 | `web/src/import/zip.ts` | Dependency-free ZIP reader (`readZip`, `crc32`, `ZipError`, `DEFAULT_ZIP_LIMITS`) |
-| `web/src/ui/evidenceStore.ts` | In-memory package evidence beside the loaded room (`evidenceStore.set`, `regionsFor`) |
+| `web/src/ui/evidenceStore.ts` | In-memory package evidence beside the loaded room (`evidenceStore.set`, `regionsFor`, `artPhotoFor`) |
 | `web/src/test/zipWriter.ts` | Test-only ZIP builder (`makeZip`) with tampering options |
 | `web/src/domain/` | Pure logic: schema, units, geometry, layout, money, purchases, catalog, commands, design store, themes, labels, mounting |
-| `web/src/scene/` | React Three Fiber scene: architecture, furniture, camera, lighting, cutaway, gestures |
+| `web/src/scene/` | React Three Fiber scene: architecture, furniture, camera, lighting, cutaway (wall-mounted items hide with their wall: `isWallMounted` + `hostWall`), gestures |
+| `web/src/scene/ArtPhoto.tsx` | `ArtPhoto`: a wall-art object's package photo as a textured plane on its front face; disposes texture/object URL |
+| `web/src/domain/categories.ts`, `layout.ts` | Categories (`CATEGORIES` incl. built-in `closet`, `isWallHung`, `isWallMounted`); placement (`inwardNormal`, `hostWall`, `wallSpot`, …) |
 | `web/src/recognition/` | Gemini photo matching (snapshot of Codex's work): `contract.ts` (`Appearance`, `RecognitionResponse`), `appearance.ts` (`appearanceCommand`), `appearanceAsset.ts`; server side in `web/server/recognition*.ts` |
 | `web/src/recognition/autoMatch.ts` | Auto-match from package photos: `planAutoMatch`, `paddedCrop`, `uprightQuarterTurns`, `runAutoMatch` (sequential, one wait after a 429), `sendToRecognizer`, `abortableSleep`, `reconcileMatches` |
 | `web/src/recognition/cropPhoto.ts` | Browser crops for auto-match: `cropPhotoRegion` (padded, upright, ≤1024 px JPEG), `prepareAutoMatch` (status check + plan + crops; sends nothing) |
 | `web/src/ui/AutoMatchDialog.tsx` | Post-import offer: exact crops, one consent, progress, applies all matches as one undo step |
 | `web/src/ui/` | Interface components |
-| `web/src/fixtures/` | Sample catalog, assemblies, synthetic RoomPlan fixture |
+| `web/src/fixtures/` | Sample catalog, assemblies (incl. `closet-front` in `assemblies/decor.ts`), synthetic RoomPlan fixture |
 | `web/scripts/` | Fixture and test-GLB generators |
 
 Commands: see `web/README.md` (`npm ci`, `npm run dev`, `typecheck`, `lint`, `test`, `build`).

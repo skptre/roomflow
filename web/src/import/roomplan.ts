@@ -10,6 +10,7 @@
  */
 import { z } from 'zod'
 import { pointInPolygon } from '../domain/geometry'
+import { inwardNormal } from '../domain/layout'
 import { Room, type AssetRef, type Opening, type RoomObject, type Vec2, type Wall } from '../domain/schema'
 import { poseFromColumnMajor, type Vec3 } from '../domain/units'
 
@@ -31,6 +32,20 @@ const MIN_HORIZONTAL_AXIS = 0.5
 const MIN_FLOOR_AREA = 0.5
 /** Upper bound on corners per RoomPlan floor polygon; real floors have a handful. */
 const MAX_FLOOR_CORNERS = 1000
+
+/** A `storage` thinner than this and at least CLOSET_MIN_HEIGHT tall is a built-in closet seen only from its doors. */
+const CLOSET_MAX_DEPTH = 0.1
+const CLOSET_MIN_HEIGHT = 1.2
+/** Visual depth for closet doors (RoomPlan reports ~0; the true depth behind the doors is unknown). */
+const CLOSET_DEPTH = 0.04
+/** A door on the closet's wall is a closet door when at least this fraction of its width lies within the closet. */
+const CLOSET_DOOR_OVERLAP = 0.5
+/** Closet bottoms within this of the floor are snapped onto it (they stand on the floor). */
+const CLOSET_FLOOR_SNAP = 0.1
+/** Gap between a closet's back and the wall surface, as for hung items (see wallSpot in domain/layout.ts). */
+const CLOSET_WALL_GAP = 0.002
+/** Half the drawn thickness of a zero-depth interior partition (scene/wallGeometry.ts DEFAULT_WALL_THICKNESS / 2). */
+const PARTITION_HALF_THICKNESS = 0.06
 
 const DEFAULT_FINISHES = { wall: '#f4efe8', floor: '#c9a882' } as const
 
@@ -309,6 +324,82 @@ function matchWall(opening: Segment, walls: readonly Segment[]): Segment | null 
   return matches.length === 1 ? matches[0]! : null
 }
 
+/** RoomPlan reports a built-in closet as a tall `storage` with (almost) no depth: only its doors were seen. */
+function isBuiltInCloset(category: string | undefined, [width, height, depth]: readonly number[]): boolean {
+  return category === 'storage' && width! > 0 && height! >= CLOSET_MIN_HEIGHT && depth! >= 0 && depth! < CLOSET_MAX_DEPTH
+}
+
+/** Where a built-in closet sits on its wall: the wall id and the closet's span along it (app meters from wall.start). */
+type ClosetSpan = { wallId: string; from: number; to: number }
+
+/**
+ * A built-in closet as closet doors set flush on the inside face of the wall it lies in, facing into the room
+ * (back on the wall line, like wallSpot). Returns null when it can't be matched to a single wall.
+ */
+function closetOnWall(
+  surface: RawSurface,
+  walls: readonly Segment[],
+  appWalls: readonly Wall[],
+  floorPolygon: readonly Vec2[],
+  toApp: (p: Vec2) => Vec2,
+  floorY: number,
+): { object: RoomObject; span: ClosetSpan } | null {
+  const segment = segmentOf(surface)
+  const native = matchWall(segment, walls)
+  const wall = native ? appWalls.find((w) => w.id === native.id) : undefined
+  if (!wall) return null
+  const [width, height] = surface.dimensions as [number, number, number]
+  const length = distance(wall.start, wall.end)
+  const dir = { x: (wall.end.x - wall.start.x) / length, z: (wall.end.z - wall.start.z) / length }
+  const center = toApp(midpoint(segment.start, segment.end))
+  const along = (center.x - wall.start.x) * dir.x + (center.z - wall.start.z) * dir.z
+  let normal = inwardNormal({ floorPolygon: [...floorPolygon] }, wall)
+  let inset = 0
+  if (!wall.exterior) {
+    // A partition has floor on both sides: face the way the scanned doors face, and clear the drawn wall.
+    const m = flatten(surface.transform)
+    if (m[8]! * normal.x + m[10]! * normal.z < 0) normal = { x: -normal.x, z: -normal.z }
+    inset = wall.thickness >= 0.02 ? wall.thickness / 2 : PARTITION_HALF_THICKNESS
+  }
+  const out = inset + CLOSET_DEPTH / 2 + CLOSET_WALL_GAP
+  const bottom = segment.bottom - floorY
+  return {
+    span: { wallId: wall.id, from: along - width / 2, to: along + width / 2 },
+    object: {
+      id: surface.identifier,
+      name: 'Closet',
+      category: 'closet',
+      sourceKind: 'captured',
+      // Width and height as captured; the depth is a visual stand-in (see docs/DECISIONS.md).
+      dimensions: { width, height, depth: CLOSET_DEPTH, source: 'captured' },
+      pose: {
+        position: {
+          x: wall.start.x + dir.x * along + normal.x * out,
+          y: Math.abs(bottom) < CLOSET_FLOOR_SNAP ? 0 : bottom,
+          z: wall.start.z + dir.z * along + normal.z * out,
+        },
+        // Local +Z (the front) turns to (sin yaw, cos yaw): face along the inward normal.
+        yaw: Math.atan2(normal.x, normal.z),
+      },
+      asset: { kind: 'parametric', assemblyId: 'closet-front' },
+      fidelity: 'approximate',
+      quantity: 1,
+      keep: true,
+      lockPlacement: true,
+    },
+  }
+}
+
+/** True when at least half the door's width lies within a closet on the same wall: it's the closet's door, not a passage. */
+function isClosetDoor(opening: Opening, closets: readonly ClosetSpan[]): boolean {
+  if (opening.kind !== 'door') return false
+  const from = opening.offsetAlongWall - opening.width / 2
+  const to = opening.offsetAlongWall + opening.width / 2
+  return closets.some(
+    (closet) => closet.wallId === opening.wallId && Math.min(to, closet.to) - Math.max(from, closet.from) >= CLOSET_DOOR_OVERLAP * opening.width,
+  )
+}
+
 export function parseRoomPlanJson(text: string, options: ImportOptions = {}): ImportResult {
   if (exceedsByteLimit(text)) {
     return fail(`This file is too large to import (limit ${MAX_IMPORT_BYTES / (1024 * 1024)} MB).`)
@@ -433,15 +524,24 @@ export function parseRoomPlanJson(text: string, options: ImportOptions = {}): Im
   }
 
   const objects: RoomObject[] = []
+  const closets: ClosetSpan[] = []
   let lowConfidence = 0
   const unrecognized = new Set<string>()
   for (const surface of scan.objects) {
     const [width, height, depth] = surface.dimensions as [number, number, number]
+    const raw = categoryName(surface.category)
+    if (isBuiltInCloset(raw, surface.dimensions)) {
+      const closet = closetOnWall(surface, walls, appWalls, floorPolygon, toApp, floorY)
+      if (closet) {
+        objects.push(closet.object)
+        closets.push(closet.span)
+        continue
+      }
+    }
     if (!(width > 0 && height > 0 && depth > 0)) {
       warnings.push(`Skipped an object with no size (${surface.identifier}).`)
       continue
     }
-    const raw = categoryName(surface.category)
     const category = raw ? own(OBJECT_CATEGORIES, raw) : undefined
     if (!category) unrecognized.add(raw ?? 'missing')
     if (isLowConfidence(surface.confidence)) lowConfidence += 1
@@ -467,6 +567,11 @@ export function parseRoomPlanJson(text: string, options: ImportOptions = {}): Im
       lockPlacement: false,
     })
   }
+  // Doors mostly within a closet are its doors, not passages: keep that stretch of wall solid behind the closet.
+  const passages = openings.filter((opening) => !isClosetDoor(opening, closets))
+  if (closets.length > 0) {
+    warnings.push(closets.length === 1 ? 'Built-in closet shown as closet doors.' : `${closets.length} built-in closets shown as closet doors.`)
+  }
   if (unrecognized.size > 0) {
     warnings.push(`Some objects had unrecognized categories (${[...unrecognized].join(', ')}) and are shown as boxes.`)
   }
@@ -480,7 +585,7 @@ export function parseRoomPlanJson(text: string, options: ImportOptions = {}): Im
     name: options.name ?? (synthetic ? 'Sample bedroom' : 'Scanned room'),
     floorPolygon,
     walls: appWalls,
-    openings,
+    openings: passages,
     objects,
     finishes: { ...DEFAULT_FINISHES },
     source: {

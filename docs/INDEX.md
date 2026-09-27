@@ -30,6 +30,7 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | **Web** (Yash) — RoomPlan import on the web side | `web/src/import/roomplan.ts`, `docs/contracts/room-import.md` |
 | Web — `.roomflow.zip` import (manifest, checksums, evidence) | `web/src/import/roomflowPackage.ts`, `web/src/import/zip.ts` |
 | Web — package evidence at runtime (photos/regions per object) | `web/src/ui/evidenceStore.ts` |
+| Web — wall art from the package, built-in closets (import rules, rendering) | `web/src/import/roomflowPackage.ts` (`readWallArt`), `web/src/import/roomplan.ts` (`closetOnWall`), `web/src/scene/ArtPhoto.tsx` |
 | Web — floor outline rules for imported scans | `web/src/import/roomplan.ts` (`outlineFromFloors`, `alignedBoundsOutline`) |
 | Web — photo matching (Gemini) and auto-match from scan photos | `web/src/recognition/`, `web/src/ui/AutoMatchDialog.tsx`, `web/server/recognition.ts` |
 | Web — domain logic (geometry, money, commands, themes) | `web/src/domain/` |

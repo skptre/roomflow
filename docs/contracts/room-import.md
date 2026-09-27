@@ -29,6 +29,8 @@ Ignored for now: `sections`, `completedEdges`, `curve`, `story`, object `attribu
 
 A RoomFlow package (`<capture-id>.roomflow.zip`, `docs/ios-room-package.md`) is also accepted: its `capture.roomplan.json` goes through this same importer; its evidence never changes geometry.
 
+**Wall art (package only, optional, agreed 2026-09-27):** `wallArt.json` and `art/<uuid>.jpg` (format: `.superpowers/sdd/wall-art-package/format.md`). Each valid item becomes a locked `wall-art` object (`sourceKind: captured`, `fidelity: approximate`, dimensions `captured` as measured estimates, depth = max(0.03, standoff)), positioned from its native center/normal with `nativeToApp`; its photo is kept as evidence and drawn on the art's face. Invalid items are dropped with one warning; a malformed file drops all wall art with a warning; the import never fails because of wall art. Packages without `wallArt.json` import unchanged.
+
 ## Normalization applied (web side only)
 
 1. RoomPlan's frame is already meters, right-handed, Y-up, so **no rotation or scaling** is applied.
@@ -39,6 +41,7 @@ A RoomFlow package (`<capture-id>.roomflow.zip`, `docs/ios-room-package.md`) is 
 6. Openings: attached to `parentIdentifier` when that wall exists; otherwise to the **single** wall they are parallel to (within ~6°), within 20 cm of, and inside the length of. No match or several matches → opening dropped with a warning. `offsetAlongWall` = distance from wall start to the opening center; `bottom` = sill height above the floor.
 7. Walls are `exterior` when the floor lies on at most one side of them (used for cutaway).
 8. Captured objects: `sourceKind: captured`, dimensions `source: captured`, `fidelity: approximate`, `keep: true`, `lockPlacement: false`. Visual = closest parametric template by category (bed, table→desk, chair→desk chair, sofa, storage→dresser), else a sized placeholder.
+   **Built-in closets:** a `storage` with depth < 0.10 m and height ≥ 1.2 m (RoomPlan saw only its doors) becomes category `closet` (name 'Closet', `lockPlacement: true`, assembly `closet-front`), width/height as captured, depth 0.04 m (visual; the real depth is unknown), placed flush on the inside face of the single wall it lies in, facing into the room, bottom on the floor. Doors on that wall with ≥ 50 % of their width inside the closet's span are removed from `openings` (closet doors, not passages). A closet that can't be matched to one wall is handled as ordinary storage.
 9. The parsed input is kept untouched as `room.source.raw`.
 
 ## Limits and rejection

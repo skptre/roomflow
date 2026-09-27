@@ -80,3 +80,18 @@ per item (defeats "automatic"), and raising the server rate limit (it is the loc
 ## Scan photo crops are turned upright from the camera pose
 Phone photos are stored in sensor orientation, so the crop is rotated by quarter turns until world up points up,
 computed from `cameraToWorld`. Rejected: sending sideways crops (worse recognition) and reading EXIF (the phone strips it).
+
+## Built-in closets become closet doors set in the wall
+RoomPlan reports a built-in closet as a `storage` with only its front (depth ≈ 0) and often a door on the same wall.
+The web turns a `storage` thinner than 10 cm and at least 1.2 m tall into a locked `closet` drawn as a 4 cm door
+front flush on the wall's inside face, and drops doors on that wall with ≥ 50 % of their width inside the closet.
+Depth 0.04 m is a visual stand-in: the true depth behind the doors was never seen, yet dimensions keep
+`source: 'captured'` because width and height are captured (the depth caveat lives here and in the importer).
+Rejected: keeping the zero-depth dresser (a floating slab), inventing a deep wardrobe (an unmeasured volume that
+would block floor space), or keeping the door as an opening (a framed hole into nothing, left standing in the cutaway).
+A door only partly over the closet (< 50 %) is kept, since it is more likely a real passage beside it.
+
+## Wall-mounted items hide with their wall regardless of height
+`isWallMounted` (any `mount: 'wall'`) decides cutaway hiding; `isWallHung` (wall + raised) still decides dragging.
+Rejected: changing `isWallHung` to include floor-standing wall items, which would also block dragging floor mirrors.
+
