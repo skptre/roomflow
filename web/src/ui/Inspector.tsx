@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { AppearanceDialog } from './AppearanceDialog'
 import type { PurchaseSources } from '../domain/designStore'
 import { isWallHung } from '../domain/categories'
 import { formatLength, priceLabel, provenanceLabel } from '../domain/labels'
@@ -48,6 +49,7 @@ export function Inspector({
   onBrowseAlternatives: () => void
   onClose: () => void
 }) {
+  const [matchPhoto, setMatchPhoto] = useState(false)
   const heading = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     heading.current?.focus({ preventScroll: true })
@@ -87,6 +89,9 @@ export function Inspector({
         Try a different piece
         <StudioIcon name="arrow" size={17} />
       </button>
+      {(object.sourceKind === 'captured' || object.sourceKind === 'owned') && <button className="studio-secondary full-width" onClick={() => setMatchPhoto(true)}>Match appearance from photo</button>}
+      {object.appearance && <p className="small-label">Appearance estimated from a photo · measurements unchanged</p>}
+      {matchPhoto && <AppearanceDialog key={object.id} object={object} onClose={() => setMatchPhoto(false)} />}
       <div className="inspector-section">
         <h3>A place for everything</h3>
         <p>Drag in the room, or move in 10 cm steps below.</p>

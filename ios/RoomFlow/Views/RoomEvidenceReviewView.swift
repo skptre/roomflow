@@ -1,23 +1,36 @@
 import SwiftUI
+import UIKit
 
-/// Review what a room will share: correct object names and choose reference photos.
-/// Choices are saved with the room; measurements and RoomPlan's own labels never change.
+/// Review what a room will share: correct object names, choose reference photos, and check
+/// detected wall art. Choices are saved with the room; measurements and RoomPlan's own labels
+/// never change.
 struct RoomEvidenceReviewView: View {
     let captureID: UUID
     let room: RoomModel
     let photos: [RoomPhotoEvidence]
+    let associations: [RoomPhotoAssociation]
+    /// Where wall art's reference photos live; nil only when there is no wall art to show one for.
+    let wallArtDirectory: URL?
     var store: RoomArchiveStore = .shared
 
     @State private var selection: RoomEvidenceSelection
     @State private var labelDrafts: [UUID: String] = [:]
     @State private var saveError: String?
+    @State private var wallArtItems: [WallArtItem]
+    @State private var wallArtSaveError: String?
+    /// True once the user removed a wall-art item in this view, so a late `loadSavedChoices` can't restore it.
+    @State private var wallArtEdited = false
 
-    init(captureID: UUID, room: RoomModel, photos: [RoomPhotoEvidence], store: RoomArchiveStore = .shared) {
+    init(captureID: UUID, room: RoomModel, photos: [RoomPhotoEvidence], associations: [RoomPhotoAssociation],
+         wallArt: [WallArtItem] = [], wallArtDirectory: URL? = nil, store: RoomArchiveStore = .shared) {
         self.captureID = captureID
         self.room = room
         self.photos = photos
+        self.associations = associations
+        self.wallArtDirectory = wallArtDirectory
         self.store = store
         _selection = State(initialValue: .initial(for: photos))
+        _wallArtItems = State(initialValue: wallArt)
     }
 
     /// Objects that came from the scan (only those have a RoomPlan identity to annotate).
@@ -51,6 +64,12 @@ struct RoomEvidenceReviewView: View {
             } else {
                 photoSection
             }
+
+            // Only shown when this scan could have found wall art at all (reference photos were on);
+            // an old scan or one with photos off never shows an empty "none found" message.
+            if !wallArtItems.isEmpty || !photos.isEmpty {
+                wallArtSection
+            }
         }
         .scrollContentBackground(.hidden)
         .background(Color.rfBackground)
@@ -63,6 +82,19 @@ struct RoomEvidenceReviewView: View {
                         .font(.footnote)
                     Spacer()
                     Button("Retry", action: persist)
+                        .frame(minHeight: 44)
+                }
+                .padding(.horizontal, 16)
+                .background(Color.rfSurface)
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if let wallArtSaveError {
+                HStack {
+                    Label(wallArtSaveError, systemImage: "exclamationmark.triangle")
+                        .font(.footnote)
+                    Spacer()
+                    Button("Retry", action: persistWallArt)
                         .frame(minHeight: 44)
                 }
                 .padding(.horizontal, 16)
@@ -137,6 +169,14 @@ struct RoomEvidenceReviewView: View {
                  : "Photos are off: sharing includes the scan only.")
                 .font(.footnote)
                 .foregroundStyle(Color.rfSecondaryText)
+            if selection.includePhotos,
+               let summary = PhotoCoverage.make(objects: room.objects, associations: associations,
+                                                photoIds: Set(selection.sharedPhotos(from: photos).map(\.id)),
+                                                label: { selection.label(for: $0) }).summary {
+                Text(summary)
+                    .font(.footnote)
+                    .foregroundStyle(Color.rfSecondaryText)
+            }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 8)], spacing: 8) {
                 ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
                     let isIncluded = selection.includePhotos && selection.isSelected(photo.id)
@@ -167,11 +207,97 @@ struct RoomEvidenceReviewView: View {
         }
     }
 
+    // MARK: - Wall art
+
+    private var wallArtSection: some View {
+        Section("Wall art (\(wallArtItems.count))") {
+            if wallArtItems.isEmpty {
+                Text("No wall art was found. Framed pictures and posters work best.")
+                    .foregroundStyle(Color.rfSecondaryText)
+            } else {
+                ForEach(wallArtItems) { item in
+                    wallArtRow(item)
+                }
+            }
+        }
+    }
+
+    private func wallArtRow(_ item: WallArtItem) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            wallArtThumbnail(item)
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(wallArtSizeText(item)).font(.subheadline)
+                Text(wallArtLocationText(item))
+                    .font(.caption)
+                    .foregroundStyle(Color.rfSecondaryText)
+            }
+            .accessibilityElement(children: .combine)
+            Spacer()
+            Button("Not wall art") { removeWallArt(item) }
+                .font(.caption)
+                .frame(minHeight: 44)
+                .accessibilityHint("Removes this item from your saved room")
+        }
+    }
+
+    @ViewBuilder
+    private func wallArtThumbnail(_ item: WallArtItem) -> some View {
+        // The crop is already a straight-on photo (unlike sensor-native reference photos), so it's
+        // drawn as-is with no rotation.
+        if let fileName = item.photoFileName, let directory = wallArtDirectory,
+           let uiImage = UIImage(contentsOfFile: directory.appendingPathComponent(fileName).path) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+        } else {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.rfSurface)
+                .overlay(Image(systemName: "photo.artframe").foregroundStyle(Color.rfSecondaryText))
+        }
+    }
+
+    /// "About W × H cm", rounded to the nearest whole centimeter; sizes are measured estimates.
+    private func wallArtSizeText(_ item: WallArtItem) -> String {
+        "About \(Int((item.width * 100).rounded())) × \(Int((item.height * 100).rounded())) cm"
+    }
+
+    /// "On wall K" (1-based index among the room's walls), or "On a wall" when the source wall
+    /// isn't among the room's current walls (e.g. an edited-out wall).
+    private func wallArtLocationText(_ item: WallArtItem) -> String {
+        guard let index = room.walls.firstIndex(where: { $0.sourceId == item.wallSourceId }) else {
+            return "On a wall"
+        }
+        return "On wall \(index + 1)"
+    }
+
+    private func removeWallArt(_ item: WallArtItem) {
+        wallArtItems.removeAll { $0.id == item.id }
+        wallArtEdited = true
+        persistWallArt()
+    }
+
+    private func persistWallArt() {
+        let snapshot = wallArtItems
+        Task {
+            do {
+                try await store.saveWallArt(id: captureID, items: snapshot)
+                wallArtSaveError = nil
+            } catch {
+                wallArtSaveError = "Couldn't save your choices. \(error.localizedDescription)"
+            }
+        }
+    }
+
     // MARK: - Persistence
 
     private func loadSavedChoices() async {
         if let archive = try? await store.load(id: captureID) {
             selection = archive.selection
+            // A removal made here before the load finished wins over the (older) saved list.
+            if !wallArtEdited { wallArtItems = archive.wallArt }
         }
     }
 

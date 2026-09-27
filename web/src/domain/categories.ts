@@ -14,6 +14,8 @@ export type CategoryInfo = {
   mount: Mount
   /** Typical height of the object's bottom above the floor, for wall items. */
   mountHeight?: number
+  /** Part of the building (a built-in closet): comes from scans only, never offered in the catalog. */
+  builtIn?: boolean
 }
 
 export const CATEGORIES: Readonly<Record<string, CategoryInfo>> = {
@@ -33,6 +35,8 @@ export const CATEGORIES: Readonly<Record<string, CategoryInfo>> = {
   'wall-art': { label: 'Wall art', typical: { width: 0.6, height: 0.8, depth: 0.04 }, mount: 'wall', mountHeight: 1.2 },
   // Floor mirrors: they stand on the floor, leaning against a wall.
   mirror: { label: 'Mirror', typical: { width: 0.5, height: 1.5, depth: 0.03 }, mount: 'wall', mountHeight: 0 },
+  // Built-in closets: RoomPlan sees only their doors (a tall `storage` with no depth). Shown as doors set on the wall.
+  closet: { label: 'Closet', typical: { width: 1.2, height: 2.1, depth: 0.04 }, mount: 'wall', mountHeight: 0, builtIn: true },
   vase: { label: 'Vase', typical: { width: 0.18, height: 0.3, depth: 0.18 }, mount: 'surface' },
   // Real-catalog categories. Every category is drawn from blocks (src/blocks/registry.ts).
   sectional: { label: 'Sectional', typical: { width: 2.8, height: 0.85, depth: 1.7 }, mount: 'floor' },
@@ -72,4 +76,12 @@ export function categoryInfo(category: string): CategoryInfo | undefined {
 /** Hung on a wall above the floor (art): it can't be turned or dragged across the floor. */
 export function isWallHung(object: { category: string; pose: { position: { y: number } } }): boolean {
   return categoryInfo(object.category)?.mount === 'wall' && object.pose.position.y > 1e-6
+}
+
+/**
+ * Mounted on or against a wall (art, floor mirrors, built-in closets), at any height. Such an item goes with its
+ * wall when the wall is cut away for the dollhouse view. Unlike `isWallHung`, says nothing about dragging.
+ */
+export function isWallMounted(object: { category: string }): boolean {
+  return categoryInfo(object.category)?.mount === 'wall'
 }

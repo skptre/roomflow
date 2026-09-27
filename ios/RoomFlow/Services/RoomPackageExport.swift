@@ -108,12 +108,46 @@ nonisolated enum RoomPackageExport {
         }
         let sharedIDs = Set(photoEntries.map(\.photoId))
 
+        // Wall art: only pieces still in the room's saved list (Review-room removals already dropped
+        // them from `archive.wallArt`) and only ones `WallArtTracker.finalize` resolved a world pose
+        // for. Their photos share the same byte budget as regular photos; one that doesn't fit is
+        // left out (photoPath nil) rather than pushing the package over the limit.
+        var wallArtItems: [WallArtPackage.Item] = []
+        var omittedArtPhotoCount = 0
+        for item in archive.wallArt {
+            guard let center = item.worldCenter, center.count == 3,
+                  let normal = item.worldNormal, normal.count == 3 else { continue }
+            var photoPath: String?
+            if let fileName = item.photoFileName {
+                let source = archive.wallArtDirectory.appendingPathComponent(fileName)
+                if let data = try? Data(contentsOf: source) {
+                    if photoBytes + data.count <= maxPhotoBytes {
+                        let path = "art/\(item.id.uuidString).jpg"
+                        try add(data, at: path, mediaType: "image/jpeg")
+                        photoBytes += data.count
+                        photoPath = path
+                    } else {
+                        omittedArtPhotoCount += 1
+                    }
+                }
+            }
+            wallArtItems.append(.init(
+                artId: item.id, wallSourceId: item.wallSourceId, center: center, normal: normal,
+                width: item.width, height: item.height, standoff: item.standoff,
+                sightingCount: item.sightingCount, photoPath: photoPath,
+                method: item.method, provenance: "measured-estimate"))
+        }
+        if !wallArtItems.isEmpty {
+            let wallArtPackage = WallArtPackage(captureId: captureId, items: wallArtItems)
+            try add(RoomPackageManifest.encoder.encode(wallArtPackage), at: RoomPackageManifest.wallArtPath, mediaType: "application/json")
+        }
+
         let manifest = RoomPackageManifest(
             packageId: UUID(),
             captureId: captureId,
             capturedAt: archive.record.capturedAt,
             selectionRevision: selection.revision,
-            omittedPhotoCount: selected.count - photoEntries.count,
+            omittedPhotoCount: selected.count - photoEntries.count + omittedArtPhotoCount,
             files: files,
             photos: photoEntries,
             associations: (archive.appearance?.associations ?? []).filter { sharedIDs.contains($0.photoId) }
