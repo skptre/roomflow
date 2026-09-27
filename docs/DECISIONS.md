@@ -2,6 +2,10 @@
 
 Non-obvious tradeoffs, each with the alternative that was rejected. Routine "only way to do it" changes don't belong here.
 
+## Gemini room design returns intent, not edits
+
+The room-designer request projects only structural geometry, current finishes, and minimal object facts; the response names categories and existing object IDs without positions, dimensions, prices, URLs, or executable commands. The browser will resolve actual edits against its current room and catalog. Rejected: asking Gemini to return a full room or product plan, which could leak capture and purchase evidence and let fabricated model facts cross the trusted boundary.
+
 ## Wall art is measured in room orientation, not the camera's
 ARKit's captured image and camera pose stay in the sensor's fixed landscape frame while the app is portrait-only,
 so an image rectangle's "top-left" is usually not the room's. `WallArtDetector` reorders the measured corners
