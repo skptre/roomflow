@@ -53,7 +53,7 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `ObjectNames.swift` | Display-friendly names for furniture categories in UI text (stored data keeps the category) | `ObjectNames` (`display(category:)`) |
 | `PhotoCoverage.swift` | How many scanned objects (with a `sourceId`) appear in the counted photos, and which are missing, for a footnote summary; presentation only | `PhotoCoverage` (`covered`, `total`, `missing`, `summary`), `make(objects:associations:photoIds:label:)` |
 | `SampleRoom.swift` | DEBUG-only synthetic 4.2×3.8 m room with illustrative colors | `SampleRoom.make()` |
-| `SavedRoomRecord.swift` | Saved-room list entry and loaded archive | `SavedRoomRecord` (`EvidenceStatus`), `RawCapture` (frozen bytes), `RoomArchive` (raw, editable, photos, appearance, selection) |
+| `SavedRoomRecord.swift` | Saved-room list entry and loaded archive | `SavedRoomRecord` (`EvidenceStatus`), `RawCapture` (frozen bytes), `RoomArchive` (raw, editable, photos, appearance, selection, `wallArt`, `wallArtDirectory`) |
 | `ScanCaptureResult.swift` | Everything one finished scan produced | `ScanCaptureResult` (room, colors, photos, wallArt, wallArtDirectory; custom `init` defaults `wallArt`/`wallArtDirectory`) |
 | `RoomPhotoEvidence.swift` | Reference photo + calibration (sensor-native pixels) | `RoomPhotoEvidence` (`fileName`, `columnMajor(_:)`, `focusObjectId` — local-only, not in package manifest) |
 | `RoomAppearanceEvidence.swift` | Approximate colors and photo regions per capture (`appearance.json`) | `RoomAppearanceEvidence`, `SourceColor`, `RoomPhotoAssociation` |
@@ -71,7 +71,7 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `WallArtTracker.swift` | Groups `WallArtSighting`s by position/normal across a scan, decides which groups are confirmed, and attaches confirmed groups to the final room's walls as `WallArtItem`s (merging overlapping items on the same wall) | `WallArtTracker` (`add(_:)`, `confirmedCount`, `finalize(walls:)`) |
 | `WallArtScanner.swift` | Runs `WallArtDetector`/`WallArtTracker` on the scan's camera frames (Vision rectangle detection + LiDAR on a private queue, one frame at a time), keeps a straight-on `CIPerspectiveCorrection` crop of each candidate's best-scoring sighting, and writes each confirmed item's crop to disk at `finish` | `DepthMapReader` (`depth(in:u:v:)`, moved out of `RoomScanService`), `WallArtScanner` (`init(encoder:)`, `reset(directory:)`, `process(frame:surfaces:objects:)`, `confirmedCount`, `finish(finalRoom:) async`) |
 | `RoomPlanFileExport.swift` | Raw export: exactly `JSONEncoder().encode(CapturedRoom)` | `encode(_:) -> RawCapture`, `export(_:directory:)`, `write(data:roomID:directory:)`, `fileName(roomID:)` |
-| `RoomArchiveStore.swift` | Saved rooms in Application Support; staging + rename publish | actor `RoomArchiveStore` (`shared`, `saveCapture(id:rawData:editableData:photos:appearance:…)`, `saveEdits`, `saveSelection`, `load(id:)`, `list()`, `ArchiveError`) |
+| `RoomArchiveStore.swift` | Saved rooms in Application Support; staging + rename publish | actor `RoomArchiveStore` (`shared`, `saveCapture(id:rawData:editableData:photos:appearance:wallArt:wallArtDirectory:…)` — copies each item's photo into `art/`, clearing `photoFileName` on a missing source file, and writes `wallArt.json` only when non-empty, `saveEdits`, `saveSelection`, `saveWallArt(id:items:)` (atomic replace), `load(id:)`, `list()`, `ArchiveError`) |
 | `RoomPlanConverter.swift` | Only reader of `CapturedRoom` into RoomModel | `RoomPlanConverter.convert(_:colors:capturedAt:)` |
 | `RoomNormalizer.swift` | Pure frame math: align to longest wall, floor to 0, stable IDs | `CaptureElement`, `RoomNormalizer.makeRoom(from:floorColor:id:capturedAt:)`, `yaw(of:)` |
 | `RoomColorSampler.swift` | Keeps small frames during scan; median color per wall/object/floor | `RoomColorEstimates`, `RoomColorSampler` (`capture(_:)`, `estimate(for:)`, `reset()`), `ColorFrame.init?(frame:width:)` |
@@ -87,14 +87,14 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 
 | File | Purpose |
 | --- | --- |
-| `HomeView.swift` | Entry screen; photo opt-in toggle; freezes raw bytes, converts, saves, opens plan; DEBUG room menu |
+| `HomeView.swift` | Entry screen; photo opt-in toggle; freezes raw bytes, converts, saves (including wall art and its temp crop folder), opens plan; DEBUG room menu |
 | `RoomScanView.swift` | Full-screen RoomPlan UI with Cancel / Done / failure states; shows `ScanFocusHintView` when a furniture object is in focus; on completion passes the scanner's `wallArt`/`wallArtDirectory` into `ScanCaptureResult` |
 | `ScanFocusHintView.swift` | Small hint capsule under scan controls showing furniture name, photo count/progress ring, and guidance; appears when furniture is framed and photo capture is on. Types/functions: `ScanFocusHintView`, `message(for:)` |
-| `RoomEditorView.swift` | Top-down Canvas plan (floor, grid, furniture, walls, openings), tap select, selection card |
-| `ScanSummaryView.swift` | Details and exports: Review room, reference photos (with a `PhotoCoverage` summary footnote), Share RoomPlan JSON, Room package, editable JSON |
-| `SavedRoomsView.swift` | Lists and reopens saved rooms |
+| `RoomEditorView.swift` | Top-down Canvas plan (floor, grid, furniture, walls, openings), tap select, selection card; threads `wallArt`/`wallArtDirectory` through to `ScanSummaryView` |
+| `ScanSummaryView.swift` | Details and exports: Review room, "Wall art (N)" row (shown when there is wall art) leading to Review room, reference photos (with a `PhotoCoverage` summary footnote), Share RoomPlan JSON, Room package, editable JSON |
+| `SavedRoomsView.swift` | Lists and reopens saved rooms, including their saved wall art |
 | `RoomPhotosView.swift` | Photo grid/full view; `SensorPhoto` (display-only rotation), `PhotoRegion` overlay |
-| `RoomEvidenceReviewView.swift` | Review room: user labels, photo include/exclude, persisted selection, `PhotoCoverage` summary footnote using shared photos and user labels; `init(...associations:...)` (required — the one caller, `ScanSummaryView`, always passes it) |
+| `RoomEvidenceReviewView.swift` | Review room: user labels, photo include/exclude, persisted selection, `PhotoCoverage` summary footnote using shared photos and user labels; a "Wall art (N)" section (thumbnail, "About W × H cm", "On wall K"/"On a wall", a "Not wall art" button that removes the item and calls `RoomArchiveStore.saveWallArt`) shown whenever the scan could have found wall art (reference photos were on), with an empty-state message when none was found; `init(...wallArt:wallArtDirectory:...)` (both default — most callers have no wall art) |
 | `Theme.swift` | `Color.rfBackground/…`, `Color(hex:)`, `RFButtonStyle`, `PlanPalette` |
 
 ### Tests (`ios/RoomFlowTests/`, Swift Testing)

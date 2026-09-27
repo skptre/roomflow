@@ -94,6 +94,83 @@ struct RoomArchiveStoreTests {
         #expect(archive.appearance?.colors.first?.provenance == "camera-estimate")
     }
 
+    private func wallArtItem(wallSourceId: UUID = UUID(), photoFileName: String? = nil) -> WallArtItem {
+        WallArtItem(id: UUID(), wallSourceId: wallSourceId, centerX: 0.2, centerY: 1.1, width: 0.6, height: 0.4,
+                   standoff: 0, sightingCount: 4, photoFileName: photoFileName)
+    }
+
+    @Test func wallArtIsSavedWithItsPhotoAndReloaded() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let artSource = root.appendingPathComponent("pending-art")
+        try FileManager.default.createDirectory(at: artSource, withIntermediateDirectories: true)
+        var item = wallArtItem(photoFileName: nil)
+        item.photoFileName = "\(item.id.uuidString).jpg"
+        try Data("crop-bytes".utf8).write(to: artSource.appendingPathComponent(item.photoFileName!))
+
+        let store = RoomArchiveStore(root: root)
+        try await store.saveCapture(id: roomID, rawData: rawBytes, editableData: editable(revision: 0),
+                                    wallArt: [item], wallArtDirectory: artSource)
+
+        let archive = try await RoomArchiveStore(root: root).load(id: roomID)
+        #expect(archive.wallArt.map(\.id) == [item.id])
+        #expect(archive.wallArt[0].photoFileName == item.photoFileName)
+        let copied = archive.wallArtDirectory.appendingPathComponent(item.photoFileName!)
+        #expect(try Data(contentsOf: copied) == Data("crop-bytes".utf8))
+    }
+
+    @Test func roomWithoutWallArtFileLoadsAnEmptyList() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let store = RoomArchiveStore(root: root)
+        try await store.saveCapture(id: roomID, rawData: rawBytes, editableData: editable(revision: 0))
+
+        let archive = try await store.load(id: roomID)
+        #expect(archive.wallArt.isEmpty)
+    }
+
+    @Test func missingPhotoFileClearsPhotoFileNameInsteadOfFailing() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let artSource = root.appendingPathComponent("pending-art")
+        try FileManager.default.createDirectory(at: artSource, withIntermediateDirectories: true)
+        // No file written for this item's photoFileName — the save must not throw.
+        var item = wallArtItem()
+        item.photoFileName = "missing.jpg"
+
+        let store = RoomArchiveStore(root: root)
+        try await store.saveCapture(id: roomID, rawData: rawBytes, editableData: editable(revision: 0),
+                                    wallArt: [item], wallArtDirectory: artSource)
+
+        let archive = try await store.load(id: roomID)
+        #expect(archive.wallArt.map(\.id) == [item.id])
+        #expect(archive.wallArt[0].photoFileName == nil)
+    }
+
+    @Test func saveWallArtReplacesTheStoredList() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = RoomArchiveStore(root: root)
+        let first = wallArtItem()
+        try await store.saveCapture(id: roomID, rawData: rawBytes, editableData: editable(revision: 0), wallArt: [first])
+
+        let second = wallArtItem()
+        try await store.saveWallArt(id: roomID, items: [second])
+
+        let archive = try await RoomArchiveStore(root: root).load(id: roomID)
+        #expect(archive.wallArt.map(\.id) == [second.id])
+    }
+
+    @Test func saveWallArtOnAnUnknownRoomThrows() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = RoomArchiveStore(root: root)
+        await #expect(throws: RoomArchiveStore.ArchiveError.self) {
+            try await store.saveWallArt(id: roomID, items: [self.wallArtItem()])
+        }
+    }
+
     @Test func incompleteStagingDirectoryIsNotListed() async throws {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }

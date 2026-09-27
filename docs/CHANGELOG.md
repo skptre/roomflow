@@ -5,6 +5,46 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### iOS: save, reopen and review wall art
+- `ios/RoomFlow/Services/RoomArchiveStore.swift`: `saveCapture` gains `wallArt: [WallArtItem] = []` and
+  `wallArtDirectory: URL? = nil`; when `wallArt` isn't empty it copies each item's photo from
+  `wallArtDirectory` into the staged room's new `art/` folder (clearing that item's `photoFileName`
+  instead of failing when the source file is missing) and writes `wallArt.json` — skipped entirely when
+  `wallArt` is empty, so rooms saved before this feature, or scanned with photos off, load `[]`. New
+  `saveWallArt(id:items:) throws` atomically replaces `wallArt.json` (same one-write pattern as
+  `saveEdits`/`saveSelection`); it's used by Review room's "Not wall art" removal and never touches the
+  photo files in `art/`. `load(id:)` decodes `wallArt.json` (missing file → `[]`) and always returns
+  `wallArtDirectory` as `rooms/<id>/art` (a path, not a guarantee the folder exists — only meaningful for
+  items whose `photoFileName` isn't nil).
+- `ios/RoomFlow/Models/SavedRoomRecord.swift`: `RoomArchive` gains `wallArt: [WallArtItem] = []` and
+  `wallArtDirectory: URL` (defaults to the temp directory; always overwritten by `load(id:)`).
+- `ios/RoomFlow/Views/HomeView.swift`: carries `latestWallArt`/`latestWallArtDirectory` from the finished
+  scan through `saveCapture`, then — like reference photos — reloads them from the saved archive so the
+  editor sees the saved copies, and removes the scan's temporary session folder (which holds both the
+  reference photos and the wall art crops) once wall art was involved even when no reference photos were
+  kept.
+- `ios/RoomFlow/Views/RoomEditorView.swift`, `SavedRoomsView.swift`: thread `wallArt`/`wallArtDirectory`
+  through to `ScanSummaryView` for a freshly scanned or reopened room.
+- `ios/RoomFlow/Views/ScanSummaryView.swift`: new `wallArt`/`wallArtDirectory` properties; when there is
+  wall art, a "Wall art (N)" row (footnote "Sizes are measured estimates.") leads to Review room, next to
+  the existing "Review room" row.
+- `ios/RoomFlow/Views/RoomEvidenceReviewView.swift`: new `wallArt`/`wallArtDirectory` init parameters and
+  a "Wall art (N)" section, shown whenever the scan could have found wall art (reference photos were on),
+  so an old scan or one with photos off never shows a spurious "none found" message. Each row shows the
+  reference-photo thumbnail (drawn straight, unlike sensor-native reference photos, since the crop is
+  already upright), "About W × H cm" (rounded to the nearest whole centimeter), and where it hangs — "On
+  wall K" by 1-based index into `room.walls` matched on `wallSourceId`, else "On a wall". A "Not wall art"
+  button removes the item locally and persists the remaining list with `saveWallArt`, showing a save-error
+  bar with Retry (same pattern as the existing label/photo-selection save error) on failure.
+- Why: Task 4 of the wall-art-detection plan makes detected wall art durable across app relaunches and
+  gives the user a way to see and correct what was found, matching how reference photos are already
+  reviewed and saved.
+- Tests: `ios/RoomFlowTests/RoomArchiveStoreTests.swift` — new `wallArtIsSavedWithItsPhotoAndReloaded`,
+  `roomWithoutWallArtFileLoadsAnEmptyList`, `missingPhotoFileClearsPhotoFileNameInsteadOfFailing`,
+  `saveWallArtReplacesTheStoredList`, `saveWallArtOnAnUnknownRoomThrows` (written first, confirmed to fail
+  to compile before implementation). Full suite: 80 tests passing. Device build
+  (`CODE_SIGNING_ALLOWED=NO`) succeeded with no new warnings in touched files.
+
 ### iOS: detect wall art while scanning
 - New `ios/RoomFlow/Services/WallArtScanner.swift`: replaces the DEBUG-only `WallArtSpike` (deleted) with a
   production scanner wired into `RoomScanService`. `nonisolated enum DepthMapReader { static func
