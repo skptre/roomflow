@@ -134,7 +134,11 @@ export function buildRoomDesignProposal(input: RoomDesignProposalInput): RoomDes
       add: [...intent.add].sort((a, b) => a.category.localeCompare(b.category) || a.count - b.count),
     }
     const seed = `${room.id}|${baseRevision}|${JSON.stringify(normalizedIntent)}`
-    const movable = [...working.objects].filter((object) => !object.lockPlacement && Math.abs(object.pose.position.y) < 0.001)
+    const floorObjects = [...working.objects].filter((object) => Math.abs(object.pose.position.y) < 0.001)
+    for (const object of floorObjects) {
+      if (object.lockPlacement) skipped.push(`Kept ${object.name} in place because its placement is locked.`)
+    }
+    const movable = floorObjects.filter((object) => !object.lockPlacement)
       .sort((a, b) => stableHash(`${seed}|${a.id}`) - stableHash(`${seed}|${b.id}`) || a.id.localeCompare(b.id))
     const targets = [
       { x: bounds.minX + (bounds.maxX - bounds.minX) * 0.25, z: bounds.minZ + (bounds.maxZ - bounds.minZ) * 0.25 },
