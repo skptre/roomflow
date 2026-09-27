@@ -370,7 +370,9 @@ function closetOnWall(
         // Local +Z (the front) turns to (sin yaw, cos yaw): face along the inward normal.
         yaw: Math.atan2(normal.x, normal.z),
       },
-      asset: recipeAsset('closet'),
+      // RoomPlan sees only the closet door plane; it is too thin to safely
+      // feed into a furniture recipe, so retain the measured front as a box.
+      asset: { kind: 'placeholder' },
       fidelity: 'approximate',
       quantity: 1,
       keep: true,
