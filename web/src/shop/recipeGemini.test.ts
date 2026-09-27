@@ -176,12 +176,13 @@ describe('readingsFrom and mergeGemini', () => {
     ])
   })
 
-  it('merges: listing words keep their blocks, photo colors win, names fill the rest, a clear disagreement keeps the name', () => {
+  it('merges: listing words keep their blocks, photo colors win (even over a plain name), names fill the rest', () => {
     const trace = rulesTrace(sofa)
     const readings = new Map(readingsFrom(parsed.answer, sofa, family, images).map((r) => [r.key, r.slots]))
-    // Another product read "Navy" as orange: the lexicon vetoes it.
+    // Another product's photo of "Navy": the photo wins over the name (names were mapped to the wrong part more
+    // often than photos were misread, in 30+ reviewed cases).
     readings.set(readingKey(sofa, 'sofa', 'Fabric', 'Navy'), { upholstery: '#d07a30' })
-    const { recipe, vetoes } = mergeGemini({ product: sofa, trace, answer: parsed.answer, images, readings, model: 'gemini-3.8-flash' })
+    const { recipe } = mergeGemini({ product: sofa, trace, answer: parsed.answer, images, readings, model: 'gemini-3.8-flash' })
     expect(validateRecipe(recipe).ok).toBe(true)
     expect(recipe.blocks.arm).toBe('track') // "Track Arm" is in the title; the photo reading said rolled
     expect(recipe.blocks.back).toBe('pillow')
@@ -190,11 +191,10 @@ describe('readingsFrom and mergeGemini', () => {
     expect(recipe.optionColors?.Fabric).toEqual({
       'Water Lily': { upholstery: '#d9d4c5' },
       'Moss Green': { upholstery: '#6d7548' },
-      Navy: { upholstery: COLOR_LEXICON.navy!.hex },
+      Navy: { upholstery: '#d07a30' },
       Charcoal: { upholstery: COLOR_LEXICON.charcoal!.hex },
     })
     expect(recipe.optionColors?.['Leg Finish']).toEqual({ Walnut: { legs: COLOR_LEXICON.walnut!.hex }, Oak: { legs: COLOR_LEXICON.oak!.hex } })
-    expect(vetoes).toEqual([expect.stringContaining('Navy')])
     expect(recipe).toMatchObject({ tier: 'gemini', generator: { model: 'gemini-3.8-flash' }, evidence: { colors: 'photo', shape: 'matched' } })
     expect(recipe.unmatched).toContain('piped seams')
   })
@@ -208,7 +208,7 @@ describe('readingsFrom and mergeGemini', () => {
     expect(schema).not.toContain('"pillows"')
   })
 
-  it('art: shows the listing photo the reading picked as the bare artwork, or no photo when every photo is a room scene', () => {
+  it('art: shows the listing photo the reading picked as the bare artwork, else the main photo', () => {
     const art = product('print', 'wall-art', 'Forest Sketch', [], [[[], undefined]])
     const artFamily = getFamily('art')!
     const listingPhotos = [`${CDN}print-room.jpg`, `${CDN}print-flat.jpg`]
@@ -221,7 +221,7 @@ describe('readingsFrom and mergeGemini', () => {
       return mergeGemini({ product: art, trace: rulesTrace(art), answer: parsedArt.answer, images: artImages, readings: new Map(), model: 'm' }).recipe
     }
     expect(pick(3).image?.url).toBe(`${CDN}print-flat.jpg`)
-    expect(pick(0).image).toBeUndefined()
+    expect(pick(0).image?.url).toBe(art.imageUrl)
     expect(pick(0).defaultColors?.canvas).toBe('#88aa99')
   })
 })
@@ -252,5 +252,24 @@ describe('prompt — art', () => {
     const art = product('p2', 'wall-art', 'Print', [], [[[], undefined]])
     const family = getFamily('art')!
     expect(promptText(art, family, {}, promptImages(art, family, [], {}))).toMatch(/already shows the frame, choose frame "none"/)
+  })
+})
+
+describe('mergeGemini — hardware', () => {
+  it('a hardware option never recolors more than handles, whatever the reading says', () => {
+    const bed = product('floyd', 'bed', 'The Floyd Bed', ['Hardware Color'], [[['Black'], 'b.jpg'], [['White'], 'w.jpg']])
+    const owned = valueImages(bed, 'bed')
+    expect(owned).toEqual([])
+  })
+})
+
+describe('mergeGemini — rugs', () => {
+  it('a rug with no clean photo is drawn in flat color, not a room scene on the floor', () => {
+    const rug = product('levi', 'rug', 'Levi Rug', [], [[[], undefined]])
+    const family = getFamily('rug')!
+    const images = promptImages(rug, family, [], {})
+    const parsed = parseAnswer({ blocks: { shape: 'rect', edge: 'none' }, params: {}, materials: {}, colors: { top: '#e9e0d0', fringe: '#efe8da' }, images: [], optionSlots: [], productImage: 0, unmatched: [] }, family, rug, images)
+    if (!parsed.ok) throw new Error(parsed.error)
+    expect(mergeGemini({ product: rug, trace: rulesTrace(rug), answer: parsed.answer, images, readings: new Map(), model: 'm' }).recipe.image).toBeUndefined()
   })
 })

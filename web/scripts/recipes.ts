@@ -44,7 +44,7 @@ const flag = (name: string) => {
 const has = (name: string) => args.includes(name)
 
 const MAX_OUTPUT_TOKENS = 4096
-const CONCURRENCY = 4
+const CONCURRENCY = Number(flag('--concurrency') ?? 4)
 const IMAGE_WIDTH = 512
 const IMAGE_MAX_BYTES = 3_000_000
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -258,14 +258,12 @@ async function runGemini(products: SnapshotProduct[], model: string, thinking: '
     for (const reading of readingsFrom(o.answer, product, familyOf(product), o.images)) readings.set(reading.key, reading.slots)
   }
   const recipes = new Map<string, Recipe>()
-  const vetoes: string[] = []
   const failures: string[] = []
   for (const o of answered) {
     const product = products.find((p) => p.id === o.productId)!
     try {
       const merged = mergeGemini({ product, trace: traces.get(product.id)!, answer: o.answer, images: o.images, readings, model })
       recipes.set(product.id, merged.recipe)
-      vetoes.push(...merged.vetoes.map((v) => `${product.name}: ${v}`))
     } catch (error) {
       failures.push(`${product.id}: ${String(error)}`)
     }
@@ -273,10 +271,10 @@ async function runGemini(products: SnapshotProduct[], model: string, thinking: '
   for (const o of outcomes) if ('skipped' in o) failures.push(`${o.productId}: ${o.skipped}`)
   const micros = outcomes.reduce((sum, o) => sum + o.micros, 0)
   console.log(
-    `${dryRun ? 'worst case' : 'spent'} $${(micros / 1e6).toFixed(4)} · answered ${answered.length} (${answered.filter((o) => o.cached).length} cached) · merged ${recipes.size} · vetoes ${vetoes.length} · failed/skipped ${failures.length}`,
+    `${dryRun ? 'worst case' : 'spent'} $${(micros / 1e6).toFixed(4)} · answered ${answered.length} (${answered.filter((o) => o.cached).length} cached) · merged ${recipes.size} · failed/skipped ${failures.length}`,
   )
-  for (const line of [...failures, ...vetoes].slice(0, 30)) console.log(`  ${line}`)
-  return { recipes, vetoes, failures, micros }
+  for (const line of failures.slice(0, 30)) console.log(`  ${line}`)
+  return { recipes, failures, micros }
 }
 
 function writeRecipes(file: string, recipes: Map<string, Recipe>, extra: Record<string, unknown> = {}) {
@@ -286,6 +284,37 @@ function writeRecipes(file: string, recipes: Map<string, Recipe>, extra: Record<
   mkdirSync(dirname(file), { recursive: true })
   writeFileSync(file, JSON.stringify({ version: 1, generatedAt: new Date().toISOString(), snapshotRetrievedAt: snapshot.retrievedAt, tiers, ...extra, recipes: list }))
   console.log(`wrote ${file} (${list.length} recipes: ${JSON.stringify(tiers)})`)
+  writeCoverage(join(dirname(file), 'coverage.md'), list, extra)
+}
+
+/** Block choices, evidence and features the blocks can't show yet, per family (plan M3 coverage loop). */
+function writeCoverage(file: string, list: Recipe[], extra: Record<string, unknown>) {
+  const byFamily = new Map<string, Recipe[]>()
+  for (const recipe of list) byFamily.set(recipe.family, [...(byFamily.get(recipe.family) ?? []), recipe])
+  const tally = (values: string[]) => {
+    const counts = new Map<string, number>()
+    for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1)
+    return [...counts].sort((a, b) => b[1] - a[1])
+  }
+  const lines = [
+    '# Recipe coverage',
+    '',
+    `Generated ${new Date().toISOString()} from the snapshot retrieved ${snapshot.retrievedAt}${extra.model ? ` · photo tier: ${String(extra.model)}, ${String(extra.thinking).toLowerCase()} thinking` : ''}.`,
+    'Tier: `gemini` = read from the store photos; `rules` = from listing words only (free). Evidence says where colors and shape came from.',
+    '',
+  ]
+  for (const [family, recipes] of [...byFamily].sort((a, b) => b[1].length - a[1].length)) {
+    lines.push(`## ${family} (${recipes.length})`, '')
+    lines.push(`- tiers: ${tally(recipes.map((r) => r.tier)).map(([k, v]) => `${k} ${v}`).join(', ')}`)
+    lines.push(`- colors from: ${tally(recipes.map((r) => r.evidence?.colors ?? 'default')).map(([k, v]) => `${k} ${v}`).join(', ')}`)
+    const blockNames = [...new Set(recipes.flatMap((r) => Object.keys(r.blocks)))].sort()
+    for (const name of blockNames) lines.push(`- ${name}: ${tally(recipes.map((r) => r.blocks[name] ?? '(default)')).map(([k, v]) => `${k} ${v}`).join(', ')}`)
+    const unmatched = tally(recipes.flatMap((r) => (r.unmatched ?? []).map((u) => u.toLowerCase())))
+    if (unmatched.length > 0) lines.push(`- can't show yet (top 12): ${unmatched.slice(0, 12).map(([k, v]) => `${k} ${v}`).join('; ')}`)
+    lines.push('')
+  }
+  writeFileSync(file, `${lines.join('\n')}\n`)
+  console.log(`wrote ${file}`)
 }
 
 // ---------- modes ----------
@@ -330,7 +359,7 @@ if (has('--lineup')) {
     const result = await runGemini(pilot.map((p) => p.product), model, thinking, dryRun)
     if (!dryRun) {
       const out = flag('--out') ?? join(DATA_DIR, `pilot-${model}-${thinking.toLowerCase()}.json`)
-      writeFileSync(out, JSON.stringify({ label: `${model} · ${thinking.toLowerCase()} thinking`, model, thinking, micros: result.micros, vetoes: result.vetoes, failures: result.failures, recipes: [...result.recipes.values()] }))
+      writeFileSync(out, JSON.stringify({ label: `${model} · ${thinking.toLowerCase()} thinking`, model, thinking, micros: result.micros, failures: result.failures, recipes: [...result.recipes.values()] }))
       console.log(`wrote ${out}`)
     }
   } else {

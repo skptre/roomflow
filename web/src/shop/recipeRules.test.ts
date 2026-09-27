@@ -178,3 +178,14 @@ describe('rulesRecipe — decor and planters', () => {
     expect(fired.has('plant')).toBe(true)
   })
 })
+
+describe('rulesRecipe — names on the wrong part', () => {
+  it('hardware options color only handles, never a bed frame', () => {
+    expect(rulesRecipe(listing('bed', 'Bed', { 'Hardware Color': ['Black', 'White'] })).optionColors).toBeUndefined()
+    expect(rulesRecipe(listing('dresser', 'Dresser', { 'Hardware Color': ['Black'] })).optionColors?.['Hardware Color']?.Black).toEqual({ handles: COLOR_LEXICON.black!.hex })
+  })
+
+  it('a wood or metal name does not color fabric ("Pine" upholstery is a green, not pine wood)', () => {
+    expect(rulesRecipe(listing('sofa', 'Sofa', { Upholstery: ['Pine', 'Navy'] })).optionColors?.Upholstery).toEqual({ Navy: { upholstery: COLOR_LEXICON.navy!.hex } })
+  })
+})
