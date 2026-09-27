@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DATA_DIR, openAi, type AiContext } from '../server/ai'
+import { guardedFetch } from '../src/ai/egress'
 import { worstCaseMicros, type Part } from '../src/ai/gemini'
 import { rateFor } from '../src/ai/rates'
 import { getFamily } from '../src/blocks/families'
@@ -49,6 +50,7 @@ const IMAGE_WIDTH = 512
 const IMAGE_MAX_BYTES = 3_000_000
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const IMAGE_HOSTS = new Set(['cdn.shopify.com', ...STORES.map((store) => store.domain)])
+const outbound = guardedFetch(fetch)
 const PILOT_SIZE = 48
 const HELD_OUT = 6
 
@@ -137,7 +139,7 @@ async function loadImage(url: string): Promise<{ mimeType: string; data: string 
   const file = join(imageDir, hash(target))
   if (existsSync(`${file}.json`)) return JSON.parse(readFileSync(`${file}.json`, 'utf8')) as { mimeType: string; data: string }
   try {
-    const response = await fetch(target, { signal: AbortSignal.timeout(15_000), headers: { 'User-Agent': 'Roomflow-hackathon (store feed reader)' } })
+    const response = await outbound(target, { signal: AbortSignal.timeout(15_000), headers: { 'User-Agent': 'Roomflow-hackathon (store feed reader)' } })
     const mimeType = (response.headers.get('content-type') ?? '').split(';')[0]!.trim()
     if (!response.ok || !IMAGE_TYPES.has(mimeType)) return null
     const bytes = Buffer.from(await response.arrayBuffer())

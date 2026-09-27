@@ -187,11 +187,21 @@ const VASES: Record<string, Array<[number, number]>> = {
 export const vase = defineFamily({
   id: 'vase',
   label: 'Vase',
-  blocks: { profile: { options: ['bud', 'amphora', 'cylinder', 'bowl', 'bottle', 'sphere', 'tray'], default: 'amphora' } },
+  blocks: { profile: { options: ['bud', 'amphora', 'cylinder', 'bowl', 'bottle', 'sphere', 'tray', 'round-tray'], default: 'amphora' } },
   params: {},
   slots: { body: { kind: 'ceramic', color: '#d9cdb8' } },
   build(ctx) {
     const profile = ctx.block('profile')
+    if (profile === 'round-tray') {
+      // A round tray: a disc floor and a low rim, as wide as the box's shorter side.
+      const R = Math.min(ctx.w, ctx.d) / 2
+      // Lower than the square tray's rim: a round rim as tall reads as a bowl.
+      const H = Math.min(ctx.h, 0.06, R * 0.35)
+      const wall = Math.min(0.008, R * 0.12)
+      const floor = Math.min(0.01, H * 0.4)
+      ctx.add('body', lathe([[0, 0], [R * 0.97, 0], [R, H * 0.2], [R, H], [R - wall, H], [R - wall, floor], [0, floor]], 64))
+      return
+    }
     if (profile === 'tray') {
       // A shallow tray: floor and a low rim, as wide and deep as the box.
       const H = Math.min(ctx.h, 0.06, Math.min(ctx.w, ctx.d) * 0.3)

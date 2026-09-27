@@ -12,6 +12,7 @@ import { CatalogPanel } from './ui/CatalogPanel'
 import { cancelCatalogPreview } from './ui/catalogActions'
 import { HelpDialog } from './ui/HelpDialog'
 import { Inspector } from './ui/Inspector'
+import { cancelActivePreview } from './ui/lookActions'
 import { NoticeBar } from './ui/NoticeBar'
 import { RoomPanel } from './ui/RoomPanel'
 import { StartScreen } from './ui/StartScreen'
@@ -163,7 +164,7 @@ function Workspace() {
             <div className="stage-preview" role="status">
               <StudioIcon name="eye" size={17} />
               <span>Just trying it on. Your room hasn’t changed.</span>
-              <button onClick={cancelCatalogPreview}>Cancel</button>
+              <button onClick={cancelActivePreview}>Cancel</button>
             </div>
           )}
           <div className="stage-bottom">

@@ -204,6 +204,18 @@ export function bedSizeEstimate(value: string): { width: number; depth: number }
   return width ? { width: width * INCH + 0.1, depth: length * INCH + 0.15 } : null
 }
 
+/**
+ * An estimated size re-estimated for a different shape (a sofa drawn with a
+ * chaise or an L corner needs a sectional's footprint): each axis that was
+ * filled from the old typical size takes the new one; listed axes stay. A
+ * merchant size is returned unchanged.
+ */
+export function reestimate(size: Dimensions, from: { width: number; height: number; depth: number }, to: { width: number; height: number; depth: number }): Dimensions {
+  if (size.source !== 'estimated') return size
+  const axis = (key: Axis) => (Math.abs(size[key] - from[key]) < 1e-9 ? to[key] : size[key])
+  return { width: axis('width'), height: axis('height'), depth: axis('depth'), source: 'estimated' }
+}
+
 /** A full size for the app: listed axes win; any axis filled from `typical` makes the whole size estimated. */
 export function completeDimensions(listed: ListedSize | null, typical: { width: number; height: number; depth: number }): Dimensions {
   const width = listed?.width

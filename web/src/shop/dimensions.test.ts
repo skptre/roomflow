@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bedSizeEstimate, completeDimensions, parseOverallDimensions, parseSizeOption } from './dimensions'
+import { bedSizeEstimate, completeDimensions, parseOverallDimensions, parseSizeOption, reestimate } from './dimensions'
 
 const IN = 0.0254
 const FT = 0.3048
@@ -147,5 +147,19 @@ describe('completeDimensions', () => {
   it('fills missing axes from the typical size and marks the whole size estimated', () => {
     expect(completeDimensions({ width: 2.2 }, typical)).toEqual({ width: 2.2, depth: 0.9, height: 0.85, source: 'estimated' })
     expect(completeDimensions(null, typical)).toEqual({ ...typical, source: 'estimated' })
+  })
+})
+
+describe('reestimate', () => {
+  const sofa = { width: 2.0, height: 0.85, depth: 0.9 }
+  const sectional = { width: 2.8, height: 0.85, depth: 1.7 }
+
+  it('moves only the axes filled from the old typical size', () => {
+    expect(reestimate({ ...sofa, source: 'estimated' }, sofa, sectional)).toEqual({ ...sectional, source: 'estimated' })
+    expect(reestimate({ ...sofa, width: 2.54, source: 'estimated' }, sofa, sectional)).toEqual({ ...sectional, width: 2.54, source: 'estimated' })
+  })
+
+  it('never changes a merchant size', () => {
+    expect(reestimate({ ...sofa, source: 'merchant' }, sofa, sectional)).toEqual({ ...sofa, source: 'merchant' })
   })
 })

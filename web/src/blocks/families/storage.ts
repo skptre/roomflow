@@ -60,7 +60,8 @@ export const storage = defineFamily({
         ctx.add('body', slab(-w / 2 + 0.002 + side - 0.001, w / 2 - 0.002 - side + 0.001, y - 0.018, y, -d / 2 + 0.01, face - 0.01, HARD))
       }
     } else {
-      ctx.add('body', slab(-w / 2 + 0.003, w / 2 - 0.003, baseH, top + 0.001, -d / 2, face - FRONT, HARD))
+      // A drawer over an open cubby builds its own carcass (below) so the cubby stays open.
+      if (layout !== 'drawer-shelf') ctx.add('body', slab(-w / 2 + 0.003, w / 2 - 0.003, baseH, top + 0.001, -d / 2, face - FRONT, HARD))
       // Fronts fill the carcass face, leaving a thin frame at the sides and bottom.
       const x0 = -w / 2 + 0.012
       const x1 = w / 2 - 0.012
@@ -109,10 +110,17 @@ export const storage = defineFamily({
           doors(x0, x1, y0, y1 - drawerRow - REVEAL, Math.max(1, cols))
           break
         case 'drawer-shelf': {
-          grid(x0, x1, y1 - drawerRow, y1, 1, 1)
-          // Open cubby below: a recessed shelf with a darker void behind it reads as open.
-          const shelfY = y0 + (y1 - drawerRow - y0) * 0.1
-          ctx.add('body', slab(x0, x1, shelfY, shelfY + 0.015, -d / 2 + 0.02, face - 0.006, HARD))
+          // One drawer between the side panels, over an open cubby: sides, floor and back, open at the front.
+          const side = 0.02
+          const ix0 = -w / 2 + 0.002 + side
+          const ix1 = w / 2 - 0.002 - side
+          const split = y1 - drawerRow - REVEAL
+          ctx.add('body', slab(-w / 2 + 0.002, ix0, baseH, top + 0.001, -d / 2, face, HARD))
+          ctx.add('body', slab(ix1, w / 2 - 0.002, baseH, top + 0.001, -d / 2, face, HARD))
+          ctx.add('body', slab(ix0 - 0.001, ix1 + 0.001, split, top + 0.001, -d / 2, face - FRONT, HARD))
+          ctx.add('body', slab(ix0 - 0.001, ix1 + 0.001, baseH, baseH + side, -d / 2 + 0.01, face, HARD))
+          ctx.add('body', slab(-w / 2 + 0.004, w / 2 - 0.004, baseH, split + 0.001, -d / 2, -d / 2 + 0.01, 0.002))
+          grid(ix0 + REVEAL, ix1 - REVEAL, y1 - drawerRow, y1, 1, 1)
           break
         }
       }
