@@ -81,6 +81,29 @@ export function preloadPicks(ranked: readonly CatalogEntry[], n = 3): CatalogEnt
   return picks
 }
 
+/**
+ * Which of a product's variants to show first. Wall pieces sold in many sizes
+ * (prints from 25 cm to 2 m) start at the size nearest a typical one for their
+ * kind, not the first listed (usually the smallest); anything else starts at
+ * the first. Only listed sizes count; the choice never changes a size.
+ */
+export function defaultVariantIndex(variants: readonly CatalogEntry[]): number {
+  const typical = variants[0] ? categoryInfo(variants[0].product.category) : undefined
+  if (!typical || typical.mount !== 'wall' || variants.length < 2) return 0
+  let best = 0
+  let bestGap = Infinity
+  variants.forEach((entry, index) => {
+    const { width, source } = entry.variant.dimensions
+    if (source !== 'merchant') return
+    const gap = Math.abs(width - typical.typical.width)
+    if (gap < bestGap - 1e-9) {
+      best = index
+      bestGap = gap
+    }
+  })
+  return best
+}
+
 /** Use a result only if it was computed for the current committed revision. */
 export function acceptResult(result: CatalogResult, currentRevision: number): CatalogEntry[] | null {
   return result.baseRevision === currentRevision ? result.entries : null

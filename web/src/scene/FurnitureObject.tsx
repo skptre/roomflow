@@ -2,17 +2,18 @@ import { Select } from '@react-three/postprocessing'
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { memo, useEffect, useRef, useState } from 'react'
 import type { Group } from 'three'
-import { checkPlacement, type PlacementCheck } from '../domain/commands'
+import { checkPlacement, collisions, type PlacementCheck } from '../domain/commands'
 import { isWallHung } from '../domain/categories'
 import { isRaised } from '../domain/geometry'
 import { designStore, type PurchaseSources } from '../domain/designStore'
-import type { RoomObject, Vec2 } from '../domain/schema'
+import { coversOpening, slideOnWall, wallPlacement } from '../domain/layout'
+import type { RoomObject, Vec2, Wall } from '../domain/schema'
 import { normalizeYaw } from '../domain/units'
 import { moveObject, refuseLockedMove, rotateObject } from '../ui/editorActions'
 import { noticeStore } from '../ui/noticeStore'
 import { ArtPhoto } from './ArtPhoto'
 import { AssetView } from './AssetView'
-import { floorPoint, yawOf } from './floorPointer'
+import { floorPoint, wallPoint, yawOf } from './floorPointer'
 import { gestureOutcome } from './gesture'
 import { HoverTag } from './HoverTag'
 import { palette } from './palette'
@@ -52,6 +53,8 @@ type Gesture = {
   yaw: number
   status: PlacementCheck['status']
   overlaps: string[]
+  /** A hung piece slides on its own wall: the wall, the grab offset on it, and the live bottom height. */
+  onWall?: { wall: Wall; grabAlong: number; grabHeight: number; y: number }
 }
 
 function currentRoom() {
@@ -132,6 +135,20 @@ export const FurnitureObject = memo(function FurnitureObject({
       status: 'ok',
       overlaps: [],
     }
+    // A painting or mirror drags along its own wall (left/right, up/down), never off it.
+    if (kind === 'move' && isWallHung(object)) {
+      const room = currentRoom()
+      const placement = room ? wallPlacement(room, object) : null
+      const onWall = placement ? wallPoint(event.clientX, event.clientY, camera, element, placement.wall) : null
+      if (placement && onWall) {
+        gesture.current.onWall = {
+          wall: placement.wall,
+          grabAlong: onWall.along - placement.along,
+          grabHeight: onWall.height - placement.bottom,
+          y: position.y,
+        }
+      }
+    }
 
     const onMove = (move: PointerEvent) => {
       const g = gesture.current
@@ -143,7 +160,7 @@ export const FurnitureObject = memo(function FurnitureObject({
           finish()
           return
         }
-        if (g.kind === 'move' && isRaised(object)) {
+        if (g.kind === 'move' && isRaised(object) && !g.onWall) {
           noticeStore.getState().show(`${object.name} is on a wall or tabletop and can't be dragged yet. Remove it and add it again to place it elsewhere.`, 'warning')
           finish()
           return
@@ -151,6 +168,20 @@ export const FurnitureObject = memo(function FurnitureObject({
         g.active = true
         onSelect(object.id)
         document.body.style.cursor = g.kind === 'move' ? 'grabbing' : 'alias'
+      }
+      if (g.onWall) {
+        const room = currentRoom()
+        const hit = wallPoint(move.clientX, move.clientY, camera, element, g.onWall.wall)
+        const slid = room && hit ? slideOnWall(room, object, hit.along - g.onWall.grabAlong, hit.height - g.onWall.grabHeight) : null
+        if (!room || !slid) return
+        g.position = { x: slid.pose.position.x, z: slid.pose.position.z }
+        g.onWall.y = slid.pose.position.y
+        poseRef.current?.position.set(slid.pose.position.x, slid.pose.position.y, slid.pose.position.z)
+        g.overlaps = collisions(room, slid).map((other) => other.id)
+        g.status = g.overlaps.length > 0 || coversOpening(room, slid) ? 'overlap' : 'ok'
+        setFeedback(g.status)
+        invalidate()
+        return
       }
       const point = floorPoint(move.clientX, move.clientY, camera, element)
       const room = currentRoom()
@@ -185,13 +216,15 @@ export const FurnitureObject = memo(function FurnitureObject({
           .show(
             g.status === 'outside'
               ? `${object.name} doesn't fit there.`
-              : `${object.name} would overlap ${names.join(', ')}.`,
+              : names.length === 0
+                ? `${object.name} would cover a window or door.`
+                : `${object.name} would overlap ${names.join(', ')}.`,
             'warning',
           )
         return
       }
       const committed =
-        g.kind === 'move' ? moveObject(object.id, g.position) : rotateObject(object.id, g.yaw, { rejectOverlap: true })
+        g.kind === 'move' ? moveObject(object.id, g.position, g.onWall?.y) : rotateObject(object.id, g.yaw, { rejectOverlap: true })
       if (!committed) snapBack()
     }
     const onUp = () => end(false)

@@ -408,8 +408,10 @@ function barrel(ctx: BuildContext, s: SeatSpec) {
     return
   }
   const style = LEG_STYLE[s.base] ?? 'tapered'
+  // Tucked well under the round seat: the shell's soft bottom edge curves in, so legs near the rim look detached.
+  const legR = R * 0.62
   for (let i = 0; i < 4; i++) {
     const a = Math.PI / 4 + (i * Math.PI) / 2
-    ctx.add('legs', leg(style, s.legH, Math.cos(a) * (R - 0.07), cz + Math.sin(a) * (R - 0.07), chunky(ctx)))
+    ctx.add('legs', leg(style, s.legH, Math.cos(a) * legR, cz + Math.sin(a) * legR, chunky(ctx)))
   }
 }

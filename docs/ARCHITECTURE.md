@@ -127,14 +127,16 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `web/src/domain/` | Pure logic: schema (incl. optional `Room.zones` / `Zone`: per-room floor and wall finishes), units, geometry, layout, money, purchases, catalog, commands, design store, themes, labels, mounting |
 | `web/src/scene/` | React Three Fiber scene: architecture (zone floors, per-face wall paint via `splitFaces`), furniture, camera, lighting, cutaway (exterior walls and camera-facing partitions; wall-mounted items hide with their wall: `isWallMounted` + `hostWall`), gestures |
 | `web/src/scene/ArtPhoto.tsx` | `ArtPhoto`: a wall-art object's package photo as a textured plane on its front face; disposes texture/object URL |
-| `web/src/domain/categories.ts`, `layout.ts` | Categories (`CATEGORIES` incl. built-in `closet`, `isWallHung`, `isWallMounted`); placement (`inwardNormal`, `hostWall`, `wallSpot`, …) |
+| `web/src/domain/categories.ts`, `layout.ts` | Categories (`CATEGORIES` incl. built-in `closet`, `isWallHung`, `isWallMounted`); placement (`inwardNormal`, `hostWall`, `wallSpot`, …); hung pieces on their wall (`WallPlacement`, `wallPlacement`, `slideOnWall`, `coversOpening`) |
+| `web/src/domain/catalog.ts` | Catalog query/ranking and placement; `defaultVariantIndex` (wall pieces start at the listed size nearest a typical one) |
+| `web/src/scene/floorPointer.ts` | Pointer → floor (`floorPoint`) or a wall's plane (`wallPoint`: along + height), `yawOf` |
 | `web/src/recognition/` | Gemini photo matching (snapshot of Codex's work): `contract.ts` (`Appearance`, `RecognitionResponse`), `appearance.ts` (`appearanceCommand`), `appearanceAsset.ts`; server side in `web/server/recognition*.ts` |
 | `web/src/recognition/autoMatch.ts` | Auto-match from package photos: `planAutoMatch`, `paddedCrop`, `uprightQuarterTurns`, `runAutoMatch` (sequential, one wait after a 429), `sendToRecognizer`, `abortableSleep`, `reconcileMatches` |
 | `web/src/recognition/cropPhoto.ts` | Browser crops for auto-match: `cropPhotoRegion` (padded, upright, ≤1024 px JPEG), `prepareAutoMatch` (status check + plan + crops; sends nothing) |
 | `web/src/ui/AutoMatchDialog.tsx` | Post-import offer: exact crops, one consent, progress, applies all matches as one undo step |
 | `web/src/ui/` | Interface components |
 | `web/src/fixtures/` | Sample catalog and synthetic RoomPlan fixtures (`synthetic-bedroom` for tests, `demo-home` for the app's sample) |
-| `web/src/fixtures/demoRoom.ts` | The app's sample home: `demoRoom()` (import `demo-home.roomplan.json` + `furnish`), `furnish()` (names, chunky `demo:*` recipes, owned decor, bedroom finishes, bathroom `Zone`), `DEMO_RECIPES` |
+| `web/src/fixtures/demoRoom.ts` | The app's sample bedroom: `demoRoom()` (import `demo-home.roomplan.json` + `furnish`), `furnish()` (names five scanned pieces, chunky `demo:*` recipes, one of each decor, sage/carpet finishes, curtains via `windowSpot`), `DEMO_RECIPES` |
 | `web/src/scene/zonePaint.ts` | Room zones → paint: `zoneAt(room, point)`, `wallFaceColors(room, wall)` → `FaceColors` (left/right face; outside faces match inside) |
 | `web/src/blocks/` | Validated recipe renderer for catalog products, captured furniture, wall art, mirrors, and closet fronts. `families/shared.ts`: `PROPORTION` block (`classic`/`chunky`), `hardEdge`, chunky `leg`/`legGrid`/`handle` |
 | `web/scripts/` | Fixture and test-GLB generators (`generate-demo-home.mjs` → the sample home scan) |
