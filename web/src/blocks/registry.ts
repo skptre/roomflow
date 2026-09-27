@@ -37,8 +37,8 @@ const DEFAULTS: Readonly<Record<string, Shape>> = {
   planter: { family: 'planter', blocks: { plant: 'none' }, params: {} },
   'wall-art': { family: 'art', blocks: {}, params: {} },
   mirror: { family: 'mirror', blocks: {}, params: {} },
-  // Reserved for a normal-depth closet. RoomPlan door planes use placeholders.
-  closet: { family: 'storage', blocks: { layout: 'doors', handles: 'bar', base: 'plinth' }, params: {} },
+  // A built-in closet as RoomPlan sees it: the door plane on the wall.
+  closet: { family: 'closet-doors', blocks: {}, params: {} },
   vase: { family: 'vase', blocks: {}, params: {} },
   'decor-object': { family: 'vase', blocks: { profile: 'sphere' }, params: {} },
   curtain: { family: 'curtain', blocks: {}, params: {} },
@@ -48,6 +48,18 @@ const DEFAULTS: Readonly<Record<string, Shape>> = {
   table: { family: 'table', blocks: {}, params: {} },
   chair: { family: 'dining-chair', blocks: {}, params: {} },
   storage: { family: 'storage', blocks: { layout: 'drawers' }, params: { cols: 2 } },
+  // Appliances and fixtures a scan finds; their variation (mini fridge, stacked laundry, a TV on feet) comes from the scanned size.
+  refrigerator: { family: 'fridge', blocks: {}, params: {} },
+  television: { family: 'tv', blocks: {}, params: {} },
+  stove: { family: 'appliance', blocks: { front: 'range' }, params: {} },
+  oven: { family: 'appliance', blocks: { front: 'oven' }, params: {} },
+  dishwasher: { family: 'appliance', blocks: { front: 'dishwasher' }, params: {} },
+  'washer-dryer': { family: 'appliance', blocks: { front: 'laundry' }, params: {}, defaultColors: { body: '#eeefee', panel: '#2a2c2f', handles: '#b9bcbe' } },
+  sink: { family: 'sink', blocks: {}, params: {} },
+  toilet: { family: 'toilet', blocks: {}, params: {} },
+  bathtub: { family: 'bathtub', blocks: {}, params: {} },
+  fireplace: { family: 'fireplace', blocks: {}, params: {} },
+  stairs: { family: 'stairs', blocks: {}, params: {} },
 }
 
 const recipes = new Map<string, Recipe>()
