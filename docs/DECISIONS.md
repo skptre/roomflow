@@ -2,6 +2,10 @@
 
 Non-obvious tradeoffs, each with the alternative that was rejected. Routine "only way to do it" changes don't belong here.
 
+## Room-designer Apply requires the dialog's own live preview
+
+`applyRoomDesignerPreview` commits only while the designer's exact `Preview` object is still the store's active preview, and first rejects a proposal whose `baseRevision` is no longer current (cancelling its own preview). Without a budget, the cost report still says "Budget unknown" whenever any proposed line has no price, instead of the store's neutral `no-budget` status. Rejected: applying fresh commands when the preview was dismissed (as catalog cards do), because a whole-room redesign should never be committed unseen; and reporting "No budget set" beside an incomplete subtotal, which reads as a known total.
+
 ## Room summaries go only to an attested paid Gemini project, resolved lazily
 
 `createAiContext` refuses every private input class (room summaries as well as user photos) unless the call is consented and `GEMINI_PAID_PROJECT=true`, matching the photo-recognition route's billing attestation, because free-tier projects may retain prompts for product improvement. The room-design route resolves `openAi()` on its first valid request instead of when the Vite plugin is built, so `vite build` and tests never read settings or open the ledger file. Rejected: gating only in the room-design route (a second, divergent privacy check) and eager `openAi()` at plugin construction (creates `.data/` and reads the ledger during every build).

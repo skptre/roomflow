@@ -47,6 +47,7 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | Web — Gemini room-designer request and intent boundary | `web/src/roomDesigner/contract.ts` |
 | Web — deterministic room-designer proposal resolution | `web/src/roomDesigner/proposal.ts` |
 | Web — Gemini room-design endpoint (`/api/design-room`) and local-only request checks | `web/server/roomDesigner.ts`, `web/server/localAccess.ts`, `web/server/ai.ts` |
+| Web — “Design with Gemini” composer, owned preview and apply | `web/src/ui/RoomDesignerDialog.tsx`, `web/src/ui/roomDesignerActions.ts` |
 
 | iOS — Scan a piece, local saved pieces and selected-object export | `ios/RoomFlow/Views/PieceScanView.swift`, `PieceReviewView.swift`, `ios/RoomFlow/Models/ScannedPiece.swift`, `ios/RoomFlow/Services/PieceArchiveStore.swift` |
 | Web — import one piece into an existing room | `web/src/import/piece.ts`, `web/src/ui/PieceImportDialog.tsx`, `docs/piece-package.md` |

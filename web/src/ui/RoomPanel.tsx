@@ -9,12 +9,15 @@ export function RoomPanel({
   onBrowse,
   onAddPhoto,
   onImportPiece,
+  onDesign,
 }: {
   room: Room
   onSelect: (object: RoomObject) => void
   onBrowse: () => void
   onAddPhoto: () => void
   onImportPiece: () => void
+  /** Opens the Gemini room designer (text-only request; consent is asked in the dialog). */
+  onDesign: () => void
 }) {
   const heading = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
@@ -36,6 +39,10 @@ export function RoomPanel({
           <span>Find a piece that feels like you</span>
         </span>
         <StudioIcon name="arrow" size={18} />
+      </button>
+      <button className="studio-secondary full-width designer-entry" onClick={onDesign}>
+        <StudioIcon name="sun" size={17} />
+        Design with Gemini
       </button>
       <button className="studio-primary full-width" onClick={onImportPiece}>Import a scanned piece</button>
       <button className="studio-secondary full-width" onClick={onAddPhoto}>Add a piece from a photo</button>
