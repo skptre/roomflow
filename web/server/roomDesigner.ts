@@ -7,6 +7,8 @@
  *     schema-validated redacted room summary — never photos, raw capture, offers
  *     or URLs — through the shared ledger-backed `AiContext` (egress allowlist,
  *     consent, paid-project attestation, spend caps),
+ *   - `allowKeptChanges` only lifts Keep in the summary sent (never the flag,
+ *     never locks); the browser still checks every resulting edit itself,
  *   - model output is re-validated with `parseRoomDesignResponse`; every failure
  *     maps to a fixed message, and nothing about the request or answer is logged.
  */
@@ -101,8 +103,12 @@ export function createRoomDesignerHandler(deps: RoomDesignerDeps) {
       ai ??= deps.ai()
       if ('unavailable' in ai) return send(res, 503, { error: 'Room design is not configured on this computer.' })
 
-      // Only the validated projection leaves: baseRevision and consent stay local.
-      const { brief, roomSummary, budget } = parsed.data
+      // Only the validated projection leaves: baseRevision, consent and the flag itself stay local.
+      // allowKeptChanges is prompt input only: Keep is lifted in the summary (locks untouched); the instruction is unchanged.
+      const { brief, budget, allowKeptChanges } = parsed.data
+      const roomSummary = allowKeptChanges
+        ? { ...parsed.data.roomSummary, objects: parsed.data.roomSummary.objects.map((object) => ({ ...object, keep: false })) }
+        : parsed.data.roomSummary
       const prompt = JSON.stringify({ brief, ...(budget ? { budget } : {}), roomSummary })
       windowCount++
       const { model } = await ai.chooseModel()

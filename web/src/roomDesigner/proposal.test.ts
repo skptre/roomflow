@@ -135,6 +135,46 @@ describe('buildRoomDesignProposal', () => {
     expect(clamped.skipped.join(' ')).toMatch(/locked|fit/i)
   })
 
+  it('reports kept pieces it skipped, so the dialog can explain Keep', () => {
+    const room = sampleRoom()
+    expect(room.objects.every((object) => object.keep)).toBe(true)
+    const proposal = build({ removeObjectIds: ['OBJ-CHAIR'], replace: [{ objectId: 'OBJ-DESK', category: 'desk', count: 1 }] }, room)
+    expect(proposal.commands).toEqual([])
+    expect(proposal.keptBlocked).toEqual(['OBJ-CHAIR', 'OBJ-DESK'])
+    expect(proposal.allowKeptChanges).toBe(false)
+    expect(build({}, room).keptBlocked).toEqual([])
+  })
+
+  it('removes and replaces kept pieces only with allowKeptChanges, and says they were marked Keep', () => {
+    const room = sampleRoom()
+    const chair = room.objects.find((object) => object.id === 'OBJ-CHAIR')!
+    const desk = room.objects.find((object) => object.id === 'OBJ-DESK')!
+    const change = { removeObjectIds: ['OBJ-CHAIR'], replace: [{ objectId: 'OBJ-DESK', category: 'desk' as const, count: 1 }] }
+    const proposal = buildRoomDesignProposal({ intent: intent(change), room, catalog, budget: null, baseRevision: 3, allowKeptChanges: true })
+    expect(proposal.allowKeptChanges).toBe(true)
+    expect(proposal.keptBlocked).toEqual([])
+    expect(proposal.commands.map((command) => command.type)).toEqual(['remove', 'replace'])
+    expect(proposal.notes).toContain(`Removed ${chair.name} (was marked Keep).`)
+    expect(proposal.notes.some((note) => note.startsWith(`Replaced ${desk.name} (was marked Keep) with `))).toBe(true)
+    // The automated actor still refuses kept pieces; only the user's explicit apply may change them.
+    expect(applyCommands(room, proposal.commands, 'auto').ok).toBe(false)
+    expect(applyCommands(room, proposal.commands, 'user').ok).toBe(true)
+    expect(room.objects.every((object) => object.keep)).toBe(true)
+  })
+
+  it('still never moves or nudges a locked kept piece when kept changes are allowed', () => {
+    const room = sampleRoom()
+    const lockedRoom = { ...room, objects: room.objects.map((object) => ({ ...object, keep: true, lockPlacement: true })) }
+    const moves = buildRoomDesignProposal({ intent: intent({ rearrange: 'full' }), room: lockedRoom, catalog, budget: null, baseRevision: 3, allowKeptChanges: true })
+    expect(moves.commands).toEqual([])
+    const chair = room.objects.find((object) => object.id === 'OBJ-CHAIR')!
+    const edgeRoom = { ...room, objects: [{ ...chair, keep: true, lockPlacement: true, pose: { ...chair.pose, position: { x: 1.65, y: 0, z: 0 } } }] }
+    const sofa = catalog.filter((entry) => entry.product.category === 'sofa')
+    const clamped = buildRoomDesignProposal({ intent: intent({ replace: [{ objectId: chair.id, category: 'sofa', count: 1 }] }), room: edgeRoom, catalog: sofa, budget: null, baseRevision: 3, allowKeptChanges: true })
+    expect(clamped.commands).toEqual([])
+    expect(clamped.skipped.join(' ')).toMatch(/locked|fit/i)
+  })
+
   it('reports a full-room skip rather than emitting an unsafe addition', () => {
     const room = sampleRoom()
     const bed = catalog.find((entry) => entry.variant.id === 'v-alder-bed-king')!

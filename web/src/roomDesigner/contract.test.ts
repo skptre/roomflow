@@ -34,6 +34,25 @@ describe('room designer contract', () => {
     expect(RoomDesignRequest.safeParse({ ...base, consent: true, budget: { amountMinor: 100, currency: 'USD' } }).success).toBe(true)
   })
 
+  it('accepts an optional boolean allowKeptChanges flag and rejects other types', () => {
+    const base = { brief: 'Remove everything', consent: true, baseRevision: 0, roomSummary: roomSummary(room) }
+    expect(RoomDesignRequest.safeParse(base).success).toBe(true)
+    expect(RoomDesignRequest.safeParse({ ...base, allowKeptChanges: true }).success).toBe(true)
+    expect(RoomDesignRequest.safeParse({ ...base, allowKeptChanges: false }).success).toBe(true)
+    for (const value of ['true', 1, null, {}]) expect(RoomDesignRequest.safeParse({ ...base, allowKeptChanges: value }).success).toBe(false)
+    expect(RoomDesignRequest.safeParse({ ...base, allowKept: true }).success).toBe(false)
+  })
+
+  it('marks kept pieces as not kept in the summary only when kept changes are allowed, leaving locks alone', () => {
+    const kept = { ...room, objects: room.objects.map((object, index) => ({ ...object, keep: true, lockPlacement: index === 0 })) }
+    expect(roomSummary(kept).objects.every((object) => object.keep)).toBe(true)
+    expect(roomSummary(kept, { allowKeptChanges: false }).objects.every((object) => object.keep)).toBe(true)
+    const allowed = roomSummary(kept, { allowKeptChanges: true })
+    expect(allowed.objects.some((object) => object.keep)).toBe(false)
+    expect(allowed.objects.map((object) => object.lockPlacement)).toEqual(kept.objects.map((object) => object.lockPlacement))
+    expect(kept.objects.every((object) => object.keep)).toBe(true)
+  })
+
   it('accepts a bounded high-level intent', () => {
     expect(parseRoomDesignIntent(intent(), room)).toEqual(intent())
     expect(parseRoomDesignIntent({ ...intent(), add: [{ category: 'sectional', count: 1 }, { category: 'dining-chair', count: 2 }] }, room).add).toHaveLength(2)

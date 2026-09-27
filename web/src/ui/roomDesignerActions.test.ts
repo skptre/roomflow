@@ -13,6 +13,7 @@ import {
   beginRoomDesignerPreview,
   cancelRoomDesignerPreview,
   designerCostReport,
+  keptChangesRequest,
   ownedRoomDesignerPreview,
   parseBudgetInput,
   prepareRoomDesign,
@@ -173,6 +174,90 @@ describe('room designer proposal facts', () => {
     expect(prepared.cost.removed).toEqual([])
     const eur = designerCostReport(before, prepared.proposal.summary, { amountMinor: 100, currency: 'EUR' })
     expect(eur.budgetText).toMatch(/budget unknown/i)
+  })
+})
+
+describe('changes to pieces marked Keep', () => {
+  function keptNow(change: Partial<RoomDesignIntent>, allowKeptChanges?: boolean) {
+    const committed = designStore.getState().committed!
+    return prepareRoomDesign(intent(change), { room: committed.room, catalog, budget: null, baseRevision: committed.revision, sources, ...(allowKeptChanges === undefined ? {} : { allowKeptChanges }) })
+  }
+
+  it('explains an empty plan in a room where everything is marked Keep', () => {
+    designStore.getState().loadRoom(sampleRoom())
+    const prepared = keptNow({})
+    expect(prepared.proposal.commands).toEqual([])
+    expect(prepared.keepNotice).toBe('Everything in this room is marked Keep, so nothing was removed or replaced.')
+  })
+
+  it('explains skipped kept pieces with singular and plural wording, and stays quiet otherwise', () => {
+    const room = editableRoom()
+    const withKept = (ids: string[]) => ({ ...room, objects: room.objects.map((object) => ({ ...object, keep: ids.includes(object.id) })) })
+    designStore.getState().loadRoom(withKept(['OBJ-CHAIR']))
+    expect(keptNow({ removeObjectIds: ['OBJ-CHAIR'] }).keepNotice).toBe('This piece is marked Keep, so Gemini won’t remove or replace it.')
+    designStore.getState().loadRoom(withKept(['OBJ-CHAIR', 'OBJ-DESK']))
+    expect(keptNow({ removeObjectIds: ['OBJ-CHAIR', 'OBJ-DESK'] }).keepNotice).toBe('These pieces are marked Keep, so Gemini won’t remove or replace them.')
+    expect(keptNow({}).keepNotice).toBe('These pieces are marked Keep, so Gemini won’t remove or replace them.')
+    expect(keptNow({ palette: { mode: 'darken' } }).keepNotice).toBeNull()
+    designStore.getState().loadRoom(withKept([]))
+    expect(keptNow({}).keepNotice).toBeNull()
+  })
+
+  it('has no Keep notice once kept changes were allowed', () => {
+    designStore.getState().loadRoom(sampleRoom())
+    const prepared = keptNow({ removeObjectIds: ['OBJ-CHAIR'] }, true)
+    expect(prepared.keepNotice).toBeNull()
+    expect(prepared.proposal.notes).toContain('Removed Chair (was marked Keep).')
+  })
+
+  it('re-sends the same brief and budget with allowKeptChanges and a summary that lifts Keep but not locks', async () => {
+    const room = sampleRoom()
+    designStore.getState().loadRoom({ ...room, objects: room.objects.map((object, index) => ({ ...object, lockPlacement: index === 0 })) })
+    const committed = designStore.getState().committed!
+    const previous: RoomDesignRequest = { brief: 'Remove everything', consent: true, budget: usd(90000), baseRevision: committed.revision, roomSummary: roomSummary(committed.room) }
+    const next = keptChangesRequest(previous, committed)
+    expect(next).toMatchObject({ brief: 'Remove everything', consent: true, budget: usd(90000), baseRevision: committed.revision, allowKeptChanges: true })
+    expect(next.roomSummary.objects.some((object) => object.keep)).toBe(false)
+    expect(next.roomSummary.objects.map((object) => object.lockPlacement)).toEqual(committed.room.objects.map((object) => object.lockPlacement))
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ intent: intent() }), { status: 200 }))
+    expect((await requestRoomDesign(next, committed.room, { fetchImpl })).ok).toBe(true)
+    const sent = JSON.parse(String((fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1].body))
+    expect(sent.allowKeptChanges).toBe(true)
+    expect(sent.brief).toBe('Remove everything')
+    expect(sent.budget).toEqual(usd(90000))
+    expect(designStore.getState().committed!.room.objects.every((object) => object.keep)).toBe(true)
+  })
+
+  it('applies a design that removes a kept piece as one undoable step, without changing Keep before apply', () => {
+    designStore.getState().loadRoom(sampleRoom())
+    const before = designStore.getState().committed!
+    const { proposal } = keptNow({ removeObjectIds: ['OBJ-CHAIR'] }, true)
+    expect(beginRoomDesignerPreview(proposal).ok).toBe(true)
+    expect(designStore.getState().committed).toBe(before)
+    expect(before.room.objects.find((object) => object.id === 'OBJ-CHAIR')!.keep).toBe(true)
+    expect(applyRoomDesignerPreview(proposal).ok).toBe(true)
+    const after = designStore.getState()
+    expect(after.committed!.revision).toBe(before.revision + 1)
+    expect(after.past).toHaveLength(1)
+    expect(after.committed!.room.objects.some((object) => object.id === 'OBJ-CHAIR')).toBe(false)
+    expect(designStore.getState().undo()).toBe(true)
+    expect(designStore.getState().committed!.room).toEqual(before.room)
+  })
+
+  it('refuses a stale design that changes kept pieces', () => {
+    designStore.getState().loadRoom(sampleRoom())
+    const { proposal } = keptNow({ removeObjectIds: ['OBJ-CHAIR'] }, true)
+    expect(beginRoomDesignerPreview(proposal).ok).toBe(true)
+    designStore.getState().apply([{ type: 'setLock', id: 'OBJ-DESK', lock: true }], { actor: 'user' })
+    const afterEdit = designStore.getState().committed!
+    const result = applyRoomDesignerPreview(proposal)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.stale).toBe(true)
+    expect(designStore.getState().committed).toBe(afterEdit)
+    expect(afterEdit.room.objects.some((object) => object.id === 'OBJ-CHAIR')).toBe(true)
+    const again = beginRoomDesignerPreview(proposal)
+    expect(again.ok).toBe(false)
+    if (!again.ok) expect(again.stale).toBe(true)
   })
 })
 
