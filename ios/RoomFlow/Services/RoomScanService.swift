@@ -45,6 +45,12 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
 
     /// Reference photos chosen for `capturedRoom`; empty unless photo capture was on.
     private(set) var photos: [RoomPhotoEvidence] = []
+    /// Confirmed wall art detected during the scan; empty unless photo capture was on and something
+    /// was confirmed.
+    private(set) var wallArt: [WallArtItem] = []
+    /// Temp folder holding `wallArt`'s cropped reference photos (`<id>.jpg`); nil unless photo capture
+    /// was on.
+    private(set) var wallArtDirectory: URL?
     /// Whether to keep calibrated reference photos during the scan (opt-in).
     @ObservationIgnored var capturePhotos = false
 
@@ -53,6 +59,17 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
     @ObservationIgnored private let evidenceRecorder = RoomEvidenceRecorder()
     /// Identifies this scan's photos so late work from an older session is never attached.
     @ObservationIgnored private var sessionID = UUID()
+    /// Live detected objects during a scan; see LiveRoomObserver.
+    @ObservationIgnored private let liveObserver = LiveRoomObserver()
+    /// Detects wall art in camera frames while photo capture is on; see `WallArtScanner`.
+    @ObservationIgnored private let wallArtScanner = WallArtScanner()
+    /// This scan's wall-art crop directory, set at `start()` when `capturePhotos` is on.
+    @ObservationIgnored private var pendingWallArtDirectory: URL?
+
+    /// The furniture currently framed and its photo progress; nil unless photo capture is on and something is framed.
+    private(set) var focusHint: FocusHint?
+    @ObservationIgnored private var focusTracker = ObjectFocusTracker()
+    @ObservationIgnored private var sampleTick = 0
 
     // Built lazily so unsupported devices never create an AR view.
     // RoomCaptureView bundles the camera feed, coaching UI, and its own RoomCaptureSession.
@@ -89,10 +106,24 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         capturedRoom = nil
         colorEstimates = .none
         photos = []
+        wallArt = []
+        wallArtDirectory = nil
+        pendingWallArtDirectory = nil
         colorSampler.reset()
+        focusTracker.reset()
+        focusHint = nil
+        sampleTick = 0
         sessionID = UUID()
-        if capturePhotos { evidenceRecorder.start(sessionID: sessionID) }
+        if capturePhotos {
+            evidenceRecorder.start(sessionID: sessionID)
+            let dir = RoomEvidenceRecorder.defaultRoot
+                .appendingPathComponent(sessionID.uuidString, isDirectory: true)
+                .appendingPathComponent("art", isDirectory: true)
+            pendingWallArtDirectory = dir
+            wallArtScanner.reset(directory: dir)
+        }
         state = .scanning
+        liveObserver.install(on: captureView.captureSession)
         captureView.captureSession.run(configuration: RoomCaptureSession.Configuration())
         startColorSampling()
     }
@@ -102,6 +133,7 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         guard state == .scanning else { return }
         stopColorSampling()
         state = .processing
+        focusHint = nil
         captureView.captureSession.stop()
     }
 
@@ -110,6 +142,11 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         stopColorSampling()
         colorSampler.reset()
         evidenceRecorder.cancel(sessionID: sessionID)
+        focusHint = nil
+        wallArtScanner.discard()
+        wallArt = []
+        wallArtDirectory = nil
+        pendingWallArtDirectory = nil
         if state == .scanning {
             captureView.captureSession.stop()
         }
@@ -143,12 +180,18 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         colorEstimates = colorSampler.estimate(for: processedResult)
         colorSampler.reset()
         capturedRoom = processedResult
-        // Photos are optional: any problem finishing them leaves an empty list, never a failed scan.
+        liveObserver.logFinalOverlap(with: processedResult)
+        // Photos and wall art are optional: any problem finishing them leaves an empty list, never a
+        // failed scan.
         let session = sessionID
+        let artDirectory = pendingWallArtDirectory
         Task {
             let chosen = capturePhotos ? ((try? await evidenceRecorder.finish(sessionID: session)) ?? []) : []
+            let art = capturePhotos ? await wallArtScanner.finish(finalRoom: processedResult) : []
             guard session == sessionID, state == .processing || state == .scanning else { return }
             photos = chosen
+            wallArt = art
+            wallArtDirectory = capturePhotos ? artDirectory : nil
             state = .finished
         }
         print("[RoomFlow] Scan finished: \(processedResult.walls.count) walls, \(processedResult.doors.count) doors, \(processedResult.windows.count) windows, \(processedResult.objects.count) objects")
@@ -156,21 +199,63 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
 
     // MARK: - Color sampling
 
-    // Grabs a downscaled camera frame a little faster than once a second while scanning.
+    // Every 250 ms: focus hints (pose only). Every third tick (~750 ms, as before): colors and ambient photos.
     private func startColorSampling() {
         colorSampling?.cancel()
         colorSampling = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
                 if let frame = self.captureView.captureSession.arSession.currentFrame {
-                    self.colorSampler.capture(frame)
-                    if self.capturePhotos {
-                        self.evidenceRecorder.consider(frame: frame, sessionID: self.sessionID)
+                    if self.capturePhotos { self.updateFocus(with: frame) }
+                    if self.capturePhotos, self.sampleTick.isMultiple(of: 2) {
+                        self.wallArtScanner.process(frame: frame, surfaces: self.liveObserver.latestSurfaces(),
+                                                    objects: self.liveObserver.latestObjects())
                     }
+                    if self.sampleTick.isMultiple(of: 3) {
+                        self.colorSampler.capture(frame)
+                        if self.capturePhotos {
+                            self.evidenceRecorder.consider(frame: frame, sessionID: self.sessionID)
+                        }
+                    }
+                    self.sampleTick += 1
                 }
-                try? await Task.sleep(for: .milliseconds(750))
+                try? await Task.sleep(for: .milliseconds(250))
             }
         }
+    }
+
+    /// Runs the focus tracker on `frame`, takes a focused photo when one is due, and publishes the hint.
+    private func updateFocus(with frame: ARFrame) {
+        let snapshot = RoomEvidenceRecorder.snapshot(of: frame)
+        if !snapshot.trackingNormal {
+            evidenceRecorder.noteTrackingInterrupted(sessionID: sessionID)
+        }
+        let depthMap = (frame.sceneDepth ?? frame.smoothedSceneDepth)?.depthMap
+        let objects = liveObserver.latestObjects()
+        var hint: FocusHint?
+        switch focusTracker.update(objects: objects, camera: snapshot,
+                                   depthAt: { u, v in Self.depth(in: depthMap, u: u, v: v) }) {
+        case .none:
+            hint = nil
+        case .hint(let current):
+            hint = current
+        case .shoot(let current):
+            hint = current
+            if let object = objects.first(where: { $0.sourceId == current.objectId }),
+               evidenceRecorder.captureFocused(frame: frame, objectId: current.objectId, sessionID: sessionID) {
+                focusTracker.recordShot(objectId: current.objectId, cameraToWorld: snapshot.cameraToWorld,
+                                        objectCenter: object.center)
+                hint?.shotsTaken += 1
+            }
+            hint?.dwellProgress = 0
+        }
+        // Publish only real changes so SwiftUI isn't redrawn every tick for nothing.
+        if hint != focusHint { focusHint = hint }
+    }
+
+    /// LiDAR depth in meters at a normalized, top-left-origin image point; nil without depth or for invalid values.
+    private static func depth(in map: CVPixelBuffer?, u: Double, v: Double) -> Float? {
+        DepthMapReader.depth(in: map, u: Float(u), v: Float(v))
     }
 
     private func stopColorSampling() {
@@ -183,6 +268,11 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         stopColorSampling()
         colorSampler.reset()
         evidenceRecorder.cancel(sessionID: sessionID)
+        focusHint = nil
+        wallArtScanner.discard()
+        wallArt = []
+        wallArtDirectory = nil
+        pendingWallArtDirectory = nil
     }
 
     // MARK: - Permissions

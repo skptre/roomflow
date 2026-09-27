@@ -50,42 +50,51 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | --- | --- | --- |
 | `RoomModel.swift` | Native editable room in RoomFlow's frame (longest wall on +X, corner at origin, floor y=0) | `RoomModel` (`jsonData()`, `jsonEncoder/Decoder`), `RoomDimensions`, `Vector3`, `FloorPoint`, `Wall`, `WallOpening`, `EstimatedColor` (`hex`, `sampleCount`; 0 = illustrative), `CaptureAlignment` |
 | `RoomObject.swift` | Furniture/fixture in the room frame | `RoomObject` (`isMovable(category:)`, `fixtureCategories`), `ObjectDimensions` |
+| `ObjectNames.swift` | Display-friendly names for furniture categories in UI text (stored data keeps the category) | `ObjectNames` (`display(category:)`) |
+| `PhotoCoverage.swift` | How many scanned objects (with a `sourceId`) appear in the counted photos, and which are missing, for a footnote summary; presentation only | `PhotoCoverage` (`covered`, `total`, `missing`, `summary`), `make(objects:associations:photoIds:label:)` |
 | `SampleRoom.swift` | DEBUG-only synthetic 4.2×3.8 m room with illustrative colors | `SampleRoom.make()` |
-| `SavedRoomRecord.swift` | Saved-room list entry and loaded archive | `SavedRoomRecord` (`EvidenceStatus`), `RawCapture` (frozen bytes), `RoomArchive` (raw, editable, photos, appearance, selection) |
-| `ScanCaptureResult.swift` | Everything one finished scan produced | `ScanCaptureResult` (room, colors, photos) |
-| `RoomPhotoEvidence.swift` | Reference photo + calibration (sensor-native pixels) | `RoomPhotoEvidence` (`fileName`, `columnMajor(_:)`) |
+| `SavedRoomRecord.swift` | Saved-room list entry and loaded archive | `SavedRoomRecord` (`EvidenceStatus`), `RawCapture` (frozen bytes), `RoomArchive` (raw, editable, photos, appearance, selection, `wallArt`, `wallArtDirectory`) |
+| `ScanCaptureResult.swift` | Everything one finished scan produced | `ScanCaptureResult` (room, colors, photos, wallArt, wallArtDirectory; custom `init` defaults `wallArt`/`wallArtDirectory`) |
+| `RoomPhotoEvidence.swift` | Reference photo + calibration (sensor-native pixels) | `RoomPhotoEvidence` (`fileName`, `columnMajor(_:)`, `focusObjectId` — local-only, not in package manifest) |
 | `RoomAppearanceEvidence.swift` | Approximate colors and photo regions per capture (`appearance.json`) | `RoomAppearanceEvidence`, `SourceColor`, `RoomPhotoAssociation` |
 | `RoomEvidenceSelection.swift` | User's sharing choices and labels (`selection.json`) | `RoomEvidenceSelection` (`initial(for:)`, `sharedPhotos(from:)`, `setIncludePhotos`, `setPhoto(_:included:)`, `setLabel(_:for:)`, `label(for:)`), `ObjectAnnotation` |
-| `RoomPackageManifest.swift` | `manifest.json` of the package, with validation | `RoomPackageManifest` (`FileEntry`, `PhotoEntry`, `ValidationError`, `isAllowed(_:)`, `validate()`), `PackageAppearance` |
+| `RoomPackageManifest.swift` | `manifest.json` of the package, with validation; `wallArt.json`'s schema | `RoomPackageManifest` (`FileEntry`, `PhotoEntry`, `ValidationError`, `isAllowed(_:)`, `validate()`, `wallArtPath`), `PackageAppearance`, `WallArtPackage` (`Item`) |
+| `WallArtItem.swift` | Confirmed piece of wall art attached to a final wall, in that wall's local frame (meters from wall center, +x along wall, +y up), plus optional RoomPlan native world pose for export | `WallArtItem` (`worldCenter`, `worldNormal`) |
 
 ### Services (`ios/RoomFlow/Services/`)
 
 | File | Purpose | Key types / functions |
 | --- | --- | --- |
-| `RoomScanService.swift` | Owns RoomCaptureView/session; permission, state machine, sampling loop (colors + photos) | `RoomScanService` (`State`, `Failure`, `isSupported`, `capturePhotos`, `start()`, `finish()`, `cancel()`, `capturedRoom`, `colorEstimates`, `photos`) |
+| `RoomScanService.swift` | Owns RoomCaptureView/session; permission, state machine, 250 ms loop: focus hints every tick, wall-art detection every other tick, colors + ambient photos every third | `RoomScanService` (`State`, `Failure`, `isSupported`, `capturePhotos`, `start()`, `finish()`, `cancel()`, `capturedRoom`, `colorEstimates`, `photos`, `wallArt`, `wallArtDirectory`, `focusHint`) |
+| `LiveRoomObserver.swift` | Live-object feed: forwards every session callback to the previous delegate, keeps the newest detected objects; debug-only logging | `LiveRoomObserver` (`install(on:)`, `latestObjects()`, `latestSurfaces()` (`LiveSurface`), `logFinalOverlap(with:)`) |
+| `WallArtDetector.swift` | Pure judge: is one image rectangle plausibly art on a scanned wall? Casts corner rays onto walls, measures the LiDAR-seen plane (may stand off the wall), checks size/floor/opening/TV overlap; reorders corners (and `quad`) into room orientation (world up, viewer's right) so portrait frames measure width/height correctly | `WallArtSighting` (corners/quad in room order), `WallArtRejection`, `WallArtVerdict`, `WallArtDetector.judge(quad:camera:surfaces:objects:depthAt:)` |
+| `WallArtTracker.swift` | Groups `WallArtSighting`s by position/normal across a scan, decides which groups are confirmed, and attaches confirmed groups to the final room's walls as `WallArtItem`s (merging overlapping items on the same wall), resolving each item's RoomPlan-native world center/normal | `WallArtTracker` (`add(_:)`, `sightingCount(group:)`, `confirmedCount`, `finalize(walls:)`, `worldPose(of:)`) |
+| `WallArtScanner.swift` | Runs `WallArtDetector`/`WallArtTracker` on the scan's camera frames (Vision rectangle detection + LiDAR on a private queue, one frame at a time), keeps an upright straight-on `CIPerspectiveCorrection` crop (from the room-ordered quad) of each candidate's best-scoring sighting in ≤16 slots (fewest-sightings slot evicted for a group seen at least as often), drops results from frames started before a `reset`/`discard`, and writes each confirmed item's crop to disk at `finish` | `DepthMapReader` (`depth(in:u:v:)`, moved out of `RoomScanService`), `WallArtScanner` (`init(encoder:)`, `reset(directory:)`, `discard()`, `process(frame:surfaces:objects:)`, `confirmedCount`, `finish(finalRoom:) async`) |
 | `RoomPlanFileExport.swift` | Raw export: exactly `JSONEncoder().encode(CapturedRoom)` | `encode(_:) -> RawCapture`, `export(_:directory:)`, `write(data:roomID:directory:)`, `fileName(roomID:)` |
-| `RoomArchiveStore.swift` | Saved rooms in Application Support; staging + rename publish | actor `RoomArchiveStore` (`shared`, `saveCapture(id:rawData:editableData:photos:appearance:…)`, `saveEdits`, `saveSelection`, `load(id:)`, `list()`, `ArchiveError`) |
+| `RoomArchiveStore.swift` | Saved rooms in Application Support; staging + rename publish | actor `RoomArchiveStore` (`shared`, `saveCapture(id:rawData:editableData:photos:appearance:wallArt:wallArtDirectory:…)` — copies each item's photo into `art/`, clearing `photoFileName` on a missing source file, and writes `wallArt.json` only when non-empty, `saveEdits`, `saveSelection`, `saveWallArt(id:items:)` (atomic replace), `load(id:)`, `list()`, `ArchiveError`) |
 | `RoomPlanConverter.swift` | Only reader of `CapturedRoom` into RoomModel | `RoomPlanConverter.convert(_:colors:capturedAt:)` |
 | `RoomNormalizer.swift` | Pure frame math: align to longest wall, floor to 0, stable IDs | `CaptureElement`, `RoomNormalizer.makeRoom(from:floorColor:id:capturedAt:)`, `yaw(of:)` |
 | `RoomColorSampler.swift` | Keeps small frames during scan; median color per wall/object/floor | `RoomColorEstimates`, `RoomColorSampler` (`capture(_:)`, `estimate(for:)`, `reset()`), `ColorFrame.init?(frame:width:)` |
 | `ColorFrame.swift` | ARKit-free projection + color math (testable on Mac) | `ColorFrame.color(at:depthTolerance:)`, `ColorMath.median(_:)`, `clampRGB` |
-| `RoomEvidenceRecorder.swift` | Bounded calibrated photo capture per scan session | `PhotoFrameSnapshot`, `PhotoCandidatePolicy` (`isNewView`, `selectFinal`), `PhotoEncoding`, `ImageIOPhotoEncoder`, `RoomEvidenceRecorder` (`start`, `consider(frame:sessionID:)`, `consider(snapshot:…)`, `finish`, `cancel`, `removeTemporaryFiles`, `waitUntilIdle`) |
+| `RoomEvidenceRecorder.swift` | Bounded calibrated photo capture per scan session, plus deliberate per-object focused shots | `PhotoFrameSnapshot`, `PhotoCandidatePolicy` (`isNewView`, `thin(_:)`, `selectFinal` — final pick covers each object first, then spreads ambient photos, then trims by bytes), `PhotoEncoding`, `ImageIOPhotoEncoder`, `RoomEvidenceRecorder` (`start`, `consider(frame:sessionID:)`, `consider(snapshot:…)`, `captureFocused(snapshot:objectId:sessionID:makeImage:)`, `captureFocused(frame:objectId:sessionID:)`, `noteTrackingInterrupted(sessionID:)`, `snapshot(of:)`, `finish`, `cancel`, `removeTemporaryFiles`, `waitUntilIdle`) |
 | `RoomEvidenceProjector.swift` | Projects object boxes into photos (candidate regions) | `ProjectableObject`, `NormalizedRect`, `RoomEvidenceProjector` (`projectedBounds(…)`, `associate(objects:photos:)`, `associate(room:photos:)`, `appearance(room:colors:photos:)`) |
-| `RoomPackageExport.swift` | Builds `<capture-id>.roomflow.zip` from allowlisted files | `RoomPackageArchiver`, `CoordinatorZipArchiver`, `RoomPackageExport` (`export(archive:selection:destination:archiver:)`, `Result`, `maxPhotos`, `maxPhotoBytes`) |
+| `RoomPackageExport.swift` | Builds `<capture-id>.roomflow.zip` from allowlisted files, including `wallArt.json`/`art/` for wall art still in the room's saved list with a resolved world pose | `RoomPackageArchiver`, `CoordinatorZipArchiver`, `RoomPackageExport` (`export(archive:selection:destination:archiver:)`, `Result`, `maxPhotos`, `maxPhotoBytes`) |
 | `FloorPlanGeometry.swift` | Pure plan math: fit-to-view, footprints, hit test, wall outline | `FloorPlanTransform` (`toView`, `toRoom`), `FloorPlanGeometry` (`axes`, `footprint(of:)`, `contains`, `object(at:in:margin:)`, `outline(of:)`) |
 | `RoomEditorState.swift` | Editable room copy + selection (no move/rotate/delete yet) | `RoomEditorState` (`room`, `originalRoom`, `selectedObjectID`, `select(at:margin:)`) |
+| `ObjectFocusTracker.swift` | Pure: decides when a detected object is well framed and unoccluded, the phone steady, and a new-angle photo due | `LiveObject`, `FocusShotPolicy`, `FocusHint`, `FocusDecision`, `ObjectFocusTracker` (`update(objects:camera:depthAt:)`, `recordShot(objectId:cameraToWorld:objectCenter:)`, `shots(for:)`, `reset()`) |
 
 ### Views (`ios/RoomFlow/Views/`)
 
 | File | Purpose |
 | --- | --- |
-| `HomeView.swift` | Entry screen; photo opt-in toggle; freezes raw bytes, converts, saves, opens plan; DEBUG room menu |
-| `RoomScanView.swift` | Full-screen RoomPlan UI with Cancel / Done / failure states |
-| `RoomEditorView.swift` | Top-down Canvas plan (floor, grid, furniture, walls, openings), tap select, selection card |
-| `ScanSummaryView.swift` | Details and exports: Review room, reference photos, Share RoomPlan JSON, Room package, editable JSON |
-| `SavedRoomsView.swift` | Lists and reopens saved rooms |
+| `HomeView.swift` | Entry screen; photo opt-in toggle; freezes raw bytes, converts, saves (including wall art and its temp crop folder), opens plan; DEBUG room menu |
+| `RoomScanView.swift` | Full-screen RoomPlan UI with Cancel / Done / failure states; shows `ScanFocusHintView` when a furniture object is in focus; on completion passes the scanner's `wallArt`/`wallArtDirectory` into `ScanCaptureResult` |
+| `ScanFocusHintView.swift` | Small hint capsule under scan controls showing furniture name, photo count/progress ring, and guidance; appears when furniture is framed and photo capture is on. Types/functions: `ScanFocusHintView`, `message(for:)` |
+| `RoomEditorView.swift` | Top-down Canvas plan (floor, grid, furniture, walls, openings), tap select, selection card; threads `wallArt`/`wallArtDirectory` through to `ScanSummaryView` |
+| `ScanSummaryView.swift` | Details and exports: Review room, "Wall art (N)" row (shown when there is wall art) leading to Review room, reference photos (with a `PhotoCoverage` summary footnote), Share RoomPlan JSON, Room package, editable JSON |
+| `SavedRoomsView.swift` | Lists and reopens saved rooms, including their saved wall art |
 | `RoomPhotosView.swift` | Photo grid/full view; `SensorPhoto` (display-only rotation), `PhotoRegion` overlay |
-| `RoomEvidenceReviewView.swift` | Review room: user labels, photo include/exclude, persisted selection |
+| `RoomEvidenceReviewView.swift` | Review room: user labels, photo include/exclude, persisted selection, `PhotoCoverage` summary footnote using shared photos and user labels; a "Wall art (N)" section (a removal made before the saved list loads is kept) (thumbnail, "About W × H cm", "On wall K"/"On a wall", a "Not wall art" button that removes the item and calls `RoomArchiveStore.saveWallArt`) shown whenever the scan could have found wall art (reference photos were on), with an empty-state message when none was found; `init(...wallArt:wallArtDirectory:...)` (both default — most callers have no wall art) |
 | `Theme.swift` | `Color.rfBackground/…`, `Color(hex:)`, `RFButtonStyle`, `PlanPalette` |
 
 ### Tests (`ios/RoomFlowTests/`, Swift Testing)
@@ -93,12 +102,17 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | File | Covers |
 | --- | --- |
 | `RoomFlowTests.swift` | Smoke: sample room builds without LiDAR |
+| `ScanFocusHintTests.swift` | Display names (camelCase splitting, special cases) and message text (copy rules for 0/1+ photos, new angle, complete) |
+| `ObjectFocusTrackerTests.swift` | Dwell timing, movement rejection, edge-clipping, occlusion, angle diversity/cap, tracking loss, most-centered-object selection, preferring an incomplete object over a complete centered one |
 | `RoomPlanFileExportTests.swift` | File name, exact bytes, replace-only-own-file, bad directory |
-| `RoomArchiveStoreTests.swift` | Original bytes survive edits, no overwrite by a different scan, failed write keeps revision, photos + appearance saved, staging leftovers ignored |
-| `RoomEvidenceRecorderTests.swift` | Limits, busy drop, cancel/late completion, stale session, encode failure, tracking interruption, new-view policy |
+| `RoomArchiveStoreTests.swift` | Original bytes survive edits, no overwrite by a different scan, failed write keeps revision, photos + appearance saved, staging leftovers ignored; wall art saved with its photo and reloaded, no `wallArt.json` loads `[]`, missing photo clears `photoFileName`, `saveWallArt` replaces the list, unknown room throws |
+| `WallArtDetectorTests.swift` | Flush and standoff measurement, uneven/behind/far-in-front depth, off-wall/small/near-floor/TV-shaped rejections, door and detected-TV overlap, spanning walls, portrait (camera rolled ±90°) measures width/height and upper-left corner in room orientation, portrait 16:9 → `likelyTV` |
+| `WallArtTrackerTests.swift` | Grouping by position/normal, `sightingCount(group:)`, confirmation needs 3 sightings + camera spread, attach to nearest containing wall, merging overlapping items, dropping groups far from any wall, `WallArtItem` round-trip |
+| `RoomEvidenceRecorderTests.swift` | Limits, busy drop, cancel/late completion, stale session, encode failure, tracking interruption (including `noteTrackingInterrupted`), new-view policy, focused shots (bypasses motion gate, busy/stale/lost-tracking refusal), thinning (ambient before focused, busiest-object trim), final selection (per-object coverage first, byte trim), old archives decode without `focusObjectId` |
 | `RoomEvidenceProjectorTests.swift` | Center, rotation, non-square, behind camera, near plane, clipping, outside, non-finite, orientation independence, associations |
 | `RoomEvidenceSelectionTests.swift` | Exclusion, geometry-only, label beside geometry, reload |
 | `RoomPackageExportTests.swift` | Byte-identical raw, selection controls photos, geometry-only, hashes vs. independent unzip (`ZipReader`), invalid paths, archive failure, fresh package |
+| `PhotoCoverageTests.swift` | Covered/missing counts, excluded photos don't count, user labels name missing items, objects without a `sourceId` are ignored, one-item and all-covered summaries |
 
 ## Web (`web/`, owned by Yash)
 

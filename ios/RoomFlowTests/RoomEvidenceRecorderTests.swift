@@ -165,6 +165,24 @@ struct RoomEvidenceRecorderTests {
         #expect(photos[1].trackingContinuous == true)
     }
 
+    @Test func noteTrackingInterruptedMarksCandidatesUncertain() async throws {
+        let root = makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let recorder = RoomEvidenceRecorder(encoder: FakeEncoder(), rootDirectory: root)
+        let session = UUID()
+        recorder.start(sessionID: session)
+
+        recorder.consider(snapshot: frame(time: 0, x: 0), sessionID: session) { image() }
+        await recorder.waitUntilIdle()
+
+        recorder.noteTrackingInterrupted(sessionID: UUID()) // stale session: ignored
+        recorder.noteTrackingInterrupted(sessionID: session)
+
+        let photos = try await recorder.finish(sessionID: session)
+        #expect(photos.count == 1)
+        #expect(photos[0].trackingContinuous == false)
+    }
+
     @Test func smallMovementsAreNotNewViews() {
         let policy = PhotoCandidatePolicy()
         let start = frame(time: 0, x: 0).cameraToWorld
@@ -172,5 +190,101 @@ struct RoomEvidenceRecorderTests {
         #expect(policy.isNewView(frame(time: 1, x: 0.3).cameraToWorld, since: start))
         let turned = simd_float4x4(simd_quatf(angle: 20 * .pi / 180, axis: [0, 1, 0]))
         #expect(policy.isNewView(turned, since: matrix_identity_float4x4))
+    }
+
+    /// A finished photo record for policy tests (no files involved).
+    private func photo(_ time: TimeInterval, focus: UUID? = nil, bytes: Int = 1_000) -> RoomPhotoEvidence {
+        var p = RoomPhotoEvidence(id: UUID(), sessionID: UUID(), timestamp: time, pixelWidth: 64, pixelHeight: 48,
+                                  cameraToWorld: RoomPhotoEvidence.columnMajor(matrix_identity_float4x4),
+                                  intrinsics: RoomPhotoEvidence.columnMajor(matrix_identity_float3x3),
+                                  trackingContinuous: true, byteCount: bytes)
+        p.focusObjectId = focus
+        return p
+    }
+
+    @Test func focusedShotIgnoresMotionGateButNotBusyEncoder() async throws {
+        let root = makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let gate = DispatchSemaphore(value: 0)
+        let recorder = RoomEvidenceRecorder(encoder: FakeEncoder(gate: gate), rootDirectory: root)
+        let session = UUID(), sofa = UUID()
+        recorder.start(sessionID: session)
+
+        #expect(recorder.captureFocused(snapshot: frame(time: 0, x: 0), objectId: sofa, sessionID: session) { image() })
+        // Encoder still busy: refused, so the caller must not count it.
+        #expect(!recorder.captureFocused(snapshot: frame(time: 0.1, x: 0), objectId: sofa, sessionID: session) { image() })
+        gate.signal()
+        await recorder.waitUntilIdle()
+        // Same pose 0.2 s later: the ambient path would refuse (interval + no new view); focused accepts.
+        #expect(recorder.captureFocused(snapshot: frame(time: 0.2, x: 0), objectId: sofa, sessionID: session) { image() })
+        gate.signal()
+        await recorder.waitUntilIdle()
+
+        let photos = try await recorder.finish(sessionID: session)
+        #expect(photos.count == 2)
+        #expect(photos.allSatisfy { $0.focusObjectId == sofa })
+    }
+
+    @Test func focusedShotRefusedForStaleSessionOrLostTracking() {
+        let root = makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let recorder = RoomEvidenceRecorder(encoder: FakeEncoder(), rootDirectory: root)
+        let session = UUID()
+        recorder.start(sessionID: session)
+        #expect(!recorder.captureFocused(snapshot: frame(time: 0, x: 0), objectId: UUID(), sessionID: UUID()) { image() })
+        #expect(!recorder.captureFocused(snapshot: frame(time: 0, x: 0, tracking: false), objectId: UUID(), sessionID: session) { image() })
+        #expect(!recorder.captureFocused(snapshot: frame(time: 0, x: 0), objectId: UUID(), sessionID: session) { nil })
+    }
+
+    @Test func thinningDropsAmbientBeforeFocused() {
+        var policy = PhotoCandidatePolicy()
+        policy.maxCandidates = 6
+        let a = UUID(), b = UUID()
+        let focused = [photo(1, focus: a), photo(2, focus: a), photo(3, focus: b)]
+        let ambient = (10..<14).map { photo(Double($0)) }
+        let (kept, dropped) = policy.thin(focused + ambient)
+        #expect(kept.count <= 6)
+        #expect(Set(focused.map(\.id)).isSubset(of: Set(kept.map(\.id))))
+        #expect(!dropped.isEmpty && dropped.allSatisfy { $0.focusObjectId == nil })
+    }
+
+    @Test func thinningWithOnlyFocusedTrimsBusiestObject() {
+        var policy = PhotoCandidatePolicy()
+        policy.maxCandidates = 3
+        let a = UUID(), b = UUID()
+        let (kept, dropped) = policy.thin([photo(1, focus: a), photo(2, focus: a), photo(3, focus: a), photo(4, focus: b)])
+        #expect(kept.count == 3)
+        #expect(kept.contains { $0.focusObjectId == b })
+        #expect(dropped.map(\.timestamp) == [3])
+    }
+
+    @Test func finalSelectionCoversEveryObjectFirst() {
+        var policy = PhotoCandidatePolicy()
+        policy.maxPhotos = 4
+        let objects = (0..<3).map { _ in UUID() }
+        let focused = objects.enumerated().flatMap { index, id in
+            (0..<3).map { photo(Double(index * 3 + $0), focus: id) }
+        }
+        let ambient = (20..<30).map { photo(Double($0)) }
+        let chosen = policy.selectFinal(focused + ambient)
+        #expect(chosen.count == 4)
+        #expect(Set(chosen.compactMap(\.focusObjectId)) == Set(objects))
+        #expect(chosen.map(\.timestamp) == chosen.map(\.timestamp).sorted())
+    }
+
+    @Test func byteTrimRemovesAmbientBeforeLosingAnObject() {
+        var policy = PhotoCandidatePolicy()
+        policy.maxTotalBytes = 3_000
+        let a = UUID(), b = UUID()
+        let chosen = policy.selectFinal([photo(1, focus: a), photo(2, focus: b), photo(3, bytes: 2_000), photo(4)])
+        #expect(chosen.map(\.byteCount).reduce(0, +) <= 3_000)
+        #expect(Set(chosen.compactMap(\.focusObjectId)) == [a, b])
+    }
+
+    @Test func oldArchivesDecodeWithoutFocusObject() throws {
+        var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(photo(1))) as! [String: Any]
+        json.removeValue(forKey: "focusObjectId")
+        let decoded = try JSONDecoder().decode(RoomPhotoEvidence.self, from: JSONSerialization.data(withJSONObject: json))
+        #expect(decoded.focusObjectId == nil)
     }
 }
