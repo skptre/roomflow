@@ -1,7 +1,7 @@
 import { Select } from '@react-three/postprocessing'
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { memo, useEffect, useRef, useState } from 'react'
-import type { Group } from 'three'
+import { Mesh, type Group, type Intersection, type Raycaster } from 'three'
 import { checkPlacement, collisions, type PlacementCheck } from '../domain/commands'
 import { isWallHung } from '../domain/categories'
 import { isRaised } from '../domain/geometry'
@@ -24,6 +24,18 @@ const LIFT = 0.015
 const DRAG_SLOP = 4
 const SNAP = Math.PI / 36 // 5°
 const SNAP_COARSE = Math.PI / 12 // 15° with Shift
+/** Draw order for the rotate ring: after furniture, rugs, and outlines. */
+const HANDLE_RENDER_ORDER = 10
+
+/**
+ * Raycast that reports every hit at distance 0, so a handle wins R3F's
+ * nearest-first event order even when a rug or other furniture sits above it.
+ */
+function raycastOnTop(this: Mesh, raycaster: Raycaster, intersects: Intersection[]) {
+  const start = intersects.length
+  Mesh.prototype.raycast.call(this, raycaster, intersects)
+  for (const hit of intersects.slice(start)) hit.distance = 0
+}
 
 type FurnitureObjectProps = {
   object: RoomObject
@@ -283,9 +295,11 @@ export const FurnitureObject = memo(function FurnitureObject({
       ) : null}
       {selected && editable && !object.lockPlacement && !isWallHung(object) ? (
         <group>
+          {/* Wide invisible grab band; the visible ring stays thin. */}
           <mesh
             rotation-x={-Math.PI / 2}
             position-y={0.006}
+            raycast={raycastOnTop}
             onPointerDown={(event) => beginGesture(event, 'rotate')}
             onPointerOver={(event) => {
               event.stopPropagation()
@@ -295,13 +309,17 @@ export const FurnitureObject = memo(function FurnitureObject({
               if (!gesture.current) document.body.style.cursor = ''
             }}
           >
+            <ringGeometry args={[ringRadius - 0.07, ringRadius + 0.07, 64]} />
+            <meshBasicMaterial transparent opacity={0} depthWrite={false} depthTest={false} />
+          </mesh>
+          <mesh rotation-x={-Math.PI / 2} position-y={0.006} renderOrder={HANDLE_RENDER_ORDER} raycast={() => null}>
             <ringGeometry args={[ringRadius - 0.02, ringRadius + 0.02, 64]} />
-            <meshBasicMaterial color={palette.selection} transparent opacity={0.75} depthWrite={false} />
+            <meshBasicMaterial color={palette.selection} transparent opacity={0.75} depthWrite={false} depthTest={false} />
           </mesh>
           {/* Knob on the front (+Z) side shows which way the object faces. */}
-          <mesh position={[0, 0.02, ringRadius]}>
+          <mesh position={[0, 0.02, ringRadius]} renderOrder={HANDLE_RENDER_ORDER} raycast={() => null}>
             <sphereGeometry args={[0.035, 16, 12]} />
-            <meshBasicMaterial color={palette.selection} />
+            <meshBasicMaterial color={palette.selection} depthTest={false} />
           </mesh>
         </group>
       ) : null}

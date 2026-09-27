@@ -1,5 +1,9 @@
 # Changelog
 
+### 2026-09-27 — web: rotate ring sits above everything
+
+- `web/src/scene/FurnitureObject.tsx`: the selected object's rotate ring and knob draw with `depthTest` off at `HANDLE_RENDER_ORDER`, so a bed, rug or wall never hides them. A wider invisible grab band uses new `raycastOnTop` (every hit reported at distance 0), so the ring wins pointer events over furniture drawn above it; before, a rug or neighbor caught the press and the ring couldn't be grabbed.
+
 ### 2026-09-27 — web: dragging in the room no longer selects text
 
 - `web/src/index.css`: `.room-stage` and `.welcome-room` are `user-select: none`, so a drag to orbit or move furniture never starts a text selection over the hint, hover tags or notices.
