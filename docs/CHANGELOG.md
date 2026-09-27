@@ -3,6 +3,34 @@
 Newest first. Append an entry after every code change (what changed, why, where); never edit older entries.
 Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/changed functions.
 
+## 2026-09-27
+
+### Web: built-in closets as closet doors; wall art from the package
+- Agreed contract change (user, on Yash's behalf: "Closet doors in the wall; add wall art to the package and show it
+  on the web walls — Yash accepts."): `docs/contracts/room-import.md` gains the closet rule and wall art.
+- `web/src/import/roomplan.ts`: a `storage` with depth < 0.10 m and height ≥ 1.2 m becomes a `closet` (name 'Closet',
+  `lockPlacement: true`, depth 0.04 m visual, flush on the inside face of its wall, facing in); doors on that wall with
+  ≥ 50 % of their width inside the closet are dropped from `openings`, so the wall stays solid; warning "Built-in closet
+  shown as closet doors." New private helpers `isBuiltInCloset`, `closetOnWall`, `isClosetDoor`. Zero-depth closet fronts
+  are no longer skipped as "no size".
+- `web/src/domain/categories.ts`: new `closet` category (assembly `closet-front`, mount `wall`, `mountHeight` 0,
+  `builtIn`); new `CategoryInfo.builtIn`, new `isWallMounted(object)`. `web/src/ui/CatalogPanel.tsx` hides built-in
+  categories from the category filter.
+- `web/src/domain/layout.ts`: `inwardNormal` is now exported and takes `Pick<Room, 'floorPolygon'>` (the importer reuses it).
+- `web/src/fixtures/assemblies/decor.ts`: new `closetFront` assembly (frame, two doors with inset panels, brass
+  handles, dark reveal), registered in `index.ts`.
+- `web/src/scene/RoomScene.tsx`: anything wall-mounted (`isWallMounted`, any height) hides with its cut-away wall;
+  `isWallHung` (drag/rotate rules) is unchanged. Floor mirrors leaning on a cut wall now hide too.
+- `web/src/import/roomflowPackage.ts`: optional `wallArt.json` + `art/<uuid>.jpg` (checksummed); items validated per
+  `.superpowers/sdd/wall-art-package/format.md` and added as locked `wall-art` objects (`wallArtObject`, `readWallArt`);
+  malformed file or items → warning, import continues. `PackageEvidence.artPhotos` (new).
+- `web/src/ui/evidenceStore.ts`: `artPhotoFor(objectId)`. New `web/src/scene/ArtPhoto.tsx` (`ArtPhoto`): the art's
+  photo on its front face, drawn by `FurnitureObject.tsx`; texture and object URL released on change/unmount.
+- Tests: `roomplan.test.ts` (+5 closet tests), `roomflowPackage.test.ts` (+6 wall-art tests; package builder gains
+  `wallArt`/`withArtPhoto`).
+- Why: the real scan (5FB2703A…) drew a built-in closet as a zero-depth dresser slab in a framed door opening that
+  stood alone in the cutaway; the phone now measures wall art and the web had nowhere to show it.
+
 ## 2026-09-26
 
 ### Web: imported floor uses the color the phone measured

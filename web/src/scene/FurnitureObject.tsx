@@ -10,6 +10,7 @@ import type { RoomObject, Vec2 } from '../domain/schema'
 import { normalizeYaw } from '../domain/units'
 import { moveObject, refuseLockedMove, rotateObject } from '../ui/editorActions'
 import { noticeStore } from '../ui/noticeStore'
+import { ArtPhoto } from './ArtPhoto'
 import { AssetView } from './AssetView'
 import { floorPoint, yawOf } from './floorPointer'
 import { gestureOutcome } from './gesture'
@@ -280,6 +281,7 @@ export const FurnitureObject = memo(function FurnitureObject({
             onClick={handleClick}
           >
             <AssetView asset={object.asset} dimensions={object.dimensions} />
+            {object.category === 'wall-art' ? <ArtPhoto objectId={object.id} dimensions={object.dimensions} /> : null}
           </group>
         </Select>
         {(hovered || selected) && !feedback ? <HoverTag object={object} sources={sources} /> : null}

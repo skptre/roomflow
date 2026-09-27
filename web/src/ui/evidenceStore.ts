@@ -13,6 +13,8 @@ type EvidenceState = {
   set: (roomId: string, evidence: PackageEvidence | null) => void
   /** Photo regions for a captured object, paired with their photos, best (largest region) first. */
   regionsFor: (objectId: string) => Array<{ region: PhotoRegion; photo: PackagePhoto }>
+  /** The straight-on photo of a piece of wall art (object id = art id), or null when none was shared. */
+  artPhotoFor: (objectId: string) => Blob | null
 }
 
 export const evidenceStore = createStore<EvidenceState>()((set, get) => ({
@@ -29,5 +31,8 @@ export const evidenceStore = createStore<EvidenceState>()((set, get) => ({
       .filter((region) => region.sourceId === objectId && photos.has(region.photoId))
       .map((region) => ({ region, photo: photos.get(region.photoId)! }))
       .sort((a, b) => b.region.rect[2] * b.region.rect[3] - a.region.rect[2] * a.region.rect[3])
+  },
+  artPhotoFor(objectId) {
+    return get().evidence?.artPhotos.find((photo) => photo.artId === objectId)?.blob ?? null
   },
 }))

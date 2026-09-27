@@ -138,7 +138,7 @@ export function CatalogPanel({
           onChange={(event) => changeFilter(() => setCategory(event.target.value))}
         >
           <option value="">Every corner of the room</option>
-          {Object.entries(CATEGORIES).map(([id, info]) => (
+          {Object.entries(CATEGORIES).filter(([, info]) => !info.builtIn).map(([id, info]) => (
             <option key={id} value={id}>
               {info.label}
             </option>

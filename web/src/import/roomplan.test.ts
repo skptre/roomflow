@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { isWallHung, isWallMounted } from '../domain/categories'
 import { footprintBounds } from '../domain/geometry'
+import { hostWall } from '../domain/layout'
 import { Room } from '../domain/schema'
 import fixtureText from '../fixtures/synthetic-bedroom.roomplan.json?raw'
 import { MAX_IMPORT_BYTES, MAX_IMPORT_OBJECTS, MAX_IMPORT_WALLS, parseRoomPlanJson } from './roomplan'
@@ -369,5 +371,67 @@ describe('parseRoomPlanJson — floor outline without a closed wall loop', () =>
       }),
     )
     expect(areaOf(result.room.floorPolygon)).toBeCloseTo(areaOf(closed.room.floorPolygon), 3)
+  })
+})
+
+describe('parseRoomPlanJson — built-in closets', () => {
+  const WEST = [0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, 0] // local X along the west wall, local Z into the room
+  /** The fixture plus a closet front on the west wall (RoomPlan: tall storage, no depth) and its door. */
+  function withCloset(depth = 0.004) {
+    return mutate((raw) => {
+      raw.objects.push({ identifier: 'OBJ-CLOSET', category: { storage: {} }, confidence: { high: {} }, dimensions: [1.3, 2.2, depth], transform: [...WEST, 1.2, -0.3, 2.5, 1] })
+      raw.doors.push(
+        { identifier: 'DOOR-CLOSET', category: { door: { isOpen: false } }, dimensions: [1.1, 2.05, 0], transform: [...WEST, 1.2, -0.375, 2.45, 1], parentIdentifier: 'WALL-D-WEST' },
+        // Only 5 cm of this door's 80 cm lies within the closet: a real passage.
+        { identifier: 'DOOR-PASSAGE', category: { door: { isOpen: false } }, dimensions: [0.8, 2.05, 0], transform: [...WEST, 1.2, -0.375, 3.5, 1], parentIdentifier: 'WALL-D-WEST' },
+      )
+    })
+  }
+
+  it('turns a tall, depthless storage into closet doors flush on the inside of its wall', () => {
+    const { room, warnings } = load(withCloset())
+    const closets = room.objects.filter((o) => o.category === 'closet')
+    expect(closets).toHaveLength(1)
+    const closet = closets[0]!
+    expect(closet).toMatchObject({ id: 'OBJ-CLOSET', name: 'Closet', keep: true, lockPlacement: true, asset: { kind: 'parametric', assemblyId: 'closet-front' } })
+    expect(closet.dimensions).toMatchObject({ width: 1.3, height: 2.2, depth: 0.04, source: 'captured' })
+    // West wall is at app x = -2; the back touches it and the front faces +x (into the room).
+    expect(closet.pose.position.x).toBeCloseTo(-2 + 0.02 + 0.002, 4)
+    expect(closet.pose.position.y).toBe(0)
+    expect(closet.pose.position.z).toBeCloseTo(0.05, 4)
+    expect(closet.pose.yaw).toBeCloseTo(Math.PI / 2, 6)
+    expect(hostWall(room, closet)).toBe('WALL-D-WEST')
+    expect(warnings).toContain('Built-in closet shown as closet doors.')
+  })
+
+  it('removes the closet door so the wall stays solid, and keeps doors that are real passages', () => {
+    const ids = load(withCloset()).room.openings.map((o) => o.id)
+    expect(ids).not.toContain('DOOR-CLOSET')
+    expect(ids).toEqual(expect.arrayContaining(['DOOR-1', 'DOOR-PASSAGE', 'WINDOW-1']))
+  })
+
+  it('accepts a closet front with exactly zero depth', () => {
+    expect(load(withCloset(0)).room.objects.some((o) => o.id === 'OBJ-CLOSET' && o.category === 'closet')).toBe(true)
+  })
+
+  it('keeps ordinary storage (low, or tall and deep) as storage furniture', () => {
+    const text = mutate((raw) => {
+      raw.objects.push({ identifier: 'OBJ-WARDROBE', category: { storage: {} }, dimensions: [1.0, 2.0, 0.6], transform: [...WEST, 1.6, -0.4, 2.5, 1] })
+    })
+    const { room, warnings } = load(text)
+    for (const id of ['OBJ-STORAGE', 'OBJ-WARDROBE']) {
+      const object = room.objects.find((o) => o.id === id)!
+      expect(object.category).toBe('storage')
+      expect(object.asset).toEqual({ kind: 'parametric', assemblyId: 'dresser' })
+      expect(object.lockPlacement).toBe(false)
+    }
+    expect(warnings.join(' ')).not.toMatch(/closet/)
+  })
+
+  it('goes with its wall in the cutaway, but still counts as floor-standing for dragging rules', () => {
+    const closet = load(withCloset()).room.objects.find((o) => o.category === 'closet')!
+    expect(isWallMounted(closet)).toBe(true)
+    expect(isWallHung(closet)).toBe(false)
+    expect(isWallMounted({ category: 'bed' })).toBe(false)
   })
 })
