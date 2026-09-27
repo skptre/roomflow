@@ -156,6 +156,13 @@ function categoryName(category: RawSurface['category']): string | undefined {
   return Object.keys(category)[0]
 }
 
+/** RoomPlan's door category carries whether the door was open: { "door": { "isOpen": true } }. */
+function doorIsOpen(category: RawSurface['category']): boolean {
+  if (typeof category !== 'object' || category === null || !Object.hasOwn(category, 'door')) return false
+  const door = (category as Record<string, unknown>).door
+  return typeof door === 'object' && door !== null && (door as { isOpen?: unknown }).isOpen === true
+}
+
 function isLowConfidence(confidence: unknown): boolean {
   return (
     confidence === 'low' ||
@@ -370,9 +377,8 @@ function closetOnWall(
         // Local +Z (the front) turns to (sin yaw, cos yaw): face along the inward normal.
         yaw: Math.atan2(normal.x, normal.z),
       },
-      // RoomPlan sees only the closet door plane; it is too thin to safely
-      // feed into a furniture recipe, so retain the measured front as a box.
-      asset: { kind: 'placeholder' },
+      // RoomPlan sees only the closet door plane: drawn as door leaves in a trim frame at that size.
+      asset: recipeAsset('closet'),
       fidelity: 'approximate',
       quantity: 1,
       keep: true,
@@ -510,6 +516,7 @@ export function parseRoomPlanJson(text: string, options: ImportOptions = {}): Im
         bottom: Math.max(0, segment.bottom - floorY),
         width,
         height,
+        ...(kind === 'door' && doorIsOpen(surface.category) ? { open: true } : {}),
       })
     }
   }

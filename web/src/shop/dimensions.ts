@@ -216,12 +216,16 @@ export function reestimate(size: Dimensions, from: { width: number; height: numb
   return { width: axis('width'), height: axis('height'), depth: axis('depth'), source: 'estimated' }
 }
 
-/** A full size for the app: listed axes win; any axis filled from `typical` makes the whole size estimated. */
-export function completeDimensions(listed: ListedSize | null, typical: { width: number; height: number; depth: number }): Dimensions {
+/**
+ * A full size for the app: listed axes win; any axis filled from `typical` makes the whole size
+ * estimated — except `nominal` axes, a thickness no store lists for flat things (a print's frame,
+ * a rug's pile, a curtain panel), whose listed face size is the size.
+ */
+export function completeDimensions(listed: ListedSize | null, typical: { width: number; height: number; depth: number }, nominal: readonly Axis[] = []): Dimensions {
   const width = listed?.width
   const height = listed?.height
   const depth = listed?.depth
-  const complete = width !== undefined && height !== undefined && depth !== undefined
+  const complete = (['width', 'height', 'depth'] as const).every((axis) => listed?.[axis] !== undefined || nominal.includes(axis))
   return {
     width: width ?? typical.width,
     height: height ?? typical.height,
