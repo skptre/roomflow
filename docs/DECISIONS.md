@@ -2,6 +2,10 @@
 
 Non-obvious tradeoffs, each with the alternative that was rejected. Routine "only way to do it" changes don't belong here.
 
+## Room summaries go only to an attested paid Gemini project, resolved lazily
+
+`createAiContext` refuses every private input class (room summaries as well as user photos) unless the call is consented and `GEMINI_PAID_PROJECT=true`, matching the photo-recognition route's billing attestation, because free-tier projects may retain prompts for product improvement. The room-design route resolves `openAi()` on its first valid request instead of when the Vite plugin is built, so `vite build` and tests never read settings or open the ledger file. Rejected: gating only in the room-design route (a second, divergent privacy check) and eager `openAi()` at plugin construction (creates `.data/` and reads the ledger during every build).
+
 ## Partial room-design proposals explain every skipped change
 
 The resolver accepts each safe command against a working room and returns a visible reason when a requested change cannot fit, has no confirmed in-stock catalog entry, or violates a user constraint. With a budget, new choices require a known price in that currency; existing unknown-priced purchases still make the resulting budget status unknown. Existing placements retain their known offer price even after that offer loses stock status. Rejected: discarding the entire design on one impossible request or treating a missing price as zero.
