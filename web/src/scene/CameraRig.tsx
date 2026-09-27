@@ -9,6 +9,8 @@ import { roomSphere } from './roomBounds'
 const ELEVATION = (40 * Math.PI) / 180
 const AZIMUTH = (35 * Math.PI) / 180
 const MARGIN = 1.08
+/** Hero framing: the whole room, walls included, stays inside the landing canvas. */
+const HERO_MARGIN = 1.02
 
 export type ViewRequest = { action: 'home' | 'top' | 'zoom-in' | 'zoom-out' | 'left' | 'right'; sequence: number }
 
@@ -52,7 +54,7 @@ export function CameraRig({ room, onViewChange, viewRequest, framing = 'editor',
     const aspect = sizeRef.current.width / Math.max(1, sizeRef.current.height)
     const vFov = (camera.fov * Math.PI) / 180
     const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect)
-    const distance = (radius / Math.sin(Math.min(vFov, hFov) / 2)) * (framing === 'hero' ? 0.9 : MARGIN)
+    const distance = (radius / Math.sin(Math.min(vFov, hFov) / 2)) * (framing === 'hero' ? HERO_MARGIN : MARGIN)
     camera.position.set(
       center[0] + distance * Math.cos(ELEVATION) * Math.sin(AZIMUTH),
       center[1] + distance * Math.sin(ELEVATION),

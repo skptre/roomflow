@@ -1,5 +1,9 @@
 # Changelog
 
+### 2026-09-27 — web: landing room fits its frame
+
+- `web/src/scene/CameraRig.tsx`: new `HERO_MARGIN` (1.02) replaces the 0.9 hero fit factor. At 0.9 the camera sat inside the fitted distance, so the landing canvas clipped the tops of the walls; now the whole room shows on desktop and phone widths.
+
 ### 2026-09-27 — web: softer room interactions and relevant browse results
 
 - `HeroBed.tsx`: the landing bed now floats up while fading to its dashed outline, then settles back; bed materials are cloned and disposed so the animation cannot fade furniture in the editor.
