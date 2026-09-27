@@ -61,8 +61,8 @@ describe('normalizeProduct', () => {
     expect(a!.dimensions.width).toBeCloseTo(50 * IN, 6)
     expect(a!.dimensions.height).toBeCloseTo(84 * IN, 6)
     expect(b!.dimensions.height).toBeCloseTo(96 * IN, 6)
-    // Panel thickness is not listed, so the size as a whole is an estimate.
-    expect(a!.dimensions.source).toBe('estimated')
+    // Width and length are the listed size; a panel's thickness is never listed and doesn't make it an estimate.
+    expect(a!.dimensions.source).toBe('merchant')
   })
 
   it('reads print sizes per variant, turned landscape for a horizontal print', () => {
@@ -74,6 +74,18 @@ describe('normalizeProduct', () => {
     expect(product.variants[0]!.price).toEqual({ amountMinor: 2900, currency: 'USD' })
     // 14 in = 0.35559999999999997 in floating point; stored to the micrometer instead.
     expect(product.variants[1]!.dimensions.width).toBe(0.3556)
+    // The listed print size is the size; only the unlisted frame thickness is assumed.
+    expect(product.variants[0]!.dimensions.source).toBe('merchant')
+  })
+
+  it('drops digital-download variants: there is nothing to hang', () => {
+    const src = structuredClone(fixtures.artPrint)
+    src.options = [...src.options.slice(0, 1).map((o) => ({ ...o, values: [...o.values, 'Digital Download'] })), ...src.options.slice(1).map((o) => ({ ...o, values: [...o.values, 'Digital'] }))]
+    src.variants = [...src.variants, { ...src.variants[0]!, id: 999, title: 'Digital Download / Digital', option1: 'Digital Download', option2: 'Digital', price: '20.00' }]
+    const product = normalized(src, 'juniperprintshop.com')
+    expect(product.variants.map((v) => v.optionValues.join(' / '))).toEqual(['Paper / 8x10', 'Paper / 11x14', 'Paper / 12x18'])
+    src.variants = [src.variants.at(-1)!]
+    expect(normalizeProduct(raw(src), store('juniperprintshop.com'))).toEqual({ excluded: 'digital-only' })
   })
 
   it('keeps a print portrait unless the store files it as horizontal', () => {

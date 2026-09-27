@@ -65,6 +65,8 @@ export const Opening = z.object({
   bottom: z.number().nonnegative(),
   width: PositiveMeters,
   height: PositiveMeters,
+  /** Doors only: whether the door stood open when scanned (drawn swung into the room). Absent = closed. */
+  open: z.boolean().optional(),
 })
 export type Opening = z.infer<typeof Opening>
 

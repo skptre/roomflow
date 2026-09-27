@@ -148,6 +148,12 @@ describe('completeDimensions', () => {
     expect(completeDimensions({ width: 2.2 }, typical)).toEqual({ width: 2.2, depth: 0.9, height: 0.85, source: 'estimated' })
     expect(completeDimensions(null, typical)).toEqual({ ...typical, source: 'estimated' })
   })
+
+  it('a thickness no store lists (a print, a rug) does not make a listed face size an estimate', () => {
+    const print = { width: 0.6, height: 0.8, depth: 0.04 }
+    expect(completeDimensions({ width: 0.254, height: 0.2032 }, print, ['depth'])).toEqual({ width: 0.254, height: 0.2032, depth: 0.04, source: 'merchant' })
+    expect(completeDimensions({ width: 0.254 }, print, ['depth'])).toMatchObject({ source: 'estimated' })
+  })
 })
 
 describe('reestimate', () => {

@@ -1,7 +1,7 @@
 # Catalog harvest report
 
-Retrieved 2026-09-26T19:28:27.651Z (earliest store) from 17 stores' public product feeds. 2246 products, 24426 variants,
-chosen from 11251 room-ready listings: at most 30 per store and category, one of each design before a second.
+Retrieved 2026-09-26T19:28:27.651Z (earliest store) from 17 stores' public product feeds. 2246 products, 24396 variants,
+chosen from 11248 room-ready listings: at most 30 per store and category, one of each design before a second.
 Prices are what each store listed at that time (USD). Unknown prices are shown as unknown, never zero.
 Loloi's feed lists placeholder prices (99999.00), so its offers are unknown-price.
 
@@ -37,14 +37,14 @@ Loloi's feed lists placeholder prices (99999.00), so its offers are unknown-pric
 | Ottoman | 154 | 3284 | 6% | 100% | 98% |
 | Pillow | 154 | 460 | 0% | 82% | 79% |
 | Bed | 151 | 3363 | 1% | 100% | 98% |
-| Rug | 132 | 674 | 0% | 76% | 82% |
+| Rug | 132 | 674 | 89% | 76% | 82% |
 | Dining chair | 105 | 1118 | 2% | 100% | 99% |
 | Throw | 90 | 144 | 0% | 92% | 80% |
 | Bench | 86 | 784 | 3% | 100% | 98% |
 | Coffee table | 85 | 205 | 10% | 95% | 91% |
 | Side table | 81 | 147 | 20% | 100% | 92% |
 | Dining table | 77 | 165 | 4% | 100% | 90% |
-| Wall art | 73 | 832 | 0% | 96% | 99% |
+| Wall art | 73 | 802 | 94% | 96% | 99% |
 | Cabinet | 53 | 152 | 7% | 100% | 99% |
 | Nightstand | 51 | 258 | 0% | 99% | 94% |
 | Console | 49 | 82 | 7% | 100% | 95% |
@@ -54,7 +54,7 @@ Loloi's feed lists placeholder prices (99999.00), so its offers are unknown-pric
 | Decor | 38 | 79 | 0% | 100% | 84% |
 | Planter | 33 | 252 | 0% | 100% | 46% |
 | Floor lamp | 32 | 38 | 3% | 100% | 76% |
-| Curtain | 31 | 55 | 0% | 100% | 55% |
+| Curtain | 31 | 55 | 60% | 100% | 55% |
 | Vase | 30 | 38 | 0% | 100% | 84% |
 | Plant | 30 | 434 | 0% | 100% | 20% |
 | Mirror | 11 | 39 | 0% | 100% | 77% |
@@ -80,6 +80,7 @@ Variants beyond 100 per product were left out of the kept products: 914.
 - hardware: 83
 - bed-add-on: 45
 - rug-pad: 6
+- digital-only: 3
 
 Most common unmapped product types:
 

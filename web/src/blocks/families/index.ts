@@ -1,15 +1,21 @@
 /** Registry of block families and the sizes each is checked (and shown) at. */
 import type { Family, Size } from '../family'
+import { appliance, fridge, tv } from './appliance'
 import { bed } from './bed'
 import { art, curtain, mirror, pillow, planter, rug, throwBlanket, vase } from './decor'
 import { diningChair } from './diningChair'
+import { bathtub, closetDoors, fireplace, sink, stairs, toilet } from './fixture'
 import { lamp } from './lamp'
 import { chair, sofa } from './seating'
 import { storage } from './storage'
 import { table } from './table'
 
 /** Authoring order follows the plan (most-used first). */
-const all: Family[] = [sofa, bed, table, storage, chair, lamp, planter, rug, art, curtain, pillow, mirror, vase, diningChair, throwBlanket]
+const all: Family[] = [
+  sofa, bed, table, storage, chair, lamp, planter, rug, art, curtain, pillow, mirror, vase, diningChair, throwBlanket,
+  // Scanned appliances and fixtures (RoomPlan categories with no store listings).
+  fridge, tv, appliance, sink, toilet, bathtub, fireplace, stairs, closetDoors,
+]
 
 export const FAMILIES: Readonly<Record<string, Family>> = Object.fromEntries(all.map((family) => [family.id, family]))
 
@@ -36,4 +42,13 @@ export const FAMILY_SAMPLES: Readonly<Record<string, Size[]>> = {
   vase: [size(0.18, 0.3, 0.18), size(0.3, 0.2, 0.3), size(0.1, 0.35, 0.1)],
   'dining-chair': [size(0.46, 0.82, 0.52), size(0.42, 0.66, 0.42), size(0.62, 1.0, 0.62), size(0.45, 1.0, 0.48)],
   throw: [size(0.4, 0.08, 0.3), size(0.5, 0.18, 0.18)],
+  fridge: [size(0.76, 1.75, 0.74), size(0.91, 1.78, 0.8), size(0.48, 0.85, 0.5), size(0.6, 1.5, 0.65)],
+  tv: [size(1.23, 0.71, 0.06), size(1.45, 0.9, 0.3), size(0.72, 0.45, 0.18)],
+  appliance: [size(0.76, 0.92, 0.66), size(0.76, 1.12, 0.7), size(0.6, 0.86, 0.6), size(0.69, 1.9, 0.76)],
+  sink: [size(0.9, 0.86, 0.55), size(0.5, 0.85, 0.45), size(1.8, 0.9, 0.6), size(0.6, 0.2, 0.45)],
+  toilet: [size(0.4, 0.78, 0.7), size(0.38, 0.72, 0.6)],
+  bathtub: [size(1.52, 0.55, 0.76), size(1.7, 0.6, 0.8)],
+  fireplace: [size(1.3, 1.1, 0.4), size(1.8, 1.3, 0.5), size(0.9, 0.9, 0.3)],
+  stairs: [size(1.0, 2.6, 3.0), size(0.9, 0.9, 0.8)],
+  'closet-doors': [size(1.2, 2.1, 0.04), size(2.4, 2.4, 0.04), size(0.6, 2.0, 0.6)],
 }
