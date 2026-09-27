@@ -37,8 +37,6 @@ const DEFAULTS: Readonly<Record<string, Shape>> = {
   planter: { family: 'planter', blocks: { plant: 'none' }, params: {} },
   'wall-art': { family: 'art', blocks: {}, params: {} },
   mirror: { family: 'mirror', blocks: {}, params: {} },
-  // A RoomPlan closet is only its visible door plane; the true built-in depth is unknown.
-  closet: { family: 'storage', blocks: { layout: 'doors', handles: 'bar', base: 'plinth' }, params: {} },
   vase: { family: 'vase', blocks: {}, params: {} },
   'decor-object': { family: 'vase', blocks: { profile: 'sphere' }, params: {} },
   curtain: { family: 'curtain', blocks: {}, params: {} },
