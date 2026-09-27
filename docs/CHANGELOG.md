@@ -1,5 +1,9 @@
 # Changelog
 
+### 2026-09-27 — web: bounded Gemini room-designer contract
+
+Added `web/src/roomDesigner/contract.ts` and `contract.test.ts` to define the redacted, consented text request and strict intent-only model response. Public schemas/types are `RoomSummary`, `RoomDesignRequest`, `RoomDesignIntent`, and `RoomDesignResponse`; `ROOM_DESIGN_CATEGORIES`, `roomSummary`, and `parseRoomDesignIntent` bound categories, output size, planned count, identities, and duplicate references. This keeps scan evidence and purchase facts out of Gemini while leaving coordinate, catalog, and budget decisions to deterministic browser code.
+
 ### 2026-09-27 — integration: real catalog renderer with room capture
 
 Merged the demo-ready real-catalog branch into the Designer and native piece-import work. Existing RoomPlan furniture, wall art, Gemini appearance previews, and scanned pieces now use the validated recipe renderer (`web/src/blocks/`) alongside the real catalog. Built-in closet fronts remain measured placeholders because RoomPlan supplies only their thin door plane; an invalid recipe now also falls back to a visible size placeholder instead of blanking the canvas. The Vite server mounts both the price-refresh API and the local-only Gemini recognition endpoint. No scan evidence, prices, or preview-isolation rules changed.
