@@ -221,8 +221,12 @@ describe('readingsFrom and mergeGemini', () => {
       return mergeGemini({ product: art, trace: rulesTrace(art), answer: parsedArt.answer, images: artImages, readings: new Map(), model: 'm' }).recipe
     }
     expect(pick(3).image?.url).toBe(`${CDN}print-flat.jpg`)
+    expect(pick(3).blocks.frame).toBe('thin')
     expect(pick(0).image?.url).toBe(art.imageUrl)
     expect(pick(0).defaultColors?.canvas).toBe('#88aa99')
+    // The main photo shows the piece already framed: our frame and mat would frame it twice.
+    expect(pick(0).blocks).toMatchObject({ frame: 'none', mat: 'none' })
+    expect(pick(1).blocks).toMatchObject({ frame: 'none', mat: 'none' })
   })
 })
 
@@ -260,6 +264,50 @@ describe('mergeGemini — hardware', () => {
     const bed = product('floyd', 'bed', 'The Floyd Bed', ['Hardware Color'], [[['Black'], 'b.jpg'], [['White'], 'w.jpg']])
     const owned = valueImages(bed, 'bed')
     expect(owned).toEqual([])
+  })
+})
+
+describe('mergeGemini — storage case', () => {
+  const sideboard = product('mendelson', 'cabinet', 'Mendelson Sideboard', [], [[[], undefined]])
+  const family = getFamily('storage')!
+  const images = promptImages(sideboard, family, [], {})
+  const merge = (colors: Record<string, string>, unmatched: string[], layout = 'doors') => {
+    const parsed = parseAnswer(
+      { blocks: { layout, handles: 'none', base: 'legs', legStyle: 'straight' }, params: {}, materials: {}, colors, unmatched },
+      family,
+      sideboard,
+      images,
+    )
+    if (!parsed.ok) throw new Error(parsed.error)
+    return mergeGemini({ product: sideboard, trace: rulesTrace(sideboard), answer: parsed.answer, images, readings: new Map(), model: 'm' }).recipe.defaultColors
+  }
+  const light = { body: '#d5cabb', fronts: '#6b4528', handles: '#6b4528', base: '#774a2b' }
+
+  it('colors the case from the fronts when the reading saw a different top', () => {
+    expect(merge(light, ['vertical wood slats', 'microcement top'])?.body).toBe('#6b4528')
+  })
+
+  it('keeps a two-tone case, close colors, and open shelving as read', () => {
+    expect(merge(light, ['vertical wood slats'])?.body).toBe('#d5cabb')
+    expect(merge({ ...light, body: '#7a5030' }, ['marble top'])?.body).toBe('#7a5030')
+    expect(merge(light, ['marble top'], 'shelves')?.body).toBe('#d5cabb')
+  })
+})
+
+describe('mergeGemini — trays', () => {
+  it('a listing that says "tray" stays a tray, but the photo decides whether it is round', () => {
+    const tray = product('ottoman-tray', 'decor-object', 'Upholstered Ottoman Tray', [], [[[], undefined]])
+    const family = getFamily('vase')!
+    const images = promptImages(tray, family, [], {})
+    const trace = rulesTrace(tray)
+    expect(trace.recipe.blocks.profile).toBe('tray')
+    const merged = (profile: string) => {
+      const parsed = parseAnswer({ blocks: { profile }, params: {}, materials: {}, colors: { body: '#6b4a33' }, unmatched: [] }, family, tray, images)
+      if (!parsed.ok) throw new Error(parsed.error)
+      return mergeGemini({ product: tray, trace, answer: parsed.answer, images, readings: new Map(), model: 'm' }).recipe.blocks.profile
+    }
+    expect(merged('round-tray')).toBe('round-tray')
+    expect(merged('bowl')).toBe('tray')
   })
 })
 

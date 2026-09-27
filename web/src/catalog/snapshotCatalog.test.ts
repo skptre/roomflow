@@ -4,6 +4,7 @@ import { normalizeProduct } from '../shop/normalize'
 import { rulesRecipe } from '../shop/recipeRules'
 import fixtures from '../shop/__fixtures__/shopify-products.json'
 import { ShopifyProduct } from '../shop/shopify'
+import type { Recipe } from '../blocks/recipe'
 import type { Snapshot } from '../shop/snapshot'
 import { storeByDomain } from '../shop/stores'
 import { createCatalogStore, matchesSearch, pickVariant, SnapshotCatalogSource, snapshotEntries } from './snapshotCatalog'
@@ -191,6 +192,25 @@ describe('product recipes', () => {
     expect(entries[0]!.variant.asset).not.toHaveProperty('blocks')
     expect(entries[0]!.variant.asset).not.toHaveProperty('imageUrl')
     expect(entries[1]!.variant.asset).toMatchObject({ blocks: { shape: 'round' }, imageUrl: 'https://cdn.shopify.com/s/files/blue.jpg' })
+  })
+
+  it('give a chaise or L sofa without a listed size a sectional footprint, keeping listed axes and the estimate label', () => {
+    const typical = { width: 2.0, height: 0.85, depth: 0.9 }
+    const sized = (dimensions: Snapshot['products'][number]['variants'][number]['dimensions']) => ({
+      ...snapshot,
+      products: [{ ...sofaProduct, variants: sofaProduct.variants.map((v) => ({ ...v, dimensions })) }],
+    })
+    const chaise = new Map([[sofaProduct.id, { ...recipe, blocks: { ...recipe.blocks, shape: 'chaise-right' } }]])
+    const drawn = (dimensions: Parameters<typeof sized>[0], recipes: ReadonlyMap<string, Recipe>) => snapshotEntries(sized(dimensions), recipes)[0]!.variant.dimensions
+    expect(drawn({ ...typical, source: 'estimated' }, chaise)).toEqual({ width: 2.8, height: 0.85, depth: 1.7, source: 'estimated' })
+    // A listed width stays; only the depth that was filled in changes.
+    expect(drawn({ ...typical, width: 2.54, source: 'estimated' }, chaise)).toEqual({ width: 2.54, height: 0.85, depth: 1.7, source: 'estimated' })
+    // A merchant size and a straight sofa are untouched.
+    expect(drawn({ ...typical, source: 'merchant' }, chaise)).toEqual({ ...typical, source: 'merchant' })
+    expect(drawn({ ...typical, source: 'estimated' }, recipes)).toEqual({ ...typical, source: 'estimated' })
+    // A variant whose own option picks the chaise gets it too.
+    const byOption = new Map([[sofaProduct.id, { ...recipe, optionBlocks: { 'Arm Style': { Block: { shape: 'L-left' } } } }]])
+    expect(drawn({ ...typical, source: 'estimated' }, byOption).depth).toBe(1.7)
   })
 
   it('tag each variant with the moods its drawn colors suggest (for looks)', () => {

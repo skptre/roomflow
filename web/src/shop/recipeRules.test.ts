@@ -170,6 +170,8 @@ describe('rulesRecipe — families without the block', () => {
 describe('rulesRecipe — decor and planters', () => {
   it('draws trays as trays', () => {
     expect(rulesRecipe(listing('decor-object', 'Stacking Tray Set')).blocks.profile).toBe('tray')
+    expect(rulesRecipe(listing('decor-object', 'Round Tray')).blocks.profile).toBe('round-tray')
+    expect(rulesRecipe(listing('decor-object', 'Tray, Round Marble')).blocks.profile).toBe('round-tray')
   })
 
   it('a planter is sold empty: the plant choice is decided by the listing, not a photo', () => {

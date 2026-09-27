@@ -12,6 +12,7 @@ import { validateRecipe, variantBlocks, variantColors, type Recipe } from '../bl
 import { recipeAsset, registerRecipes } from '../blocks/registry'
 import { categoryInfo } from '../domain/categories'
 import type { AssetRef, Offer } from '../domain/schema'
+import { reestimate } from '../shop/dimensions'
 import { Snapshot, variantId, variantLabel, variantUrl } from '../shop/snapshot'
 import { moodsOf, moodsOfColors } from './display'
 
@@ -35,11 +36,33 @@ function variantAsset(p: Snapshot['products'][number], sv: Snapshot['products'][
   }
 }
 
+/**
+ * A sofa drawn with a chaise or an L corner but sold without a listed size would
+ * sit in a straight sofa's estimated box (too shallow for the extension); its
+ * unlisted axes take a sectional's typical size instead. Still labeled estimated.
+ */
+function shapedDimensions(p: Snapshot['products'][number], sv: Snapshot['products'][number]['variants'][number], recipe: Recipe | undefined, asset: AssetRef) {
+  if (!recipe || recipe.family !== 'sofa' || p.category === 'sectional') return sv.dimensions
+  const shape = (asset.kind === 'recipe' ? asset.blocks?.shape : undefined) ?? recipe.blocks.shape
+  const from = categoryInfo(p.category)?.typical
+  const to = categoryInfo('sectional')?.typical
+  if (!shape || shape === 'straight' || !from || !to) return sv.dimensions
+  return reestimate(sv.dimensions, from, to)
+}
+
 export function snapshotEntries(snapshot: Snapshot, recipes: ReadonlyMap<string, Recipe> = new Map()): CatalogEntry[] {
   return snapshot.products.flatMap((p) =>
     p.variants.map((sv): CatalogEntry => {
-      const v = { ...sv, id: variantId(p, sv), label: variantLabel(sv), url: variantUrl(p, sv), imageUrl: sv.imageUrl ?? p.imageUrl }
-      const asset = variantAsset(p, sv, recipes.get(p.id))
+      const recipe = recipes.get(p.id)
+      const asset = variantAsset(p, sv, recipe)
+      const v = {
+        ...sv,
+        id: variantId(p, sv),
+        label: variantLabel(sv),
+        url: variantUrl(p, sv),
+        imageUrl: sv.imageUrl ?? p.imageUrl,
+        dimensions: shapedDimensions(p, sv, recipe, asset),
+      }
       // Store tags carry no mood; the listing's own material and color words do, and so do the colors
       // this variant is drawn in (for looks and ranking).
       const drawn = asset.kind === 'recipe' && asset.recipeId !== `default:${p.category}` ? Object.values(asset.colors ?? {}) : []
