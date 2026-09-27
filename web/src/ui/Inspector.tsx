@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { AppearanceDialog } from './AppearanceDialog'
 import type { PurchaseSources } from '../domain/designStore'
 import { isWallHung } from '../domain/categories'
-import { formatLength, priceLabel, provenanceLabel } from '../domain/labels'
+import { faceAxes, formatLength, priceLabel, provenanceLabel } from '../domain/labels'
 import type { RoomObject } from '../domain/schema'
 import { moveObject, removeSelected, rotateSelected, setKeep, setLock } from './editorActions'
 import { FurnitureThumbnail } from './FurnitureThumbnail'
@@ -56,6 +56,17 @@ export function Inspector({
   }, [object.id])
   const price = priceLabel(object, sources)
   const { width, height, depth, source } = object.dimensions
+  // A flat thing's size is its face (a print's width and height); its thickness is never listed.
+  const face = faceAxes(object.category)
+  const measurements = (
+    [
+      ['Width', 'width', width],
+      ['Depth', 'depth', depth],
+      ['Height', 'height', height],
+    ] as const
+  )
+    .filter(([, axis]) => !face || face.includes(axis))
+    .map(([label, , value]) => [label, value] as const)
   function nudge(x: number, z: number) {
     moveObject(object.id, { x: object.pose.position.x + x, z: object.pose.position.z + z })
   }
@@ -171,14 +182,10 @@ export function Inspector({
           Measurements <span>{provenanceLabel(source)}</span>
         </summary>
         <dl>
-          {[
-            ['Width', width],
-            ['Depth', depth],
-            ['Height', height],
-          ].map(([label, value]) => (
+          {measurements.map(([label, value]) => (
             <div key={label}>
               <dt>{label}</dt>
-              <dd>{formatLength(value as number)}</dd>
+              <dd>{formatLength(value)}</dd>
             </div>
           ))}
         </dl>

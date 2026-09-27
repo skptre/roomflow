@@ -69,7 +69,7 @@ export function ProductCard({ variants, target }: { variants: CatalogEntry[]; ta
           </strong>
         </div>
         {entry.product.store && <p className="product-store">{entry.product.store}</p>}
-        <p className="product-dimensions">{formatSizeWithSource(entry.variant.dimensions)}</p>
+        <p className="product-dimensions">{formatSizeWithSource(entry.variant.dimensions, entry.product.category)}</p>
         {optionNames.length > 0 && variants.length > 1 ? (
           optionNames.map((name, option) => {
             const values = [...new Set(variants.map((variant) => variant.variant.optionValues?.[option] ?? ''))].filter(Boolean)

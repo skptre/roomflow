@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { lamp, sampleRoom } from '../test/rooms'
-import { formatDimensions, formatSizeWithSource, priceLabel, provenanceLabel } from './labels'
+import { faceAxes, formatDimensions, formatSizeWithSource, priceLabel, provenanceLabel } from './labels'
 import type { Offer } from './schema'
 
 const offer: Offer = {
@@ -63,5 +63,19 @@ describe('provenanceLabel', () => {
     expect(provenanceLabel('user')).toBe('you measured')
     expect(provenanceLabel('estimated')).toBe('estimated')
     expect(provenanceLabel('unknown')).toBe('unknown')
+  })
+})
+
+describe('flat things show their face, not a made-up thickness', () => {
+  it('prints, mirrors and curtains read width × height; rugs width × length', () => {
+    const print = { width: 0.254, height: 0.2032, depth: 0.04, source: 'merchant' as const }
+    expect(formatDimensions(print, 'wall-art')).toBe('25.4 × 20.3 cm')
+    expect(formatSizeWithSource(print, 'wall-art')).toBe('25.4 × 20.3 cm · listed')
+    expect(formatDimensions({ width: 0.5, height: 1.5, depth: 0.03 }, 'mirror')).toBe('50 × 150 cm')
+    expect(formatDimensions({ width: 2.4, height: 0.01, depth: 1.5 }, 'rug')).toBe('240 × 150 cm')
+    // Furniture keeps all three.
+    expect(formatDimensions({ width: 1.6, height: 0.95, depth: 2.1 }, 'bed')).toBe('160 × 210 × 95 cm')
+    expect(faceAxes('wall-art')).toEqual(['width', 'height'])
+    expect(faceAxes('sofa')).toBeNull()
   })
 })
