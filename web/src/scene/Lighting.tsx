@@ -68,8 +68,8 @@ export function Lighting({ room }: { room: Room }) {
             lamp.pose.position.z,
           ]}
           color="#ffcf94"
-          intensity={1.2}
-          distance={1.8}
+          intensity={0.9}
+          distance={1.7}
           decay={2}
         />
       ))}
@@ -80,7 +80,7 @@ export function Lighting({ room }: { room: Room }) {
         color={palette.lightKey}
         intensity={2.6}
         castShadow
-        shadow-intensity={0.45}
+        shadow-intensity={0.32}
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0004}
         shadow-normalBias={0.02}

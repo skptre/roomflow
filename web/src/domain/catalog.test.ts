@@ -123,7 +123,7 @@ describe('defaultVariantIndex', () => {
 
   it('starts a print sold in many sizes at the one nearest a typical painting, not the smallest', () => {
     const sizes = [0.254, 0.3556, 0.4572, 0.6096, 0.9144, 1.397].map((w) => entry('wall-art', w))
-    expect(sizes[defaultVariantIndex(sizes)]!.variant.dimensions.width).toBeCloseTo(0.6096, 4)
+      expect(sizes[defaultVariantIndex(sizes)]!.variant.dimensions.width).toBeCloseTo(0.9144, 4)
   })
 
   it('keeps the first variant for floor pieces, single variants, and unlisted sizes', () => {

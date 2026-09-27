@@ -55,6 +55,7 @@ export function Inspector({
     heading.current?.focus({ preventScroll: true })
   }, [object.id])
   const price = priceLabel(object, sources)
+  const offer = object.offerId ? sources.offers.get(object.offerId) : undefined
   const { width, height, depth, source } = object.dimensions
   // A flat thing's size is its face (a print's width and height); its thickness is never listed.
   const face = faceAxes(object.category)
@@ -97,6 +98,12 @@ export function Inspector({
               ? 'Simple preview'
               : 'Approximate look'}
         </span>
+        {offer?.url && !offer.isSample ? (
+          <a className="store-link inspector-store-link" href={offer.url} target="_blank" rel="noopener noreferrer">
+            View at {offer.merchant} <span aria-hidden="true">↗</span>
+            <span className="sr-only"> (opens in a new tab)</span>
+          </a>
+        ) : null}
       </div>
       <button className="studio-primary full-width" onClick={onBrowseAlternatives}>
         <StudioIcon name="search" size={17} />

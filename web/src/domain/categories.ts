@@ -32,7 +32,7 @@ export const CATEGORIES: Readonly<Record<string, CategoryInfo>> = {
   'table-lamp': { label: 'Table lamp', typical: { width: 0.3, height: 0.5, depth: 0.3 }, mount: 'surface' },
   rug: { label: 'Rug', typical: { width: 2.0, height: 0.01, depth: 1.4 }, mount: 'floor' },
   plant: { label: 'Plant', typical: { width: 0.5, height: 1.2, depth: 0.5 }, mount: 'floor' },
-  'wall-art': { label: 'Wall art', typical: { width: 0.6, height: 0.8, depth: 0.04 }, mount: 'wall', mountHeight: 1.2 },
+  'wall-art': { label: 'Wall art', typical: { width: 0.9, height: 0.75, depth: 0.04 }, mount: 'wall', mountHeight: 1.2 },
   // Floor mirrors: they stand on the floor, leaning against a wall.
   mirror: { label: 'Mirror', typical: { width: 0.5, height: 1.5, depth: 0.03 }, mount: 'wall', mountHeight: 0 },
   // Built-in closets: RoomPlan sees only their doors (a tall `storage` with no depth). Shown as doors set on the wall.
@@ -62,8 +62,12 @@ const STAND_INS: Readonly<Record<string, string[]>> = {
   storage: ['dresser', 'nightstand', 'bookshelf', 'cabinet'],
 }
 
+/** Chair searches include the catalog's distinct chair roles. */
+export const CHAIR_CATEGORIES = ['desk-chair', 'lounge-chair', 'dining-chair'] as const
+
 /** Catalog categories offered as alternatives for an object of this category. */
 export function alternativeCategories(category: string): string[] {
+  if (category === 'chair' || CHAIR_CATEGORIES.some((chair) => chair === category)) return [...CHAIR_CATEGORIES]
   const standIns = STAND_INS[category]
   if (standIns) return standIns
   return CATEGORIES[category] ? [category] : []

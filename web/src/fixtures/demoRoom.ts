@@ -87,7 +87,7 @@ const HANG_GAP = 0.002
 /** One of each: a lamp, a painting, a rug, a plant (curtains are hung by the layout rules below). */
 const DECOR: readonly Decor[] = [
   { id: 'DECOR-LAMP', name: 'Table lamp', category: 'table-lamp', recipe: 'table-lamp', size: [0.3, 0.48, 0.3], at: [3.3, 0.23], y: DRESSER_TOP },
-  { id: 'DECOR-ART', name: 'Painting', category: 'wall-art', recipe: 'art', size: [0.8, 0.6, 0.035], at: [3.0, 0.035 / 2 + HANG_GAP], y: 1.3 },
+  { id: 'DECOR-ART', name: 'Painting', category: 'wall-art', recipe: 'art', size: [1.15, 0.86, 0.035], at: [3.0, 0.035 / 2 + HANG_GAP], y: 1.3 },
   { id: 'DECOR-RUG', name: 'Rug', category: 'rug', recipe: 'rug', size: [2.0, 0.012, 1.4], at: [1.55, 1.7] },
   { id: 'DECOR-PLANT', name: 'Fiddle-leaf fig', category: 'plant', recipe: 'plant', size: [0.5, 1.55, 0.5], at: [4.05, 0.35] },
 ]

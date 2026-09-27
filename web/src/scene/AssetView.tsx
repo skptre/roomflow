@@ -13,6 +13,8 @@ type AssetViewProps = {
   dimensions: Size
   /** The object's category: its default recipe draws it when the asset's own recipe isn't known. */
   category: string
+  /** Whether a placed lamp should show its subtle emitted-light cue. */
+  illuminated?: boolean
 }
 
 /**
@@ -21,13 +23,13 @@ type AssetViewProps = {
  * unknown recipe falls back to the category's default, and anything we can't
  * draw to a placeholder, so the object always stays visible and selectable.
  */
-export function AssetView({ asset, dimensions, category }: AssetViewProps) {
+export function AssetView({ asset, dimensions, category, illuminated = false }: AssetViewProps) {
   switch (asset.kind) {
     case 'recipe': {
       const recipe = recipeForAsset(asset, category)
       return recipe ? (
         <AssetErrorBoundary fallback={<Placeholder dimensions={dimensions} label="Model unavailable" />}>
-          <RecipeMesh recipe={recipe} dimensions={dimensions} colors={asset.colors} />
+          <RecipeMesh recipe={recipe} dimensions={dimensions} colors={asset.colors} illuminated={illuminated} />
         </AssetErrorBoundary>
       ) : <Placeholder dimensions={dimensions} />
     }

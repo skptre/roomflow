@@ -67,7 +67,7 @@ export function SubtotalBar({ sources }: { sources: SummarySources }) {
   const unpriced = summary.subtotal.unpricedCount
 
   return (
-    <section aria-label="Your budget" className="budget-card">
+    <section aria-label="Subtotal and budget" className="budget-card">
       <button
         type="button"
         className="budget-heading"
@@ -75,30 +75,25 @@ export function SubtotalBar({ sources }: { sources: SummarySources }) {
         aria-controls={listId}
         onClick={() => setOpen(!open)}
       >
-        <span>
-          <StudioIcon name="leaf" size={16} /> Your budget
+        <span><StudioIcon name="leaf" size={16} /> Subtotal</span>
+        <span className="budget-heading-value">
+          <strong className="budget-total tabular-nums text-ink">{totalText(summary)}</strong>
+          <span aria-hidden="true">{open ? '−' : '+'}</span>
         </span>
-        <span>{open ? '−' : '+'}</span>
       </button>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-xs font-medium tracking-wide text-muted uppercase">Product subtotal</span>
-        {summary.anySample ? <Chip tone="muted">Sample prices</Chip> : null}
-      </div>
-      <div className="mt-1 flex items-baseline gap-2">
-        <span className="budget-total tabular-nums text-ink">{totalText(summary)}</span>
-        {unpriced > 0 && summary.subtotal.total ? <span className="text-xs text-muted">+ {unpriced} unpriced</span> : null}
-      </div>
       {previewSummary ? (
-        <p className="mt-0.5 text-xs text-accent" aria-live="polite">
-          With this preview: {totalText(previewSummary)}
+        <p className="budget-preview text-xs text-accent" aria-live="polite">
+          Preview: {totalText(previewSummary)}
           {previewSummary.subtotal.unpricedCount > 0 ? ` + ${previewSummary.subtotal.unpricedCount} unpriced` : ''}
         </p>
       ) : null}
-      <div className="mt-2 text-xs">
+      {open ? <div className="budget-details text-xs">
+        {summary.anySample ? <Chip tone="muted">Sample prices</Chip> : null}
+        {unpriced > 0 && summary.subtotal.total ? <span className="text-muted"> + {unpriced} unpriced</span> : null}
         <BudgetLine summary={summary} budget={budget} />
-      </div>
+      </div> : null}
 
-      <div className={`mt-3 flex items-center gap-2 border-t border-line pt-3 ${open ? '' : 'hidden'}`}>
+      <div className={`budget-controls flex items-center gap-2 border-t border-line ${open ? '' : 'hidden'}`}>
         <label htmlFor={budgetId} className="text-sm text-muted">
           Budget
         </label>

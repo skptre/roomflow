@@ -130,7 +130,7 @@ export function buildProposal(
 
   // 1. Replace items the user didn't ask to keep with the best-suited piece that fits the same spot.
   const replaceable = [...room.objects]
-    .filter((object) => !object.keep && object.sourceKind !== 'found')
+    .filter((object) => !object.keep && object.sourceKind !== 'found' && object.category !== 'curtain')
     .sort((a, b) => a.id.localeCompare(b.id))
   for (const object of replaceable) {
     const currentPrice = purchaseLine(object, { offers }).unitPrice?.amountMinor ?? 0

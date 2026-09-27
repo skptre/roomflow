@@ -63,6 +63,25 @@ describe('snapshotEntries', () => {
     const rug = snapshotEntries(snapshot).find((e) => e.product.category === 'rug')!
     expect(rug.offer.price).toBeNull()
   })
+
+  it('repairs older desk-lamp listings without inventing a listed size or changing their offer', () => {
+    const source = snapshot.products[0]!
+    const mislabeled = {
+      ...source,
+      name: 'Lincoln Desk Lamp',
+      category: 'desk',
+      variants: source.variants.map((variant) => ({
+        ...variant,
+        dimensions: { width: 1.2, height: 0.75, depth: 0.6, source: 'estimated' as const },
+      })),
+    }
+    const [entry] = snapshotEntries({ ...snapshot, products: [mislabeled] }, new Map([[source.id, rulesRecipe(source)]]))
+    expect(entry!.product.category).toBe('table-lamp')
+    expect(entry!.variant.asset).toEqual({ kind: 'recipe', recipeId: 'default:table-lamp' })
+    expect(entry!.variant.dimensions).toEqual({ width: 0.3, height: 0.5, depth: 0.3, source: 'estimated' })
+    expect(entry!.offer.url).toContain('www.burrow.com')
+    expect(entry!.offer.price).toEqual(source.variants[0]!.price)
+  })
 })
 
 describe('catalog store', () => {

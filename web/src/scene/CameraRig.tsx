@@ -16,6 +16,7 @@ type CameraRigProps = {
   viewRequest?: ViewRequest
   room: Room
   framing?: 'hero' | 'editor'
+  fixed?: boolean
   /** Horizontal part of the unit vector from target to camera, reported on every camera change. */
   onViewChange: (cameraDir: Vec2) => void
 }
@@ -25,7 +26,7 @@ type CameraRigProps = {
  * changes and panel resizes never reset the user's orbit), with a clamped,
  * damped orbit.
  */
-export function CameraRig({ room, onViewChange, viewRequest, framing = 'editor' }: CameraRigProps) {
+export function CameraRig({ room, onViewChange, viewRequest, framing = 'editor', fixed = false }: CameraRigProps) {
   const camera = useThree((state) => state.camera)
   const size = useThree((state) => state.size)
   const invalidate = useThree((state) => state.invalidate)
@@ -111,6 +112,9 @@ export function CameraRig({ room, onViewChange, viewRequest, framing = 'editor' 
     <OrbitControls
       ref={controlsRef}
       makeDefault
+      enableRotate={!fixed}
+      enablePan={!fixed}
+      enableZoom={!fixed}
       enableDamping
       dampingFactor={0.08}
       minPolarAngle={0.15}

@@ -24,7 +24,7 @@ export function TopBar({ room, looksOpen, onToggleLooks, onHome, onHelp }: TopBa
       <div className="room-identity">
         <span className="header-divider" />
         <div>
-          <h1>{room.name}</h1>
+          <h1>{room.source.kind === 'synthetic' ? 'Bedroom' : room.name}</h1>
           <span>
             {room.source.kind === 'synthetic' ? 'Sample room' : 'Your room'}
             <span aria-hidden="true"> · </span>Session only

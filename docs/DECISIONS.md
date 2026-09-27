@@ -2,6 +2,12 @@
 
 Non-obvious tradeoffs, each with the alternative that was rejected. Routine "only way to do it" changes don't belong here.
 
+## Lamp shade glow remains tied to placed lamps
+Only owned or deliberately placed lamps get local lights; a scan's captured lamp shape is not evidence that its bulb is on. Their shade material is cloned for a faint emissive cue so shared materials and other furniture retain their original colors. Rejected: making every detected lamp glow, which would imply a lighting state the scan cannot establish.
+
+## The landing preview uses the first room; the sample editor uses the current one
+The fixed landing visual shows the tiny original bedroom with only a bed and desk, while “Explore sample room” opens the current, furnished sample. Rejected: using the current sample for both, because its additional furniture obscures the simple bed transformation the landing page is meant to explain.
+
 ## Wall art is measured in room orientation, not the camera's
 ARKit's captured image and camera pose stay in the sensor's fixed landscape frame while the app is portrait-only,
 so an image rectangle's "top-left" is usually not the room's. `WallArtDetector` reorders the measured corners

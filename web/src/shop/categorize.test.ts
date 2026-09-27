@@ -39,6 +39,8 @@ const MAPPED: [string, string, string][] = [
   ['Console Table', 'The Reade Console Table', 'console'],
   ['Table Lamp', 'Rospo Table Lamp', 'table-lamp'],
   ['Lighting', 'Stone Table Lamp', 'table-lamp'],
+  ['Lighting', 'Lincoln Desk Lamp', 'table-lamp'],
+  ['Lighting', 'Calla Bookshelf Lamp', 'table-lamp'],
   ['RUGS', 'VLR-01 IVORY / GREEN', 'rug'],
   ['Rugs', 'Peak Rug - Navy/Cream', 'rug'],
   ['Indoor Plant', 'Croton Nectarine', 'plant'],

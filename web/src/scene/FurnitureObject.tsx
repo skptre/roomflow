@@ -24,7 +24,7 @@ const LIFT = 0.015
 const DRAG_SLOP = 4
 const SNAP = Math.PI / 36 // 5°
 const SNAP_COARSE = Math.PI / 12 // 15° with Shift
-/** Draw order for the rotate ring: after furniture, rugs, and outlines. */
+/** Draw order for the rotate handle: after furniture, rugs, and outlines. */
 const HANDLE_RENDER_ORDER = 10
 
 /**
@@ -75,7 +75,7 @@ function currentRoom() {
 
 /**
  * One placed object: pose (bottom-center + yaw) around its visual asset, with
- * hover, selection, drag-to-move on the floor, and a rotate ring. The live pose
+ * hover, selection, drag-to-move on the floor, and a compact rotate handle. The live pose
  * during a gesture lives in refs (no store writes per frame); release commits
  * one validated command, or snaps back if the spot is invalid.
  */
@@ -278,8 +278,6 @@ export const FurnitureObject = memo(function FurnitureObject({
   }
 
   const { width, depth } = object.dimensions
-  const ringRadius = Math.hypot(width, depth) / 2 + 0.12
-
   return (
     <group ref={poseRef} position={[position.x, position.y, position.z]} rotation-y={yaw} visible={!hidden}>
       {feedback ? (
@@ -294,11 +292,9 @@ export const FurnitureObject = memo(function FurnitureObject({
         </mesh>
       ) : null}
       {selected && editable && !object.lockPlacement && !isWallHung(object) ? (
-        <group>
-          {/* Wide invisible grab band; the visible ring stays thin. */}
+        <group position={[width / 2 + 0.12, 0.018, depth / 2 + 0.12]}>
           <mesh
             rotation-x={-Math.PI / 2}
-            position-y={0.006}
             raycast={raycastOnTop}
             onPointerDown={(event) => beginGesture(event, 'rotate')}
             onPointerOver={(event) => {
@@ -309,17 +305,12 @@ export const FurnitureObject = memo(function FurnitureObject({
               if (!gesture.current) document.body.style.cursor = ''
             }}
           >
-            <ringGeometry args={[ringRadius - 0.07, ringRadius + 0.07, 64]} />
+            <circleGeometry args={[0.12, 24]} />
             <meshBasicMaterial transparent opacity={0} depthWrite={false} depthTest={false} />
           </mesh>
-          <mesh rotation-x={-Math.PI / 2} position-y={0.006} renderOrder={HANDLE_RENDER_ORDER} raycast={() => null}>
-            <ringGeometry args={[ringRadius - 0.02, ringRadius + 0.02, 64]} />
-            <meshBasicMaterial color={palette.selection} transparent opacity={0.75} depthWrite={false} depthTest={false} />
-          </mesh>
-          {/* Knob on the front (+Z) side shows which way the object faces. */}
-          <mesh position={[0, 0.02, ringRadius]} renderOrder={HANDLE_RENDER_ORDER} raycast={() => null}>
-            <sphereGeometry args={[0.035, 16, 12]} />
-            <meshBasicMaterial color={palette.selection} depthTest={false} />
+          <mesh rotation-x={-Math.PI / 2} position-y={0.001} renderOrder={HANDLE_RENDER_ORDER} raycast={() => null}>
+            <torusGeometry args={[0.055, 0.008, 8, 24]} />
+            <meshBasicMaterial color={palette.selection} depthWrite={false} depthTest={false} />
           </mesh>
         </group>
       ) : null}
@@ -331,7 +322,7 @@ export const FurnitureObject = memo(function FurnitureObject({
             onPointerDown={(event) => beginGesture(event, 'move')}
             onClick={handleClick}
           >
-            <AssetView asset={object.asset} dimensions={object.dimensions} category={object.category} />
+            <AssetView asset={object.asset} dimensions={object.dimensions} category={object.category} illuminated={object.sourceKind !== 'captured' && (object.category === 'floor-lamp' || object.category === 'table-lamp')} />
             {object.category === 'wall-art' ? <ArtPhoto objectId={object.id} dimensions={object.dimensions} /> : null}
           </group>
         </Select>

@@ -53,25 +53,30 @@ function shapedDimensions(p: Snapshot['products'][number], sv: Snapshot['product
 export function snapshotEntries(snapshot: Snapshot, recipes: ReadonlyMap<string, Recipe> = new Map()): CatalogEntry[] {
   return snapshot.products.flatMap((p) =>
     p.variants.map((sv): CatalogEntry => {
-      const recipe = recipes.get(p.id)
-      const asset = variantAsset(p, sv, recipe)
+      // The saved snapshot predates the title-rule fix for desk/bookshelf lamps.
+      const category = (p.category === 'desk' || p.category === 'bookshelf') && /\blamp\b/i.test(p.name) ? 'table-lamp' : p.category
+      const corrected = category === p.category ? p : { ...p, category }
+      const recipe = category === p.category ? recipes.get(p.id) : undefined
+      const asset = variantAsset(corrected, sv, recipe)
+      const from = categoryInfo(p.category)?.typical
+      const to = categoryInfo(category)?.typical
       const v = {
         ...sv,
         id: variantId(p, sv),
         label: variantLabel(sv),
         url: variantUrl(p, sv),
         imageUrl: sv.imageUrl ?? p.imageUrl,
-        dimensions: shapedDimensions(p, sv, recipe, asset),
+        dimensions: from && to && category !== p.category ? reestimate(sv.dimensions, from, to) : shapedDimensions(p, sv, recipe, asset),
       }
       // Store tags carry no mood; the listing's own material and color words do, and so do the colors
       // this variant is drawn in (for looks and ranking).
-      const drawn = asset.kind === 'recipe' && asset.recipeId !== `default:${p.category}` ? Object.values(asset.colors ?? {}) : []
+      const drawn = asset.kind === 'recipe' && asset.recipeId !== `default:${category}` ? Object.values(asset.colors ?? {}) : []
       const tags = [...new Set([...p.tags, ...moodsOf([p.name, v.label, ...p.tags]), ...moodsOfColors(drawn)])]
       return {
         product: {
           id: p.id,
           name: p.name,
-          category: p.category,
+          category,
           tags,
           vendor: p.vendor,
           store: p.store,

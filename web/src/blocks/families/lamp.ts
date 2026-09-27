@@ -109,10 +109,11 @@ export const lamp = defineFamily({
         ctx.add('stem', place(cylinder(rod, rod, stemTop - stemBottom + 0.004, 12), { y: (stemTop + stemBottom) / 2 }))
         break
       case 'stacked': {
-        // Stacked ceramic spheres up to the shade.
+        // A continuous spindle keeps decorative spheres connected to the shade and base.
         const count = 3
         const span = stemTop - stemBottom
         const r = Math.min(span / (2 * count), reach * 0.45)
+        ctx.add('stem', place(cylinder(0.012, 0.012, span + 0.008, 12), { y: (stemTop + stemBottom) / 2 }))
         for (let i = 0; i < count; i++) ctx.add('base', place(sphere(r, r * 0.92, r, 24, 16), { y: stemBottom + r + i * ((span - 2 * r) / Math.max(1, count - 1)) }))
         break
       }

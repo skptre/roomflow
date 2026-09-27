@@ -5,6 +5,7 @@ import { catalogSource, catalogStore } from './catalog/appCatalog'
 import { designStore, viewRoom } from './domain/designStore'
 import { budgetForChoice, type SummarySources } from './domain/purchases'
 import { demoRoom } from './fixtures/demoRoom'
+import { originalRoom } from './fixtures/originalRoom'
 import { MAX_IMPORT_BYTES, parseRoomPlanJson, type ImportResult } from './import/roomplan'
 import { isZipArchive, MAX_PACKAGE_BYTES, parseRoomflowPackage, type PackageImportResult } from './import/roomflowPackage'
 import { RoomScene } from './scene/RoomScene'
@@ -33,6 +34,8 @@ import { useEditorShortcuts } from './ui/useEditorShortcuts'
 
 const sampleResult = demoRoom()
 const sampleRoom = sampleResult.ok ? sampleResult.room : null
+const originalResult = originalRoom()
+const originalPreview = originalResult.ok ? originalResult.room : sampleRoom
 const BlockSheet = lazy(() => import('./scene/dev/BlockSheet').then((m) => ({ default: m.BlockSheet })))
 const blocksParam = new URLSearchParams(window.location.search).get('blocks')
 const blocksFilter = (new URLSearchParams(window.location.search).get('v') ?? '').split(',').filter(Boolean)
@@ -179,7 +182,7 @@ function Workspace() {
           onOpenSample={() => open(demoRoom())}
           onResume={committed ? () => setWelcome(false) : undefined}
         >
-          {sampleRoom && <RoomScene room={sampleRoom} sources={sources} decorative />}
+          {originalPreview && <RoomScene room={originalPreview} sources={sources} decorative heroLoop />}
         </StartScreen>
       </main>
     )
@@ -238,7 +241,7 @@ function Workspace() {
               </button>
             </div>
           </div>
-          <div className="pointer-events-none absolute inset-x-4 top-4 bottom-20 z-10 flex items-end justify-center">
+          <div className="pointer-events-none absolute inset-x-4 bottom-20 z-10 flex items-end justify-center">
             <AnimatePresence>
               {looksOpen ? <ThemePicker catalog={lookCatalog} sources={sources} onClose={() => setLooksOpen(false)} /> : null}
             </AnimatePresence>

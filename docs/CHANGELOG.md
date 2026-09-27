@@ -1,5 +1,19 @@
 # Changelog
 
+### 2026-09-27 — web: softer room interactions and relevant browse results
+
+- `HeroBed.tsx`: the landing bed now floats up while fading to its dashed outline, then settles back; bed materials are cloned and disposed so the animation cannot fade furniture in the editor.
+- `Lighting.tsx`, `AssetView.tsx`, `FurnitureObject.tsx`, `RecipeMesh.tsx`, `Effects.tsx`: intentionally placed lamp shades emit a restrained visual glow; captured lamp shapes stay unlit, while local lamp light and broad room shadows are gentler.
+- `CatalogPanel.tsx`, `ProductCard.tsx`, `index.css`: the unfiltered catalog leads with categories already present in the room, shows a concise card until preview, and reveals its controls softly on click; inventory arrows and product cards respond to hover. Search and explicit category selection keep their normal ranking.
+- `categories.ts`, `catalog.test.ts`: wall art defaults to a larger *listed* variant when one is available; real dimensions and variant prices stay tied to that choice.
+- `shop/categorize.ts`, `catalog/snapshotCatalog.ts`: titles such as “Desk Lamp” and “Bookshelf Lamp” classify as table lamps in future harvests; the current snapshot's three affected listings are corrected at load time, ignoring their incompatible old recipes and retaining estimated size provenance, exact offers, and links.
+
+### 2026-09-27 — web: tiny landing room and studio interaction polish
+
+- `web/src/fixtures/originalRoom.ts`: `originalRoom()` uses the first 4 × 3.5 m synthetic bedroom for the landing preview, showing only its bed and desk. Opening the sample still loads the newer furnished bedroom from `demoRoom()`.
+- `web/src/scene/HeroBed.tsx`: `HeroBed` loops the landing bed between its solid model and a dashed spatial outline. `RoomScene` fixes the decorative camera and starts walls at the intended cutaway state; the landing animation stops for reduced motion. `StartScreen` and `index.css` ease the landing-to-studio handoff.
+- `web/src/fixtures/demoRoom.ts`: the sample painting's *estimated* size is larger. Retailer-listed art sizes are unchanged. `RoomPanel` puts its furniture list immediately after compact actions.
+
 ### 2026-09-27 — web: rotate ring sits above everything
 
 - `web/src/scene/FurnitureObject.tsx`: the selected object's rotate ring and knob draw with `depthTest` off at `HANDLE_RENDER_ORDER`, so a bed, rug or wall never hides them. A wider invisible grab band uses new `raycastOnTop` (every hit reported at distance 0), so the ring wins pointer events over furniture drawn above it; before, a rug or neighbor caught the press and the ring couldn't be grabbed.

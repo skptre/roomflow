@@ -13,6 +13,7 @@ import { wallsToCut } from './cutaway'
 import { Effects } from './Effects'
 import { Lighting } from './Lighting'
 import { FurnitureObject } from './FurnitureObject'
+import { HeroBed } from './HeroBed'
 import { disposeIdleModels } from '../blocks/build'
 import { disposeBlockMaterials } from '../blocks/materials'
 import { disposeSharedMaterials } from './materials'
@@ -26,12 +27,14 @@ export function RoomScene({
   room,
   sources,
   decorative = false,
+  heroLoop = false,
   viewRequest,
   onInspect,
 }: {
   room: Room
   sources: PurchaseSources
   decorative?: boolean
+  heroLoop?: boolean
   viewRequest?: ViewRequest
   onInspect?: () => void
 }) {
@@ -47,7 +50,10 @@ export function RoomScene({
     [onInspect],
   )
   const reducedMotion = useReducedMotion() ?? false
-  const [cut, setCut] = useState<ReadonlySet<string>>(() => new Set())
+  // Begin at the intended dollhouse view instead of briefly showing a closed room.
+  const [cut, setCut] = useState<ReadonlySet<string>>(() =>
+    wallsToCut(room.walls, room.floorPolygon, { x: Math.sin((35 * Math.PI) / 180), z: Math.cos((35 * Math.PI) / 180) }, new Set()),
+  )
 
   const onViewChange = useCallback(
     (cameraDir: Vec2) => {
@@ -72,7 +78,7 @@ export function RoomScene({
     <Canvas
       className="!absolute inset-0"
       shadows
-      frameloop="demand"
+      frameloop={heroLoop && !reducedMotion ? 'always' : 'demand'}
       dpr={[1, 2]}
       gl={{ antialias: false }}
       camera={{ fov: 35, position: [6, 6, 6] }}
@@ -86,7 +92,9 @@ export function RoomScene({
       <Selection>
         <Lighting room={room} />
         <Architecture room={room} cut={cut} reducedMotion={reducedMotion} />
-        {room.objects.map((object) => (
+        {room.objects.map((object) => heroLoop && object.category === 'bed' ? (
+          <HeroBed key={object.id} object={object} sources={sources} reducedMotion={reducedMotion} />
+        ) : (
           <FurnitureObject
             key={object.id}
             object={object}
@@ -101,7 +109,7 @@ export function RoomScene({
             onSelect={onSelect}
           />
         ))}
-        <CameraRig room={room} onViewChange={onViewChange} viewRequest={viewRequest} framing={decorative ? 'hero' : 'editor'} />
+        <CameraRig room={room} onViewChange={onViewChange} viewRequest={viewRequest} framing={decorative ? 'hero' : 'editor'} fixed={decorative} />
         <Effects />
       </Selection>
     </Canvas>

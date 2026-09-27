@@ -9,9 +9,9 @@ import {
   type CatalogSource,
   type PlacementTarget,
 } from '../domain/catalog'
-import { inStockFirst, matchesMood } from '../catalog/display'
+import { inStockFirst } from '../catalog/display'
 import { matchesSearch } from '../catalog/snapshotCatalog'
-import { alternativeCategories, CATEGORIES } from '../domain/categories'
+import { alternativeCategories, CHAIR_CATEGORIES, CATEGORIES } from '../domain/categories'
 import { designStore } from '../domain/designStore'
 import type { Money, RoomObject } from '../domain/schema'
 import { prepareAssets } from '../scene/assetPreload'
@@ -19,13 +19,6 @@ import { cancelCatalogPreview } from './catalogActions'
 import { ProductCard } from './ProductCard'
 import { StudioIcon } from './StudioIcon'
 
-const MOODS = [
-  { id: '', label: 'All pieces' },
-  { id: 'natural', label: 'Natural' },
-  { id: 'cozy', label: 'Cozy' },
-  { id: 'minimal', label: 'Minimal' },
-  { id: 'colorful', label: 'Playful' },
-]
 /** Cards rendered at a time; "Show more" adds another page. */
 const PAGE = 24
 
@@ -37,6 +30,21 @@ function byProduct(entries: readonly CatalogEntry[]): CatalogEntry[][] {
     else groups.set(entry.product.id, [entry])
   }
   return [...groups.values()]
+}
+
+/** Put a couple of relevant choices for each piece already in the room up front. */
+function roomFirst(products: CatalogEntry[][], roomCategories: readonly string[]): CatalogEntry[][] {
+  const key = (category: string) => CHAIR_CATEGORIES.includes(category as typeof CHAIR_CATEGORIES[number]) ? 'chair' : category
+  const categories = [...new Set(roomCategories.map(key))]
+  const chosen = new Set<CatalogEntry[]>()
+  const leading: CatalogEntry[][] = []
+  for (let round = 0; round < 2; round++) {
+    for (const category of categories) {
+      const next = products.find((variants) => key(variants[0]!.product.category) === category && !chosen.has(variants))
+      if (next) { chosen.add(next); leading.push(next) }
+    }
+  }
+  return [...leading, ...products.filter((variants) => !chosen.has(variants))]
 }
 
 export function CatalogPanel({
@@ -55,8 +63,9 @@ export function CatalogPanel({
     heading.current?.focus({ preventScroll: true })
   }, [])
   const revision = useStore(designStore, (state) => state.committed?.revision ?? 0)
+  const currentRoom = useStore(designStore, (state) => state.committed?.room)
+  const roomCategories = useMemo(() => currentRoom?.objects.map((object) => object.category) ?? [], [currentRoom])
   const [category, setCategory] = useState('')
-  const [mood, setMood] = useState('')
   const [search, setSearch] = useState('')
   const [retry, setRetry] = useState(0)
   const [shown, setShown] = useState(PAGE)
@@ -67,7 +76,7 @@ export function CatalogPanel({
     error?: string
   } | null>(null)
   const categories = useMemo(
-    () => (selected ? alternativeCategories(selected.category) : category ? [category] : undefined),
+    () => (selected ? alternativeCategories(selected.category) : category ? alternativeCategories(category) : undefined),
     [selected, category],
   )
   const target: PlacementTarget = selected ? { mode: 'swap', objectId: selected.id } : { mode: 'add' }
@@ -101,10 +110,10 @@ export function CatalogPanel({
   const loading = results?.key !== queryKey
   // Rank once per result; filtering on each keystroke then stays cheap on a large catalog.
   const ranked = useMemo(() => inStockFirst(rankSoft(results?.entries ?? [], { tags: ['natural', 'warm'] })), [results])
-  const products = useMemo(
-    () => byProduct(ranked.filter((entry) => matchesMood(entry, mood) && matchesSearch(entry, search))),
-    [ranked, mood, search],
-  )
+  const products = useMemo(() => {
+    const matches = byProduct(ranked.filter((entry) => matchesSearch(entry, search)))
+    return !selected && !category && !search.trim() ? roomFirst(matches, roomCategories) : matches
+  }, [ranked, search, selected, category, roomCategories])
   const pricesAsOf = useMemo(() => {
     const times = (results?.entries ?? []).map((entry) => entry.offer.retrievedAt).sort()
     return times[0] ? new Date(times[0]).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null
@@ -118,9 +127,8 @@ export function CatalogPanel({
     <section className="catalog-content" aria-label="Find furniture">
       <div className="panel-heading">
         <div>
-          <span className="eyebrow">A FRESH PERSPECTIVE</span>
           <h2 ref={heading} tabIndex={-1}>
-            {selected ? `A new ${selected.name.toLowerCase()}` : 'Find your next favorite'}
+            {selected ? `Find a ${CHAIR_CATEGORIES.some((chair) => chair === selected.category) || selected.category === 'chair' ? 'chair' : selected.name.toLowerCase()}` : 'Find a piece'}
           </h2>
         </div>
       </div>
@@ -132,13 +140,13 @@ export function CatalogPanel({
           <button onClick={onClose}>Browse all</button>
         </div>
       ) : (
-        <p className="panel-intro">Little changes can make a room feel entirely new.</p>
+        null
       )}
       <label className="catalog-search">
         <StudioIcon name="search" size={18} />
         <input
           aria-label="Search furniture"
-          placeholder="A chair, a lamp, something cozy…"
+          placeholder="Search"
           value={search}
           onChange={(event) => changeFilter(() => setSearch(event.target.value))}
         />
@@ -150,35 +158,25 @@ export function CatalogPanel({
           value={category}
           onChange={(event) => changeFilter(() => setCategory(event.target.value))}
         >
-          <option value="">Every corner of the room</option>
-          {Object.entries(CATEGORIES).filter(([, info]) => !info.builtIn).map(([id, info]) => (
+          <option value="">All</option>
+          <option value="chair">Chair</option>
+          {Object.entries(CATEGORIES).filter(([id, info]) => !info.builtIn && !CHAIR_CATEGORIES.some((chair) => chair === id)).map(([id, info]) => (
             <option key={id} value={id}>
               {info.label}
             </option>
           ))}
         </select>
       )}
-      <div className="mood-filters" role="group" aria-label="Furniture style">
-        {MOODS.map((option) => (
-          <button
-            key={option.id}
-            aria-pressed={mood === option.id}
-            onClick={() => changeFilter(() => setMood(option.id))}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
       <div className="catalog-meta">
         <span>
-          {loading ? 'Finding pieces…' : `${products.length} ${products.length === 1 ? 'piece' : 'pieces'} to explore`}
+          {loading ? 'Loading…' : `${products.length} ${products.length === 1 ? 'piece' : 'pieces'}`}
         </span>
-        <span>{results?.source === 'sample' ? 'Sample collection' : pricesAsOf ? `Store prices as of ${pricesAsOf}` : 'Real store listings'}</span>
+        <span>{results?.source === 'sample' ? 'Sample collection' : pricesAsOf ? `Prices: ${pricesAsOf}` : 'Store listings'}</span>
       </div>
       <div className="product-list" aria-busy={loading}>
         {loading && (
           <p className="empty-message" role="status">
-            Gathering a little inspiration…
+            Loading pieces…
           </p>
         )}
         {!loading && results?.error && (
@@ -191,18 +189,16 @@ export function CatalogPanel({
         )}
         {!loading && !results?.error && products.length === 0 && (
           <div className="empty-message">
-            <StudioIcon name="leaf" size={28} />
-            <h3>Nothing here just yet</h3>
-            <p>Try another style, a broader search, or adjust your budget.</p>
+            <h3>No pieces found</h3>
+            <p>Try another search or category.</p>
             <button
               className="studio-secondary"
               onClick={() => {
                 setSearch('')
-                setMood('')
                 setCategory('')
               }}
             >
-              Clear filters
+              Reset search
             </button>
           </div>
         )}

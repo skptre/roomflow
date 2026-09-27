@@ -38,6 +38,7 @@ Keep it current (see `.claude/documentation.md`). One line per row; this is a lo
 | Web — domain logic (geometry, money, commands, themes) | `web/src/domain/` |
 | Web — 3D scene / UI | `web/src/scene/`, `web/src/ui/` |
 | Web — demo sample room (layout, decor, chunky recipes) | `web/scripts/generate-demo-home.mjs`, `web/src/fixtures/demoRoom.ts` |
+| Web — original tiny bedroom on the landing page | `web/src/fixtures/originalRoom.ts`, `web/src/scene/HeroBed.tsx` |
 | Web — room zones (per-area floor and wall paint) | `web/src/domain/schema.ts` (`Zone`), `web/src/scene/zonePaint.ts` |
 | Web — moving hung pieces along their wall | `web/src/domain/layout.ts` (`slideOnWall`), `web/src/scene/FurnitureObject.tsx`, `web/src/ui/editorActions.ts` (`nudgeOnWall`) |
 | Web — run/test commands | `web/README.md`, `AGENTS.md` |

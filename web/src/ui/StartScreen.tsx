@@ -13,7 +13,17 @@ type StartScreenProps = {
 export function StartScreen({ onImportFile, onOpenSample, onResume, error, busy = false, children }: StartScreenProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
+  const [leaving, setLeaving] = useState(false)
   const errorId = useId()
+  function enterRoom(action: () => void) {
+    if (leaving || busy) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      action()
+      return
+    }
+    setLeaving(true)
+    window.setTimeout(action, 340)
+  }
   function handleDrop(event: DragEvent) {
     event.preventDefault()
     setDragging(false)
@@ -21,7 +31,7 @@ export function StartScreen({ onImportFile, onOpenSample, onResume, error, busy 
   }
   return (
     <div
-      className={`welcome ${dragging ? 'is-dragging' : ''}`}
+      className={`welcome ${dragging ? 'is-dragging' : ''} ${leaving ? 'is-leaving' : ''}`}
       onDragOver={(event) => {
         event.preventDefault()
         setDragging(true)
@@ -47,7 +57,7 @@ export function StartScreen({ onImportFile, onOpenSample, onResume, error, busy 
             Try furniture in a 3D version of your room. Move pieces around and see what works.
           </p>
           <div className="welcome-actions">
-            <button className="studio-primary" disabled={busy} onClick={onOpenSample}>
+            <button className="studio-primary" disabled={busy || leaving} onClick={() => enterRoom(onOpenSample)}>
               Explore sample room
               <StudioIcon name="arrow" />
             </button>
@@ -79,7 +89,7 @@ export function StartScreen({ onImportFile, onOpenSample, onResume, error, busy 
               {error}
             </p>
           )}
-          {onResume && <button className="welcome-resume" onClick={onResume}>Return to my room</button>}
+          {onResume && <button className="welcome-resume" onClick={() => enterRoom(onResume)}>Return to my room</button>}
         </section>
         <div className="welcome-room" aria-label="Sample bedroom preview">
           <div className="welcome-scene">{children}</div>

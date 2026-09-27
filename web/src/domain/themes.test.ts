@@ -63,6 +63,12 @@ describe('buildProposal', () => {
     expect(hung.pose.position.z).toBeCloseTo(wall.start.z + window.offsetAlongWall, 6)
     const windowless = { ...room, openings: room.openings.filter((o) => o.kind !== 'window') }
     expect(applied(windowless, buildProposal(windowless, warm!, catalog, null, 1)).objects.some((o) => o.category === 'curtain')).toBe(false)
+
+    // A look leaves existing window dressing in place; swapping its size at the old pose can cut across the room.
+    const ownedCurtain = { ...hung, id: 'owned-curtain', sourceKind: 'owned' as const, variantId: undefined, offerId: undefined }
+    const furnished = { ...room, objects: [...room.objects, ownedCurtain] }
+    const previewed = applied(furnished, buildProposal(furnished, warm!, catalog, null, 1))
+    expect(previewed.objects.find((object) => object.id === ownedCurtain.id)).toEqual(ownedCurtain)
   })
 
   it('never moves locked items or removes kept ones (RF6)', () => {

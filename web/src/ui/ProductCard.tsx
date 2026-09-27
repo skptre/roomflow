@@ -52,7 +52,6 @@ export function ProductCard({ variants, target }: { variants: CatalogEntry[]; ta
           <FurnitureThumbnail asset={entry.variant.asset} dimensions={entry.variant.dimensions} category={entry.product.category} />
         )}
         {soldOut && <span className="sold-out-badge">Sold out</span>}
-        <span className="product-style">{entry.product.tags.slice(0, 2).join(' · ')}</span>
         {active && (
           <span className="preview-badge">
             <StudioIcon name="eye" size={14} /> Trying it on
@@ -68,9 +67,8 @@ export function ProductCard({ variants, target }: { variants: CatalogEntry[]; ta
               : 'Price unknown'}
           </strong>
         </div>
-        {entry.product.store && <p className="product-store">{entry.product.store}</p>}
-        <p className="product-dimensions">{formatSizeWithSource(entry.variant.dimensions, entry.product.category)}</p>
-        {optionNames.length > 0 && variants.length > 1 ? (
+        {active && <p className="product-dimensions">{formatSizeWithSource(entry.variant.dimensions, entry.product.category)}</p>}
+        {active && optionNames.length > 0 && variants.length > 1 ? (
           optionNames.map((name, option) => {
             const values = [...new Set(variants.map((variant) => variant.variant.optionValues?.[option] ?? ''))].filter(Boolean)
             if (values.length < 2) return null
@@ -95,7 +93,7 @@ export function ProductCard({ variants, target }: { variants: CatalogEntry[]; ta
               </label>
             )
           })
-        ) : variants.length > 1 ? (
+        ) : active && variants.length > 1 ? (
           <label className="variant-select">
             <span>Size / finish</span>
             <select
@@ -110,11 +108,11 @@ export function ProductCard({ variants, target }: { variants: CatalogEntry[]; ta
               ))}
             </select>
           </label>
-        ) : (
+        ) : active ? (
           <p className="single-variant">
             {entry.variant.label} {entry.offer.isSample && <span>· Sample piece</span>}
           </p>
-        )}
+        ) : null}
         {active && (
           <div className="quantity-row">
             <span>Quantity</span>

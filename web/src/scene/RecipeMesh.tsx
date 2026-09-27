@@ -13,6 +13,8 @@ type RecipeMeshProps = {
   dimensions: Pick<Dimensions, 'width' | 'height' | 'depth'>
   /** Variant colors per slot (sRGB hex). */
   colors?: Readonly<Record<string, string>>
+  /** Applied only to intentionally placed lamps, not fixtures merely seen in a scan. */
+  illuminated?: boolean
 }
 
 /**
@@ -21,7 +23,7 @@ type RecipeMeshProps = {
  * and sharing materials by (kind, color). Art canvases and rug tops show the
  * product's own photo when it loads, flat color otherwise (plan D6).
  */
-export const RecipeMesh = memo(function RecipeMesh({ recipe, dimensions, colors }: RecipeMeshProps) {
+export const RecipeMesh = memo(function RecipeMesh({ recipe, dimensions, colors, illuminated = false }: RecipeMeshProps) {
   const { width, height, depth } = dimensions
   const model = useMemo(() => modelFor(recipe, { width, height, depth }), [recipe, width, height, depth])
   // Hold the shared model while mounted so the cache won't free it underneath us.
@@ -40,18 +42,28 @@ export const RecipeMesh = memo(function RecipeMesh({ recipe, dimensions, colors 
             </Suspense>
           </ImageErrorBoundary>
         ) : (
-          <SlotMesh key={look.slot} look={look} />
+          <SlotMesh key={look.slot} look={look} lampShade={illuminated && recipe.family === 'lamp' && look.slot === 'shade'} />
         ),
       )}
     </group>
   )
 })
 
-function SlotMesh({ look }: { look: SlotLook }) {
+function SlotMesh({ look, lampShade = false }: { look: SlotLook; lampShade?: boolean }) {
+  const glowMaterial = useMemo(() => {
+    if (!lampShade) return null
+    const base = blockMaterial(look.kind, look.color)
+    if (!(base instanceof MeshStandardMaterial)) return null
+    const material = base.clone()
+    material.emissive.set('#ffddb1')
+    material.emissiveIntensity = 0.09
+    return material
+  }, [lampShade, look.kind, look.color])
+  useEffect(() => () => glowMaterial?.dispose(), [glowMaterial])
   return (
     <mesh
       geometry={look.geometry}
-      material={blockMaterial(look.kind, look.color)}
+      material={glowMaterial ?? blockMaterial(look.kind, look.color)}
       castShadow={castsShadow(look.kind)}
       receiveShadow
       // Geometry and materials are shared caches; never auto-dispose them here.
@@ -103,4 +115,3 @@ class ImageErrorBoundary extends Component<{ fallback: ReactNode; children: Reac
     return this.state.failed ? this.props.fallback : this.props.children
   }
 }
-
