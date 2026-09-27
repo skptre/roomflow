@@ -231,17 +231,28 @@ export function rulesRecipe(product: SnapshotProduct, text: ListingText = {}): R
   return rulesTrace(product, text).recipe
 }
 
-/** Whether an option's name could name a color (not a size, fill, configuration, style…). */
-export function mayNameColor(optionName: string): boolean {
-  return !NOT_COLOR.test(optionName.toLowerCase())
-}
-
 /** Which slots an option's values color in a family (and whether one color paints all of them); null when it colors nothing. */
 export function colorOptionSlots(familyId: string, optionName: string): { slots: readonly string[]; spread: boolean } | null {
-  const lower = optionName.toLowerCase()
-  if (NOT_COLOR.test(lower)) return null
-  const map = (OPTION_SLOTS[familyId] ?? []).find((entry) => entry.name.test(lower))
+  const map = slotMap(familyId, optionName)
   return map ? { slots: map.slots, spread: !!map.spread } : null
+}
+
+/**
+ * Whether an option can recolor parts of this family: not a size/fill/style
+ * option, and a hardware option only where there are handles to recolor.
+ */
+export function colorsFamily(familyId: string, optionName: string): boolean {
+  const lower = optionName.toLowerCase()
+  if (NOT_COLOR.test(lower)) return false
+  return !HARDWARE.test(lower) || Object.hasOwn(getFamily(familyId)?.slots ?? {}, 'handles')
+}
+
+const HARDWARE = /hardware|handle|pull|knob/
+
+function slotMap(familyId: string, optionName: string): SlotMap | undefined {
+  if (!colorsFamily(familyId, optionName)) return undefined
+  const lower = optionName.toLowerCase()
+  return (OPTION_SLOTS[familyId] ?? []).find((entry) => entry.name.test(lower))
 }
 
 /**
@@ -297,9 +308,7 @@ export function rulesTrace(product: SnapshotProduct, text: ListingText = {}): { 
       optionBlocks[name] = byValue
       matchedShape = true
     }
-    const lower = name.toLowerCase()
-    if (NOT_COLOR.test(lower)) return
-    const map = (OPTION_SLOTS[family.id] ?? []).find((entry) => entry.name.test(lower))
+    const map = slotMap(family.id, name)
     if (!map) return
     const colored: Record<string, Record<string, string>> = {}
     for (const value of values) {
@@ -308,7 +317,8 @@ export function rulesTrace(product: SnapshotProduct, text: ListingText = {}): { 
       const slotColors: Record<string, string> = {}
       map.slots.forEach((slot, i) => {
         const part: ColorMatch | null | undefined = map.spread ? parts[0] : parts.length === 1 ? (i === 0 ? parts[0] : undefined) : parts[i]
-        if (!part) return
+        // A wood or metal name ("Pine", "Brass") says nothing about a fabric part's color, and the reverse.
+        if (!part || (part.material && !compatible(family.slots[slot]!.kind, part.material))) return
         slotColors[slot] = part.hex
         if (part.material) materials.set(slot, [...(materials.get(slot) ?? []), part.material])
       })

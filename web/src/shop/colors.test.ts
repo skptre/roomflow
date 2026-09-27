@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clearlyDifferent, COLOR_LEXICON, colorsAgree, hueFamily, isPlainColorName, matchColor, matchColorParts } from './colors'
+import { COLOR_LEXICON, hueFamily, matchColor, matchColorParts } from './colors'
 
 describe('color lexicon', () => {
   it('has at least 150 names, every one a valid sRGB hex', () => {
@@ -81,24 +81,13 @@ describe('matchColorParts', () => {
   })
 })
 
-describe('hue families and agreement', () => {
+describe('hue families', () => {
   it('classifies neutrals by lightness and chromatic colors by hue', () => {
     expect(hueFamily('#f2f0eb')).toBe('light-neutral')
     expect(hueFamily('#1d1d1f')).toBe('dark-neutral')
     expect(hueFamily('#25324a')).toBe('blue')
     expect(hueFamily('#5b3a24')).toBe('brown')
     expect(hueFamily('#6b7445')).toBe('green')
-  })
-
-  it('agrees on close readings and disagrees on clearly different ones', () => {
-    expect(colorsAgree('#25324a', '#2f3b63')).toBe(true) // navy vs indigo-ish navy
-    expect(colorsAgree('#5b3a24', '#6e4a30')).toBe(true) // two walnuts
-    expect(colorsAgree('#d8ccb4', '#cfc3a8')).toBe(true) // oatmeal under different light
-    expect(colorsAgree('#25324a', '#b8643e')).toBe(false) // navy vs terracotta
-    expect(colorsAgree('#f2f0eb', '#1d1d1f')).toBe(false) // white vs black
-    expect(colorsAgree('#9ca98c', '#b04040')).toBe(false) // sage vs red
-    // A muted color next to a neutral of similar lightness is a fair reading.
-    expect(colorsAgree('#b3aa9c', '#b8ab92')).toBe(true)
   })
 })
 
@@ -109,21 +98,3 @@ function lightness(hex: string): number {
   const b = n & 255
   return (Math.max(r, g, b) + Math.min(r, g, b)) / 510
 }
-
-describe('isPlainColorName and clearlyDifferent', () => {
-  it('a plain name is a color and nothing else (material words allowed)', () => {
-    expect(isPlainColorName('Navy')).toBe(true)
-    expect(isPlainColorName('Walnut - Wood')).toBe(true)
-    expect(isPlainColorName('Black - Metal')).toBe(true)
-    expect(isPlainColorName('Botanical Green')).toBe(false)
-    expect(isPlainColorName('Black/White')).toBe(false)
-    expect(isPlainColorName('Truffle Pink Textured Dupioni Silk Room Darkening Curtain')).toBe(false)
-  })
-
-  it('only far-apart readings are clearly different (a dark bronze photo is not)', () => {
-    expect(clearlyDifferent('#25324a', '#d07a30')).toBe(true) // navy vs orange
-    expect(clearlyDifferent('#f2f0eb', '#1d1d1f')).toBe(true) // white vs black
-    expect(clearlyDifferent('#6e5436', '#333538')).toBe(false) // bronze vs its dark photo
-    expect(clearlyDifferent('#4f7a4a', '#667f73')).toBe(false) // green vs grey-green
-  })
-})

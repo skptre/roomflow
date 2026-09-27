@@ -6,15 +6,14 @@
  *   - who reads a shared value (a store's named fabric is read once, reused by its other products),
  *   - the answer schema (enums from the family, no free-form shapes),
  *   - the merge: the merchant's words keep the blocks they decided, photo colors
- *     win unless a plain color name ("Navy") is far from the reading, bedding stays neutral.
+ *     win over color names (names only fill values no photo showed), bedding stays neutral.
  * The model never sees the room, never sets prices or sizes, never writes code.
  */
 import { z } from 'zod'
 import type { Family, MaterialKind } from '../blocks/family'
 import { validateRecipe, type Recipe } from '../blocks/recipe'
 import { categoryInfo } from '../domain/categories'
-import { clearlyDifferent, isPlainColorName } from './colors'
-import { colorOptionSlots, mayNameColor } from './recipeRules'
+import { colorOptionSlots, colorsFamily } from './recipeRules'
 import type { SnapshotProduct } from './snapshot'
 import type { ListingText } from './recipeRules'
 
@@ -255,8 +254,8 @@ export function valueImages(product: SnapshotProduct, familyId: string): ValueIm
 }
 
 /** Options the model may map to parts: any whose name could name a color. Unknown names ("Option", "Stone") are offered; sizes never. */
-function isColorOption(_familyId: string, name: string): boolean {
-  return mayNameColor(name)
+function isColorOption(familyId: string, name: string): boolean {
+  return colorsFamily(familyId, name)
 }
 
 /**
@@ -581,9 +580,8 @@ export type MergeInput = {
 }
 
 /** The Gemini recipe. Throws if the result doesn't validate (the caller keeps the rules recipe). */
-export function mergeGemini({ product, trace, answer, images, readings, model }: MergeInput): { recipe: Recipe; vetoes: string[] } {
+export function mergeGemini({ product, trace, answer, images, readings, model }: MergeInput): { recipe: Recipe } {
   const rules = trace.recipe
-  const vetoes: string[] = []
   const familyId = rules.family
 
   const blocks = { ...rules.blocks }
@@ -592,13 +590,6 @@ export function mergeGemini({ product, trace, answer, images, readings, model }:
   for (const [name, value] of Object.entries(answer.params)) if (!trace.fired.has(name)) params[name] = value
   const materialKind = { ...rules.materialKind }
   for (const [slot, kind] of Object.entries(answer.materials)) if (!rules.materialKind?.[slot]) materialKind[slot] = kind
-
-  // A plain color name ("Navy") questions a photo only when the two are far apart; brand names never do.
-  const keep = (label: string, slot: string, name: string, photo: string): string => {
-    if (!clearlyDifferent(name, photo)) return photo
-    vetoes.push(`${label} (${slot}): name ${name} kept over photo ${photo}`)
-    return name
-  }
 
   const defaultColors: Record<string, string> = { ...rules.defaultColors }
   for (const [slot, photo] of Object.entries(answer.colors)) {
@@ -616,9 +607,8 @@ export function mergeGemini({ product, trace, answer, images, readings, model }:
       const allNamed = rules.optionColors?.[option]?.[value] ?? {}
       const named = partsOf ? Object.fromEntries(Object.entries(allNamed).filter(([slot]) => partsOf.includes(slot))) : allNamed
       const photo = readings.get(readingKey(product, familyId, option, value)) ?? {}
-      const slots: Record<string, string> = { ...named }
-      const plain = isPlainColorName(value)
-      for (const [slot, hex] of Object.entries(photo)) slots[slot] = named[slot] && plain ? keep(`${option}: ${value}`, slot, named[slot], hex) : hex
+      // The photo of this value wins; a color name only fills parts no photo showed.
+      const slots: Record<string, string> = { ...named, ...photo }
       if (Object.keys(slots).length > 0) byValue[value] = slots
     }
     if (Object.keys(byValue).length > 0) optionColors[option] = byValue
@@ -627,7 +617,9 @@ export function mergeGemini({ product, trace, answer, images, readings, model }:
   let image = rules.image
   if (answer.productImage !== undefined) {
     const picked = answer.productImage === 0 ? undefined : images.find((entry) => entry.number === answer.productImage && entry.role !== 'value')
-    image = picked ? { url: picked.url } : undefined
+    // Art: a store's main art photo is almost always the artwork, so "none of them" keeps it.
+    // Rugs: a room scene laid on the floor looks wrong, so "none" means flat color.
+    image = picked ? { url: picked.url } : familyId === 'art' ? rules.image : undefined
   }
 
   const unmatched = [...new Set([...(rules.unmatched ?? []), ...answer.unmatched.map((phrase) => phrase.trim().slice(0, 80)).filter(Boolean)])].slice(0, 20)
@@ -650,5 +642,5 @@ export function mergeGemini({ product, trace, answer, images, readings, model }:
   }
   const result = validateRecipe(recipe)
   if (!result.ok) throw new Error(`gemini recipe for ${product.id}: ${result.error}`)
-  return { recipe: result.recipe, vetoes }
+  return { recipe: result.recipe }
 }

@@ -3,8 +3,9 @@
  * Store option values are messy ("Heather Charcoal - Performance Basketweave",
  * "Light Weight Linen Black Pepper"), so matching looks for the longest known
  * phrase, skips fabric weights, and treats material words (linen, canvas…) as
- * colors only when nothing else matches. The hue-family check lets a confident
- * name veto a photo reading that is clearly a different color.
+ * colors only when nothing else matches. Hue families group colors for browse
+ * moods. (A name never overrides a photo reading: in the pilot, names mapped to
+ * the wrong part far more often than photos were misread.)
  */
 import type { MaterialKind } from '../blocks/family'
 
@@ -467,8 +468,6 @@ export type HueFamily =
 
 /** A color reads as a neutral (grey, off-white, near-black) below this chroma or saturation. */
 const isNeutral = ({ s, c = 0 }: Hsl) => c < 0.06 || s < 0.12
-/** Muted: a greige or dusty tone that is easily read as a neutral under different light. */
-const isMuted = ({ c = 0 }: Hsl) => c < 0.18
 
 export function hueFamily(hex: string): HueFamily {
   const hsl = toHsl(hex)
@@ -482,46 +481,4 @@ export function hueFamily(hex: string): HueFamily {
   if (h < 255) return 'blue'
   if (h < 290) return 'purple'
   return 'pink'
-}
-
-/**
- * Whether two readings of one color plausibly agree: similar lightness, and
- * similar hue unless both are muted. Used to let a confident color name veto
- * a photo reading that is clearly something else.
- */
-export function colorsAgree(a: string, b: string): boolean {
-  const x = toHsl(a)
-  const y = toHsl(b)
-  if (Math.abs(x.l - y.l) > 0.4) return false
-  const xNeutral = isNeutral(x)
-  const yNeutral = isNeutral(y)
-  if (xNeutral && yNeutral) return true
-  if (xNeutral || yNeutral) return isMuted(xNeutral ? y : x)
-  const hueGap = Math.min(Math.abs(x.h - y.h), 360 - Math.abs(x.h - y.h))
-  return hueGap <= 50 || (isMuted(x) && isMuted(y))
-}
-
-/**
- * Whether a value is a color name and nothing else ("Navy", "Walnut - Wood"),
- * as opposed to a brand name that contains one ("Botanical Green") or a mix
- * ("Black/White"). Only plain names are confident enough to question a photo.
- */
-export function isPlainColorName(text: string): boolean {
-  const tokens = words(text)
-  const best = bestHit(tokens)
-  if (!best) return false
-  return tokens.every(
-    (token, i) => (i >= best.start && i < best.start + best.length) || Object.hasOwn(MATERIAL_HINTS, token) || GENERIC_WORDS.has(token) || MATERIAL_WORDS.has(token),
-  )
-}
-
-/** Two readings far apart: opposite lightness, or strongly different hues that are both clearly colored. */
-export function clearlyDifferent(a: string, b: string): boolean {
-  const x = toHsl(a)
-  const y = toHsl(b)
-  if (Math.abs(x.l - y.l) > 0.5) return true
-  // Both must be clearly colored (navy counts; greys and dark bronzes don't).
-  if ((x.c ?? 0) < 0.1 || (y.c ?? 0) < 0.1) return false
-  const hueGap = Math.min(Math.abs(x.h - y.h), 360 - Math.abs(x.h - y.h))
-  return hueGap > 90
 }
