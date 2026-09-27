@@ -124,6 +124,7 @@ const BLOCK_GUIDE: Readonly<Record<string, Readonly<Record<string, string>>>> = 
     'block-legs': 'short block feet',
     'metal-legs': 'thin metal legs',
     plinth: 'upholstered or solid base down to the floor, no visible legs',
+    swivel: 'one round swivel disc under the seat, no legs',
     legs: 'four legs',
     hairpin: 'metal hairpin legs',
     trestle: 'trestle base (two end supports joined by a stretcher)',

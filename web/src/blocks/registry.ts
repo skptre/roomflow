@@ -82,6 +82,28 @@ export function resolveRecipe(recipeId: string, category: string): Recipe | unde
   return fallback ? recipes.get(fallback) : undefined
 }
 
+const variantRecipes = new Map<string, Recipe>()
+
+/**
+ * The recipe to draw for an asset: its recipe (or the category default) with
+ * this variant's block choices and photo applied. Same inputs give the same
+ * object (so memoized views and the model cache see no change); choices the
+ * family doesn't have are ignored rather than drawn.
+ */
+export function recipeForAsset(asset: Extract<AssetRef, { kind: 'recipe' }>, category: string): Recipe | undefined {
+  const base = resolveRecipe(asset.recipeId, category)
+  if (!base || (!asset.blocks && !asset.imageUrl)) return base
+  const key = JSON.stringify([base.id, asset.blocks ?? null, asset.imageUrl ?? null])
+  const cached = variantRecipes.get(key)
+  if (cached) return cached
+  const image = asset.imageUrl && base.image ? { url: asset.imageUrl } : base.image
+  const merged = validateRecipe({ ...base, blocks: { ...base.blocks, ...asset.blocks }, ...(image ? { image } : {}) })
+  const recipe = merged.ok ? merged.recipe : base
+  if (variantRecipes.size > 2000) variantRecipes.clear()
+  variantRecipes.set(key, recipe)
+  return recipe
+}
+
 /** The asset for an object of a category drawn with its default recipe (placeholder when we can't draw it). */
 export function recipeAsset(category: string, colors?: Record<string, string>): AssetRef {
   const recipeId = defaultRecipeId(category)

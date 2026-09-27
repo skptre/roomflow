@@ -48,7 +48,7 @@ const UPHOLSTERY_OPTIONS: SlotMap[] = [
 /** Keyword rules per family, first match per block wins. */
 const RULES: Readonly<Record<string, Rule[]>> = {
   sofa: [...ARM, ...BACK, ...UPHOLSTERED_BASE],
-  chair: [[/\bbarrel\b/, 'shell', 'barrel'], [/\bround\b|\bpouf\b|\bdrum\b/, 'top', 'round'], ...ARM, ...BACK, ...UPHOLSTERED_BASE],
+  chair: [[/\bswivel\b/, 'base', 'swivel'], [/\bbarrel\b/, 'shell', 'barrel'], [/\bround\b|\bpouf\b|\bdrum\b/, 'top', 'round'], ...ARM, ...BACK, ...UPHOLSTERED_BASE],
   bed: [
     [/\bno headboard\b|\bheadboardless\b/, 'headboard', 'none'],
     [/\bchannel(ed)?\b/, 'headboard', 'channel'],
@@ -389,6 +389,7 @@ function compatible(from: MaterialKind, to: MaterialKind): boolean {
 
 function expressed(word: string, blocks: Readonly<Record<string, string>>): boolean {
   if (word === 'wingback') return blocks.headboard === 'wingback'
+  if (word === 'swivel') return blocks.base === 'swivel'
   if (word === 'curved') return blocks.headboard === 'rounded' || blocks.shell === 'barrel'
   return false
 }

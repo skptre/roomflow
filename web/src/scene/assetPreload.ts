@@ -1,6 +1,6 @@
 import { useGLTF } from '@react-three/drei'
 import { modelFor } from '../blocks/build'
-import { resolveRecipe } from '../blocks/registry'
+import { recipeForAsset } from '../blocks/registry'
 import type { CatalogEntry } from '../domain/catalog'
 
 /**
@@ -13,7 +13,7 @@ export function prepareAssets(entries: readonly CatalogEntry[]) {
     const asset = variant.asset
     if (asset.kind === 'glb') useGLTF.preload(asset.url)
     if (asset.kind === 'recipe') {
-      const recipe = resolveRecipe(asset.recipeId, product.category)
+      const recipe = recipeForAsset(asset, product.category)
       if (recipe) whenIdle(() => modelFor(recipe, variant.dimensions))
     }
   }

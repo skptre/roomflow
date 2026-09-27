@@ -14,7 +14,7 @@ import {
   ACESFilmicToneMapping,
 } from 'three'
 import { acquireModel, slotLooks } from '../blocks/build'
-import { resolveRecipe } from '../blocks/registry'
+import { recipeForAsset } from '../blocks/registry'
 import type { AssetRef, Dimensions } from '../domain/schema'
 
 const cache = new Map<string, string>()
@@ -23,7 +23,7 @@ let release: ReturnType<typeof setTimeout> | undefined
 
 export function thumbnail(asset: AssetRef, dimensions: Pick<Dimensions, 'width' | 'height' | 'depth'>, category: string): string | null {
   if (asset.kind !== 'recipe') return null
-  const recipe = resolveRecipe(asset.recipeId, category)
+  const recipe = recipeForAsset(asset, category)
   if (!recipe) return null
   const size = { width: dimensions.width, height: dimensions.height, depth: dimensions.depth }
   const key = JSON.stringify([asset, size, recipe.id])
