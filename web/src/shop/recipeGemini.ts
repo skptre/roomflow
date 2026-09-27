@@ -6,14 +6,14 @@
  *   - who reads a shared value (a store's named fabric is read once, reused by its other products),
  *   - the answer schema (enums from the family, no free-form shapes),
  *   - the merge: the merchant's words keep the blocks they decided, photo colors
- *     win unless a confident color name clearly disagrees, bedding stays neutral.
+ *     win unless a plain color name ("Navy") is far from the reading, bedding stays neutral.
  * The model never sees the room, never sets prices or sizes, never writes code.
  */
 import { z } from 'zod'
 import type { Family, MaterialKind } from '../blocks/family'
 import { validateRecipe, type Recipe } from '../blocks/recipe'
 import { categoryInfo } from '../domain/categories'
-import { colorsAgree } from './colors'
+import { clearlyDifferent, isPlainColorName } from './colors'
 import { colorOptionSlots, mayNameColor } from './recipeRules'
 import type { SnapshotProduct } from './snapshot'
 import type { ListingText } from './recipeRules'
@@ -368,7 +368,7 @@ export function promptText(product: SnapshotProduct, family: Family, text: Listi
     .join('\n')
   const hasValues = images.some((image) => image.role === 'value')
   const listing = family.imageSlot
-    ? `7. productImage: the number of the photo that shows only the ${family.id === 'art' ? 'artwork itself, flat and unframed or straight-on in its frame, with no room around it' : 'rug from above, filling most of the photo, with no furniture on it'}; 0 if no photo does.`
+    ? `8. productImage: the number of the photo that shows only the ${family.id === 'art' ? 'artwork itself, flat and unframed or straight-on in its frame, with no room around it' : 'rug from above, filling most of the photo, with no furniture on it'}; 0 if no photo does.`
     : ''
 
   return [
@@ -401,8 +401,8 @@ export function promptText(product: SnapshotProduct, family: Family, text: Listi
     '4. colors: each part’s color in Image 1 as #rrggbb (sRGB), as it looks on the product in even light. Ignore shadows, highlights, the background, and styling props that are not the product (throw pillows, blankets, books, plants on it).',
     hasValues ? '5. images: for each labeled photo from Image 2 on, the #rrggbb color of each part visible in that photo.' : '5. images: empty list.',
     '6. optionSlots: for each store option that changes a color, the parts it recolors.',
+    '7. unmatched: up to 6 short phrases for clearly visible features the parts can’t show (for example "button tufting", "cane door panels"); empty if none.',
     listing,
-    '8. unmatched: up to 6 short phrases for clearly visible features the parts can’t show (for example "button tufting", "cane door panels"); empty if none.',
   ]
     .filter((line) => line !== '')
     .join('\n')
@@ -593,16 +593,17 @@ export function mergeGemini({ product, trace, answer, images, readings, model }:
   const materialKind = { ...rules.materialKind }
   for (const [slot, kind] of Object.entries(answer.materials)) if (!rules.materialKind?.[slot]) materialKind[slot] = kind
 
+  // A plain color name ("Navy") questions a photo only when the two are far apart; brand names never do.
   const keep = (label: string, slot: string, name: string, photo: string): string => {
-    if (colorsAgree(name, photo)) return photo
+    if (!clearlyDifferent(name, photo)) return photo
     vetoes.push(`${label} (${slot}): name ${name} kept over photo ${photo}`)
     return name
   }
 
   const defaultColors: Record<string, string> = { ...rules.defaultColors }
   for (const [slot, photo] of Object.entries(answer.colors)) {
-    const named = rules.defaultColors?.[slot]
-    defaultColors[slot] = named ? keep(`${product.name}`, slot, named, photo) : photo
+    // Title and tag colors are noisy ("Truffle Pink" reads as truffle): the photo decides.
+    defaultColors[slot] = photo
   }
 
   const optionColors: NonNullable<Recipe['optionColors']> = {}
@@ -610,10 +611,14 @@ export function mergeGemini({ product, trace, answer, images, readings, model }:
     const values = [...new Set(product.variants.map((variant) => variant.optionValues[index]).filter((value): value is string => !!value))]
     const byValue: Record<string, Record<string, string>> = {}
     for (const value of values) {
-      const named = rules.optionColors?.[option]?.[value] ?? {}
+      // The reading's own option → parts mapping, when it gave one, also limits what a name may paint.
+      const partsOf = answer.optionSlots?.find((entry) => entry.option === option)?.slots
+      const allNamed = rules.optionColors?.[option]?.[value] ?? {}
+      const named = partsOf ? Object.fromEntries(Object.entries(allNamed).filter(([slot]) => partsOf.includes(slot))) : allNamed
       const photo = readings.get(readingKey(product, familyId, option, value)) ?? {}
       const slots: Record<string, string> = { ...named }
-      for (const [slot, hex] of Object.entries(photo)) slots[slot] = named[slot] ? keep(`${option}: ${value}`, slot, named[slot], hex) : hex
+      const plain = isPlainColorName(value)
+      for (const [slot, hex] of Object.entries(photo)) slots[slot] = named[slot] && plain ? keep(`${option}: ${value}`, slot, named[slot], hex) : hex
       if (Object.keys(slots).length > 0) byValue[value] = slots
     }
     if (Object.keys(byValue).length > 0) optionColors[option] = byValue
