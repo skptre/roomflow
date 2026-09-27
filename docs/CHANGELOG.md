@@ -5,6 +5,40 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### iOS: detect wall art while scanning
+- New `ios/RoomFlow/Services/WallArtScanner.swift`: replaces the DEBUG-only `WallArtSpike` (deleted) with a
+  production scanner wired into `RoomScanService`. `nonisolated enum DepthMapReader { static func
+  depth(in:u:v:) }` is the single LiDAR-pixel-lookup implementation, moved out of `RoomScanService`'s private
+  `depth(in:u:v:)` (which now just forwards to it). `nonisolated final class WallArtScanner: @unchecked
+  Sendable` — `init(encoder:)`, `reset(directory:)`, `process(frame:surfaces:objects:)` (`@MainActor`; runs
+  `VNDetectRectanglesRequest` — 8 max observations, 0.1 min size, 0.7 min confidence, 0.2 min aspect ratio, 30°
+  quadrature tolerance — on a private serial queue, one frame at a time, judges each rectangle with
+  `WallArtDetector`, and feeds sightings to a `WallArtTracker`), `confirmedCount`, and `finish(finalRoom:)
+  async -> [WallArtItem]` (drains the queue, attaches confirmed groups to the final room's walls, and writes
+  each item's best-scoring crop to `<directory>/<item.id>.jpg`). The best sighting of each tracker group (by
+  `frontality × width × height`, matching `WallArtTracker`'s own ranking) is cropped straight-on with
+  `CIPerspectiveCorrection` (pixel corners, Core Image's bottom-left origin) and scaled to a ≤1024 px long
+  edge; at most 16 groups keep a crop. When groups merge into one item at `finish`, the highest-scoring
+  group's crop wins; a write failure or a group with no crop leaves `photoFileName` nil — never fails the scan.
+- `ios/RoomFlow/Services/RoomScanService.swift`: replaced the `#if DEBUG` `WallArtSpike` wiring with
+  `WallArtScanner`, always active while `capturePhotos` is on (not DEBUG-gated). Adds `wallArt: [WallArtItem]`
+  and `wallArtDirectory: URL?`; `start()` creates `<evidence root>/<sessionID>/art` and calls
+  `wallArtScanner.reset(directory:)` when `capturePhotos`; the sampling loop calls `process(…)` every other
+  tick; the `didPresent` photo `Task` also calls `wallArtScanner.finish(finalRoom:)` under the same session
+  guard as photos; `cancel()` and the failure path (`stopEvidence()`) clear `wallArt`/`wallArtDirectory`.
+- `ios/RoomFlow/Models/ScanCaptureResult.swift`: adds `wallArt: [WallArtItem]` and `wallArtDirectory: URL?`,
+  with an explicit `init` defaulting both (`[]`/`nil`) for existing call sites.
+- `ios/RoomFlow/Views/RoomScanView.swift`: passes `scanner.wallArt`/`scanner.wallArtDirectory` into the
+  `ScanCaptureResult` built on "View Room".
+- Deleted `ios/RoomFlow/Services/WallArtSpike.swift`: its judging logic now lives in `WallArtDetector`
+  (Task 1) and its grouping/attach logic in `WallArtTracker` (Task 2); this task replaces its scanning
+  wiring with `WallArtScanner`.
+- Why: Task 3 of the wall-art-detection plan turns the debug-only spike into the real detection path so a
+  finished scan actually carries `WallArtItem`s and their reference photos, instead of only a debug log.
+- Tests: no new unit tests (Vision/Core Image glue has none per the plan; its logic is covered by Tasks 1–2's
+  tests). Verified with a device build (`CODE_SIGNING_ALLOWED=NO`, no new warnings in touched files) and the
+  full suite (75 tests passing).
+
 ### iOS: group wall-art sightings and attach them to final walls
 - New `ios/RoomFlow/Services/WallArtTracker.swift`: pure `WallArtTracker` (`add(_:) -> (group:isNewBest:)`,
   `confirmedCount`, `finalize(walls:) -> [(item:groups:)]`). Groups `WallArtSighting`s by running-mean center

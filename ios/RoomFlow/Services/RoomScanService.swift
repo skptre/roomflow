@@ -45,6 +45,12 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
 
     /// Reference photos chosen for `capturedRoom`; empty unless photo capture was on.
     private(set) var photos: [RoomPhotoEvidence] = []
+    /// Confirmed wall art detected during the scan; empty unless photo capture was on and something
+    /// was confirmed.
+    private(set) var wallArt: [WallArtItem] = []
+    /// Temp folder holding `wallArt`'s cropped reference photos (`<id>.jpg`); nil unless photo capture
+    /// was on.
+    private(set) var wallArtDirectory: URL?
     /// Whether to keep calibrated reference photos during the scan (opt-in).
     @ObservationIgnored var capturePhotos = false
 
@@ -55,10 +61,10 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
     @ObservationIgnored private var sessionID = UUID()
     /// Live detected objects during a scan; see LiveRoomObserver.
     @ObservationIgnored private let liveObserver = LiveRoomObserver()
-    #if DEBUG
-    /// SPIKE: logs rectangles that may be wall art; see `WallArtSpike`.
-    @ObservationIgnored private let wallArtSpike = WallArtSpike()
-    #endif
+    /// Detects wall art in camera frames while photo capture is on; see `WallArtScanner`.
+    @ObservationIgnored private let wallArtScanner = WallArtScanner()
+    /// This scan's wall-art crop directory, set at `start()` when `capturePhotos` is on.
+    @ObservationIgnored private var pendingWallArtDirectory: URL?
 
     /// The furniture currently framed and its photo progress; nil unless photo capture is on and something is framed.
     private(set) var focusHint: FocusHint?
@@ -100,17 +106,24 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         capturedRoom = nil
         colorEstimates = .none
         photos = []
+        wallArt = []
+        wallArtDirectory = nil
+        pendingWallArtDirectory = nil
         colorSampler.reset()
         focusTracker.reset()
         focusHint = nil
         sampleTick = 0
         sessionID = UUID()
-        if capturePhotos { evidenceRecorder.start(sessionID: sessionID) }
+        if capturePhotos {
+            evidenceRecorder.start(sessionID: sessionID)
+            let dir = RoomEvidenceRecorder.defaultRoot
+                .appendingPathComponent(sessionID.uuidString, isDirectory: true)
+                .appendingPathComponent("art", isDirectory: true)
+            pendingWallArtDirectory = dir
+            wallArtScanner.reset(directory: dir)
+        }
         state = .scanning
         liveObserver.install(on: captureView.captureSession)
-        #if DEBUG
-        wallArtSpike.reset()
-        #endif
         captureView.captureSession.run(configuration: RoomCaptureSession.Configuration())
         startColorSampling()
     }
@@ -130,6 +143,9 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         colorSampler.reset()
         evidenceRecorder.cancel(sessionID: sessionID)
         focusHint = nil
+        wallArt = []
+        wallArtDirectory = nil
+        pendingWallArtDirectory = nil
         if state == .scanning {
             captureView.captureSession.stop()
         }
@@ -164,15 +180,17 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         colorSampler.reset()
         capturedRoom = processedResult
         liveObserver.logFinalOverlap(with: processedResult)
-        #if DEBUG
-        wallArtSpike.logSummary(finalRoom: processedResult)
-        #endif
-        // Photos are optional: any problem finishing them leaves an empty list, never a failed scan.
+        // Photos and wall art are optional: any problem finishing them leaves an empty list, never a
+        // failed scan.
         let session = sessionID
+        let artDirectory = pendingWallArtDirectory
         Task {
             let chosen = capturePhotos ? ((try? await evidenceRecorder.finish(sessionID: session)) ?? []) : []
+            let art = capturePhotos ? await wallArtScanner.finish(finalRoom: processedResult) : []
             guard session == sessionID, state == .processing || state == .scanning else { return }
             photos = chosen
+            wallArt = art
+            wallArtDirectory = capturePhotos ? artDirectory : nil
             state = .finished
         }
         print("[RoomFlow] Scan finished: \(processedResult.walls.count) walls, \(processedResult.doors.count) doors, \(processedResult.windows.count) windows, \(processedResult.objects.count) objects")
@@ -188,12 +206,10 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
                 guard let self else { return }
                 if let frame = self.captureView.captureSession.arSession.currentFrame {
                     if self.capturePhotos { self.updateFocus(with: frame) }
-                    #if DEBUG
-                    if self.sampleTick.isMultiple(of: 2) {
-                        self.wallArtSpike.process(frame: frame, surfaces: self.liveObserver.latestSurfaces(),
-                                                  objects: self.liveObserver.latestObjects())
+                    if self.capturePhotos, self.sampleTick.isMultiple(of: 2) {
+                        self.wallArtScanner.process(frame: frame, surfaces: self.liveObserver.latestSurfaces(),
+                                                    objects: self.liveObserver.latestObjects())
                     }
-                    #endif
                     if self.sampleTick.isMultiple(of: 3) {
                         self.colorSampler.capture(frame)
                         if self.capturePhotos {
@@ -238,16 +254,7 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
 
     /// LiDAR depth in meters at a normalized, top-left-origin image point; nil without depth or for invalid values.
     private static func depth(in map: CVPixelBuffer?, u: Double, v: Double) -> Float? {
-        guard let map else { return nil }
-        CVPixelBufferLockBaseAddress(map, .readOnly)
-        defer { CVPixelBufferUnlockBaseAddress(map, .readOnly) }
-        guard let base = CVPixelBufferGetBaseAddress(map) else { return nil }
-        let width = CVPixelBufferGetWidth(map), height = CVPixelBufferGetHeight(map)
-        let x = min(width - 1, max(0, Int(u * Double(width))))
-        let y = min(height - 1, max(0, Int(v * Double(height))))
-        let row = base.advanced(by: y * CVPixelBufferGetBytesPerRow(map)).assumingMemoryBound(to: Float32.self)
-        let value = row[x]
-        return value.isFinite && value > 0 ? value : nil
+        DepthMapReader.depth(in: map, u: Float(u), v: Float(v))
     }
 
     private func stopColorSampling() {
@@ -261,6 +268,9 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         colorSampler.reset()
         evidenceRecorder.cancel(sessionID: sessionID)
         focusHint = nil
+        wallArt = []
+        wallArtDirectory = nil
+        pendingWallArtDirectory = nil
     }
 
     // MARK: - Permissions
