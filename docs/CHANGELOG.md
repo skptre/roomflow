@@ -5,6 +5,33 @@ Format: `### YYYY-MM-DD — area: summary`, then bullets naming files and new/ch
 
 ## 2026-09-26
 
+### iOS: wall art — review fixes
+- `ios/RoomFlow/Services/WallArtDetector.swift` (critical): the sensor image is landscape while the app is
+  portrait, so width/height were swapped when the phone was upright (TV check tested the height, tracker
+  boxes used swapped sizes, crops came out sideways). `judge` now reorders the measured corners into room
+  orientation with new private `roomOrder(_:normal:)` (top-left = max `up − right`, right =
+  `cross(−normal, up)`) and applies the same permutation to `quad`; `WallArtSighting.corners`/`quad` are
+  documented as room-ordered.
+- `ios/RoomFlow/Services/WallArtScanner.swift`: the reference crop uses `sighting.quad` (upright in
+  portrait). Crop slots stay ≤16 but, when full, the slot of the group with the fewest sightings is
+  evicted for a group seen at least as often (private `slotDecision(for:)`), so a piece confirmed late can
+  still get a photo. A `generation` counter bumped by `reset` drops results from a frame queued before it.
+  New `discard()` releases the tracker and crops and invalidates in-flight frames.
+- `ios/RoomFlow/Services/WallArtTracker.swift`: new `sightingCount(group:)`; the file-scope
+  `PlacedBoxLike` protocol (which picked up main-actor isolation and warned) is replaced by a private
+  nested `Placed` struct with non-generic `boxesOverlapOrClose`/`union`.
+- `ios/RoomFlow/Services/RoomScanService.swift`: `cancel()` and `stopEvidence()` call
+  `wallArtScanner.discard()`.
+- `ios/RoomFlow/Views/RoomEvidenceReviewView.swift`: a `wallArtEdited` flag stops `loadSavedChoices` from
+  restoring an item the user already removed in this view.
+- Code comments and `docs/INDEX.md` now point at `docs/superpowers/plans/2026-09-26-wall-art-detection.md`;
+  `docs/ARCHITECTURE.md` gains `WallArtDetectorTests`/`WallArtTrackerTests` rows and wall-art cases on the
+  `RoomArchiveStoreTests` row; `docs/DECISIONS.md` records "Wall art is measured in room orientation, not
+  the camera's".
+- Tests: `WallArtDetectorTests` — new `portraitFlushArtIsMeasuredInRoomOrientation` (camera rolled −90° and
+  +90°) and `portraitSixteenByNineIsLikelyTV`, written first and confirmed failing before the fix;
+  `WallArtTrackerTests.groupsByPositionAndNormal` checks `sightingCount(group:)`.
+
 ### iOS: save, reopen and review wall art
 - `ios/RoomFlow/Services/RoomArchiveStore.swift`: `saveCapture` gains `wallArt: [WallArtItem] = []` and
   `wallArtDirectory: URL? = nil`; when `wallArt` isn't empty it copies each item's photo from

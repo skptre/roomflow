@@ -2,6 +2,14 @@
 
 Non-obvious tradeoffs, each with the alternative that was rejected. Routine "only way to do it" changes don't belong here.
 
+## Wall art is measured in room orientation, not the camera's
+ARKit's captured image and camera pose stay in the sensor's fixed landscape frame while the app is portrait-only,
+so an image rectangle's "top-left" is usually not the room's. `WallArtDetector` reorders the measured corners
+(and the paired image quad) using world up and the viewer's right across the wall, then measures width along the
+wall and height vertically; the TV check, tracker boxes and the upright reference crop all use that order.
+Rejected: rotating by the device's orientation — the sensor frame is fixed and the phone can be held any way
+(including tilted mid-scan), whereas world up from ARKit's gravity-aligned tracking is always available.
+
 ## TV-shaped rectangles are skipped
 `WallArtDetector` rejects a wall rectangle whose aspect ratio is 1.70…1.85 (16:9-ish) and whose width is ≥0.55 m,
 even if it otherwise measures as plausible art. Rejected: trusting the TV-overlap check alone — RoomPlan

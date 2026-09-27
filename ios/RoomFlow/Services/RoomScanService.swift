@@ -143,6 +143,7 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         colorSampler.reset()
         evidenceRecorder.cancel(sessionID: sessionID)
         focusHint = nil
+        wallArtScanner.discard()
         wallArt = []
         wallArtDirectory = nil
         pendingWallArtDirectory = nil
@@ -268,6 +269,7 @@ final class RoomScanService: NSObject, RoomCaptureViewDelegate {
         colorSampler.reset()
         evidenceRecorder.cancel(sessionID: sessionID)
         focusHint = nil
+        wallArtScanner.discard()
         wallArt = []
         wallArtDirectory = nil
         pendingWallArtDirectory = nil

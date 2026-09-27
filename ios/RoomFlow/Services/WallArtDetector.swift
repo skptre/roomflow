@@ -3,10 +3,12 @@ import simd
 
 /// A rectangle judged to be art (or similar) hanging on a scanned wall: measured on the plane where LiDAR
 /// actually sees it, which may stand off the wall (e.g. a layered canvas). All geometry is world space,
-/// RoomPlan native (meters, +Y up). `quad` is the original normalized, top-left-origin image corners that
-/// produced this sighting (top-left, top-right, bottom-right, bottom-left) — kept for cropping a reference photo.
+/// RoomPlan native (meters, +Y up). Corners are in ROOM orientation (top-left, top-right, bottom-right,
+/// bottom-left as seen facing the wall, world +Y up), whatever way the phone was held; `width` runs along
+/// the wall, `height` vertically. `quad` holds the matching normalized, top-left-origin image points —
+/// kept for cropping an upright reference photo.
 nonisolated struct WallArtSighting: Equatable, Sendable {
-    /// World-space corners on the measured plane, same order as `quad`.
+    /// World-space corners on the measured plane in room order (top-left first), same order as `quad`.
     var corners: [SIMD3<Float>]
     /// Wall normal, flipped to face the camera.
     var normal: SIMD3<Float>
@@ -17,7 +19,8 @@ nonisolated struct WallArtSighting: Equatable, Sendable {
     var center: SIMD3<Float>
     var cameraPosition: SIMD3<Float>
     var timestamp: TimeInterval
-    /// Original normalized, top-left-origin image quad (top-left, top-right, bottom-right, bottom-left).
+    /// Normalized, top-left-origin image points of `corners`, in the same (room) order — so not necessarily
+    /// the image's own top-left first when the phone was held in portrait.
     var quad: [SIMD2<Float>]
     /// dot(normalize(camera → center), −normal), clamped to 0…1: 1 = viewed head-on.
     var frontality: Float
@@ -54,8 +57,9 @@ nonisolated enum WallArtVerdict: Equatable, Sendable {
 }
 
 /// Pure judge: decides whether one image rectangle is plausibly art hanging on a scanned wall. Deterministic
-/// geometry and depth checks only; no model inference, no state, no I/O. See `.superpowers/sdd/2026-09-26-wall-art-detection/task-1-brief.md`
-/// for the rule derivation; this type applies those rules in order and returns the first rejection reached.
+/// geometry and depth checks only; no model inference, no state, no I/O. See
+/// `docs/superpowers/plans/2026-09-26-wall-art-detection.md` for the rule derivation; this type applies
+/// those rules in order and returns the first rejection reached.
 nonisolated enum WallArtDetector {
     /// Judges `quad` (normalized, top-left-origin image corners: top-left, top-right, bottom-right,
     /// bottom-left) seen from `camera` against the live `surfaces` and `objects`. `depthAt(u, v)` returns
@@ -114,8 +118,14 @@ nonisolated enum WallArtDetector {
         }
 
         // Rule 3: re-cast the 4 corner rays onto the measured plane.
-        let panel = directions.compactMap { hitPlane(origin: origin, direction: $0, point: measuredPoint, normal: normal)?.point }
-        guard panel.count == 4 else { return .rejected(.notOnWall) }
+        let hitCorners = directions.compactMap { hitPlane(origin: origin, direction: $0, point: measuredPoint, normal: normal)?.point }
+        guard hitCorners.count == 4 else { return .rejected(.notOnWall) }
+        // The image is in the sensor's fixed landscape frame while the phone is usually upright, so image
+        // "top-left" need not be the room's. Reorder into room orientation; `quad` follows so each image
+        // corner stays paired with its world corner (and the reference crop comes out upright).
+        let order = roomOrder(hitCorners, normal: normal)
+        let panel = order.map { hitCorners[$0] }
+        let roomQuad = order.map { quad[$0] }
         let panelWidth = (simd_distance(panel[0], panel[1]) + simd_distance(panel[3], panel[2])) / 2
         let panelHeight = (simd_distance(panel[0], panel[3]) + simd_distance(panel[1], panel[2])) / 2
         let center = panel.reduce(SIMD3<Float>(repeating: 0), +) / 4
@@ -165,10 +175,27 @@ nonisolated enum WallArtDetector {
 
         return .sighting(WallArtSighting(corners: panel, normal: normal, standoff: standoff, width: panelWidth,
                                          height: panelHeight, center: center, cameraPosition: origin,
-                                         timestamp: camera.timestamp, quad: quad, frontality: frontality))
+                                         timestamp: camera.timestamp, quad: roomQuad, frontality: frontality))
     }
 
     // MARK: - Geometry helpers
+
+    /// Index permutation putting a cyclic quad's `corners` into room order — top-left, top-right,
+    /// bottom-right, bottom-left as seen by someone facing the wall (`normal` points toward them), with
+    /// "up" = world +Y. Top-left is the corner maximizing `up − right`; top-right is whichever of its two
+    /// neighbors lies further right, so the result is always a rotation/reflection of the input cycle.
+    /// Returns the identity order if `normal` is (near-)vertical.
+    private static func roomOrder(_ corners: [SIMD3<Float>], normal: SIMD3<Float>) -> [Int] {
+        let up = SIMD3<Float>(0, 1, 0)
+        let rightRaw = simd_cross(-normal, up)
+        guard corners.count == 4, simd_length(rightRaw) > 1e-4 else { return [0, 1, 2, 3] }
+        let right = simd_normalize(rightRaw)
+        let topLeft = corners.indices.max { simd_dot(corners[$0], up) - simd_dot(corners[$0], right)
+                                          < simd_dot(corners[$1], up) - simd_dot(corners[$1], right) }!
+        let next = (topLeft + 1) % 4, previous = (topLeft + 3) % 4
+        let step = simd_dot(corners[next], right) >= simd_dot(corners[previous], right) ? 1 : 3
+        return (0..<4).map { (topLeft + step * $0) % 4 }
+    }
 
     /// World-space ray direction through a normalized-pixel image point (sensor orientation, top-left origin
     /// scaled to pixels), from the camera's pose. `d = ((u·W − cx)/fx, −(v·H − cy)/fy, −1)`, rotated by

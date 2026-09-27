@@ -44,6 +44,9 @@ struct WallArtTrackerTests {
         #expect(ra.group == rb.group)
         #expect(rc.group != ra.group)
         #expect(ra.isNewBest == true) // always true for a new group
+        #expect(tracker.sightingCount(group: ra.group) == 2)
+        #expect(tracker.sightingCount(group: rc.group) == 1)
+        #expect(tracker.sightingCount(group: 99) == 0)
     }
 
     @Test func confirmedRequiresThreeSightingsAndCameraSpread() {
