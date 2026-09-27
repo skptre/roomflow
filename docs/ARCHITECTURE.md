@@ -59,6 +59,7 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `RoomAppearanceEvidence.swift` | Approximate colors and photo regions per capture (`appearance.json`) | `RoomAppearanceEvidence`, `SourceColor`, `RoomPhotoAssociation` |
 | `RoomEvidenceSelection.swift` | User's sharing choices and labels (`selection.json`) | `RoomEvidenceSelection` (`initial(for:)`, `sharedPhotos(from:)`, `setIncludePhotos`, `setPhoto(_:included:)`, `setLabel(_:for:)`, `label(for:)`), `ObjectAnnotation` |
 | `RoomPackageManifest.swift` | `manifest.json` of the package, with validation | `RoomPackageManifest` (`FileEntry`, `PhotoEntry`, `ValidationError`, `isAllowed(_:)`, `validate()`), `PackageAppearance` |
+| `WallArtItem.swift` | Confirmed piece of wall art attached to a final wall, in that wall's local frame (meters from wall center, +x along wall, +y up) | `WallArtItem` |
 
 ### Services (`ios/RoomFlow/Services/`)
 
@@ -68,6 +69,7 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `LiveRoomObserver.swift` | Live-object feed: forwards every session callback to the previous delegate, keeps the newest detected objects; debug-only logging | `LiveRoomObserver` (`install(on:)`, `latestObjects()`, `latestSurfaces()` (`LiveSurface`), `logFinalOverlap(with:)`) |
 | `WallArtSpike.swift` | SPIKE, DEBUG only: logs rectangles in camera frames that land on a scanned wall and pass depth/size/opening/TV checks, grouped per wall | `WallArtSpike` (`reset()`, `process(frame:surfaces:objects:)`, `logSummary(finalRoom:)`) |
 | `WallArtDetector.swift` | Pure judge: is one image rectangle plausibly art on a scanned wall? Casts corner rays onto walls, measures the LiDAR-seen plane (may stand off the wall), checks size/floor/opening/TV overlap | `WallArtSighting`, `WallArtRejection`, `WallArtVerdict`, `WallArtDetector.judge(quad:camera:surfaces:objects:depthAt:)` |
+| `WallArtTracker.swift` | Groups `WallArtSighting`s by position/normal across a scan, decides which groups are confirmed, and attaches confirmed groups to the final room's walls as `WallArtItem`s (merging overlapping items on the same wall) | `WallArtTracker` (`add(_:)`, `confirmedCount`, `finalize(walls:)`) |
 | `RoomPlanFileExport.swift` | Raw export: exactly `JSONEncoder().encode(CapturedRoom)` | `encode(_:) -> RawCapture`, `export(_:directory:)`, `write(data:roomID:directory:)`, `fileName(roomID:)` |
 | `RoomArchiveStore.swift` | Saved rooms in Application Support; staging + rename publish | actor `RoomArchiveStore` (`shared`, `saveCapture(id:rawData:editableData:photos:appearance:…)`, `saveEdits`, `saveSelection`, `load(id:)`, `list()`, `ArchiveError`) |
 | `RoomPlanConverter.swift` | Only reader of `CapturedRoom` into RoomModel | `RoomPlanConverter.convert(_:colors:capturedAt:)` |

@@ -83,6 +83,17 @@ device. Also chose a 0.6 s dwell before signalling a shot, rejected shooting imm
 the live-object spike showed detection often happens while the camera is already resting on the item, but its
 box is still refining, so an immediate shot would frequently frame a stale, inaccurate box.
 
+## Art grouped by position, attached to final walls
+`WallArtTracker` groups sightings by running-mean world position/normal during the scan (not by live wall
+ID), then attaches each confirmed group to the *final* room's walls only once, in `finalize`. Rejected:
+grouping by live wall ID directly — Task 1's spike-era notes show live wall IDs can be replaced mid-scan
+(one object split into two groups), so position/normal is the stable key. Rejected: attaching per-sighting
+against whatever wall is live at that moment — the live wall set changes shape as RoomPlan refines the room,
+so attaching a group once at the end, against the wall list the finished room actually uses, is the only
+version worth turning into saved data. Confirmation requires camera spread (≥0.2 m between two sightings),
+not just a sighting count — three sightings from one stationary frame are correlated, not independent
+evidence the rectangle is real and where the tracker thinks it is.
+
 ## Live-object feed forwards to the session's existing delegate
 `RoomCaptureSession.delegate` is a single weak slot that `RoomCaptureView` may use for its own preview.
 `LiveRoomObserver` stores the previous delegate and forwards every callback unchanged. Rejected: plainly
