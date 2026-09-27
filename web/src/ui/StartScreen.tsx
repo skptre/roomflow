@@ -1,18 +1,21 @@
 import { useId, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { StudioIcon, Wordmark } from './StudioIcon'
+import { PairScanDialog } from './PairScanDialog'
 
 type StartScreenProps = {
   onImportFile: (file: File) => void
   onOpenSample: () => void
+  onPairedScan: (scan: string) => boolean
   onResume?: () => void
   error?: string | null
   busy?: boolean
   children: ReactNode
 }
 
-export function StartScreen({ onImportFile, onOpenSample, onResume, error, busy = false, children }: StartScreenProps) {
+export function StartScreen({ onImportFile, onOpenSample, onPairedScan, onResume, error, busy = false, children }: StartScreenProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
+  const [pairing, setPairing] = useState(false)
   const errorId = useId()
   function handleDrop(event: DragEvent) {
     event.preventDefault()
@@ -33,43 +36,36 @@ export function StartScreen({ onImportFile, onOpenSample, onResume, error, busy 
     >
       <header className="welcome-header">
         <Wordmark />
-        <span className="welcome-note">
-          <StudioIcon name="leaf" size={16} /> A space to make your own
-        </span>
       </header>
       <div className="welcome-content">
         <section className="welcome-copy" aria-labelledby="start-title">
-          <div className="eyebrow">
-            <span className="tiny-line" /> YOUR VERY OWN DESIGN STUDIO
-          </div>
           <h1 id="start-title">
             Your room,
             <br />
-            your way
+            with anything
+            <br />
+            you find.
           </h1>
           <p className="welcome-description">
-            See how a new piece fits. Move your favorites around. Explore the possibilities, right in your own room.
+            Try furniture in a 3D version of your room. Move pieces around and see what works.
           </p>
           <div className="welcome-actions">
-            <button className="studio-primary" disabled={busy} onClick={onResume ?? onOpenSample}>
-              {onResume ? 'Back to my room' : 'Make yourself at home'}
+            <button className="studio-primary" disabled={busy} onClick={onOpenSample}>
+              Explore sample room
               <StudioIcon name="arrow" />
             </button>
-            <p className="action-caption">
-              {onResume
-                ? 'Pick up where you left off in this session.'
-                : 'Start with our sample bedroom. No scan needed.'}
-            </p>
             <button
               className="welcome-import"
               disabled={busy}
-              aria-describedby={error ? errorId : undefined}
-              onClick={() => inputRef.current?.click()}
+              onClick={() => setPairing(true)}
             >
-              <StudioIcon name="upload" size={18} />
-              {busy ? 'Opening your room…' : 'Bring in my own room'}
-              <span>RoomPlan .json or RoomFlow .zip</span>
+              <StudioIcon name="grid" size={18} />
+              Open my scan
+              <StudioIcon name="arrow" size={17} />
             </button>
+            <p className="scan-handoff">Connect the Roomflow iPhone app. Your scan appears here when it finishes.</p>
+            <button className="saved-scan-link" disabled={busy} aria-describedby={error ? errorId : undefined}
+              onClick={() => inputRef.current?.click()}>Use a saved scan file</button>
             <input
               ref={inputRef}
               type="file"
@@ -87,38 +83,12 @@ export function StartScreen({ onImportFile, onOpenSample, onResume, error, busy 
               {error}
             </p>
           )}
-          <div className="welcome-values">
-            <span>
-              <StudioIcon name="check" size={16} /> Try things freely
-            </span>
-            <span>
-              <StudioIcon name="check" size={16} /> Every edit is undoable
-            </span>
-          </div>
+          {onResume && <button className="welcome-resume" onClick={onResume}>Return to my room</button>}
         </section>
-        <div className="welcome-room">
-          <div className="room-arch" />
+        <div className="welcome-room" aria-label="Sample bedroom preview">
           <div className="welcome-scene">{children}</div>
-          <div className="room-note">
-            <span className="note-script">A fresh perspective</span>
-            <span>A SAMPLE BEDROOM, FULL OF POSSIBILITIES</span>
-          </div>
-          <div className="material-story">
-            <span className="material-swatch swatch-oak" />
-            <span className="material-swatch swatch-linen" />
-            <span className="material-swatch swatch-clay" />
-            <span>
-              Good things
-              <br />
-              come together
-            </span>
-          </div>
         </div>
       </div>
-      <footer className="welcome-footer">
-        <span>YOUR ROOM, WITH ANYTHING YOU FIND</span>
-        <span>Made for the way you live</span>
-      </footer>
       {dragging && (
         <div className="drop-overlay">
           <StudioIcon name="upload" size={40} />
@@ -126,6 +96,7 @@ export function StartScreen({ onImportFile, onOpenSample, onResume, error, busy 
           <p>Drop your RoomPlan .json scan or RoomFlow .zip package to begin.</p>
         </div>
       )}
+      {pairing && <PairScanDialog onClose={() => setPairing(false)} onReceive={onPairedScan} />}
     </div>
   )
 }

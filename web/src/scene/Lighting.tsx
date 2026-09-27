@@ -6,6 +6,24 @@ import type { Room } from '../domain/schema'
 import { outwardNormal } from './cutaway'
 import { palette } from './palette'
 import { roomSphere } from './roomBounds'
+import { placedLamps } from './lightSources'
+
+function windowWashes(room: Room): Array<[number, number, number]> {
+  return room.openings.flatMap((opening) => {
+    if (opening.kind !== 'window') return []
+    const wall = room.walls.find((candidate) => candidate.id === opening.wallId)
+    const normal = wall ? outwardNormal(wall, room.floorPolygon) : null
+    if (!wall || !normal) return []
+    const length = Math.hypot(wall.end.x - wall.start.x, wall.end.z - wall.start.z)
+    if (length === 0) return []
+    const t = opening.offsetAlongWall / length
+    return [[
+      wall.start.x + (wall.end.x - wall.start.x) * t - normal.x * 0.35,
+      opening.bottom + opening.height * 0.45,
+      wall.start.z + (wall.end.z - wall.start.z) * t - normal.z * 0.35,
+    ] as [number, number, number]]
+  })
+}
 
 /**
  * Soft sky fill, one warm key light that enters through the first window
@@ -14,6 +32,8 @@ import { roomSphere } from './roomBounds'
  */
 export function Lighting({ room }: { room: Room }) {
   const { center, radius } = roomSphere(room)
+  const windows = useMemo(() => windowWashes(room), [room])
+  const lamps = useMemo(() => placedLamps(room), [room])
   const keyPosition = useMemo((): [number, number, number] => {
     const window = room.openings.find((opening) => opening.kind === 'window')
     const wall = window ? room.walls.find((w) => w.id === window.wallId) : undefined
@@ -36,6 +56,23 @@ export function Lighting({ room }: { room: Room }) {
     <>
       <SceneEnvironment />
       <hemisphereLight args={[palette.lightSky, palette.lightGround, 0.75]} />
+      {windows.map((position, index) => (
+        <pointLight key={`window-${index}`} position={position} color="#fff4e8" intensity={1.5} distance={2.8} decay={2} />
+      ))}
+      {lamps.map((lamp) => (
+        <pointLight
+          key={lamp.id}
+          position={[
+            lamp.pose.position.x,
+            lamp.pose.position.y + lamp.dimensions.height * 0.78,
+            lamp.pose.position.z,
+          ]}
+          color="#ffcf94"
+          intensity={1.2}
+          distance={1.8}
+          decay={2}
+        />
+      ))}
       <primitive object={target} />
       <directionalLight
         position={keyPosition}
@@ -43,6 +80,7 @@ export function Lighting({ room }: { room: Room }) {
         color={palette.lightKey}
         intensity={2.6}
         castShadow
+        shadow-intensity={0.45}
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0004}
         shadow-normalBias={0.02}

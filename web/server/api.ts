@@ -12,6 +12,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { guardedFetch } from '../src/ai/egress'
 import { refreshOffer, type OfferRefresh } from '../src/shop/offerRefresh'
+import { createPairingApi } from './pairing'
 
 const PER_MINUTE = 30
 
@@ -31,6 +32,7 @@ function send(res: ServerResponse, status: number, body: unknown): void {
 }
 
 export function roomflowApi(): Plugin {
+  const pairings = createPairingApi()
   const inFlight = new Map<string, Promise<OfferRefresh>>()
   const outbound = guardedFetch(fetch)
   let windowStart = 0
@@ -58,6 +60,7 @@ export function roomflowApi(): Plugin {
 
   async function handle(req: IncomingMessage, res: ServerResponse, next: () => void): Promise<void> {
     res.setHeader('Content-Security-Policy', CONTENT_SECURITY_POLICY)
+    if (await pairings(req, res)) return
     const url = new URL(req.url ?? '/', 'http://localhost')
     if (url.pathname !== '/api/offer') return next()
     return offer(req, res, url)
