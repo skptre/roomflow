@@ -113,3 +113,21 @@ describe('usdToMicros', () => {
     for (const bad of ['', '-1', 'ten', '1e3', '0.0000001', undefined]) expect(usdToMicros(bad)).toBeNull()
   })
 })
+
+describe('Ledger.ingest (one cap across processes)', () => {
+  it('counts calls another process wrote to the shared file, once, and refuses past the cap', () => {
+    const { ledger, written } = setup({ daily: 10_000 })
+    const other: LedgerEvent[] = [
+      { type: 'reserve', id: 'other-1', at: `${DAY}T11:00:00Z`, micros: 4_000, ...call },
+      { type: 'settle', id: 'other-1', at: `${DAY}T11:00:05Z`, micros: 3_500, usage: { input: 1, output: 1, thoughts: 0 } },
+      { type: 'reserve', id: 'other-2', at: `${DAY}T11:01:00Z`, micros: 4_000, ...call },
+    ]
+    ledger.ingest(other)
+    ledger.ingest(other)
+    expect(ledger.spentTodayMicros()).toBe(7_500)
+    expect(ledger.reserve({ ...call, worstCaseMicros: 3_000 })).toEqual({ ok: false, reason: 'daily-cap' })
+    // Reading back its own lines changes nothing.
+    ledger.ingest(written)
+    expect(ledger.spentTodayMicros()).toBe(7_500)
+  })
+})
