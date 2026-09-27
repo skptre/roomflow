@@ -13,6 +13,8 @@ export const SLAB = 0.08
 /** Height above the floor that cut walls drop to. */
 export const STUB_HEIGHT = 0.3
 const CUT_SECONDS = 0.28
+/** How far short of a neighboring wall's outer face an exterior wall's corner extension stops (m). */
+const CORNER_TUCK = 0.001
 
 type ArchitectureProps = {
   room: Room
@@ -104,7 +106,9 @@ function placementOf(wall: Wall, floorPolygon: readonly Vec2[]): Placement {
   // and both ends extend by the thickness to close the outside corners.
   const out = outwardNormal(wall, floorPolygon) ?? left
   const outIsLeft = out.x * left.x + out.z * left.z > 0
-  return { dir, normal: out, yaw, zOffset: outIsLeft ? 0 : -thickness, thickness, extend: thickness }
+  // Each end stops CORNER_TUCK short of the neighbor's outer face, so its end cap sits just inside that
+  // wall instead of on the same plane as its face (coplanar faces z-fight: a flickering zigzag at corners).
+  return { dir, normal: out, yaw, zOffset: outIsLeft ? 0 : -thickness, thickness, extend: thickness - CORNER_TUCK }
 }
 
 function extrudeProfile(wall: Wall, openings: readonly Opening[], placement: Placement, maxHeight?: number) {
