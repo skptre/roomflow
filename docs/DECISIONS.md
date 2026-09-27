@@ -103,3 +103,14 @@ every few frames (fallback if forwarding proves unreliable on device).
 Correction (same day, task 3): the slot was `nil` on iOS 27 in both device scans run so far — `RoomCaptureView`
 does not itself occupy it. Forwarding is kept anyway because it costs nothing and protects against a future
 `RoomCaptureView` (or another wrapper) that does use the slot.
+
+## Wall art's reference photo is a straight-on `CIPerspectiveCorrection` crop, not the raw frame
+`WallArtScanner` warps each candidate's best-scoring sighting to a straight-on rectangle with
+`CIFilter.perspectiveCorrection()` before saving it, rather than saving the raw camera frame (cropped or not)
+and letting a viewer imagine the rectangle from an angled photo. Rejected: saving the untouched frame — the
+camera is rarely square-on to a wall during a scan, so a raw crop shows the art skewed by whatever angle it
+happened to be seen from, which reads as a worse-quality photo of the same information the corrected crop
+already captures. The corrected crop is still a measured estimate (camera + LiDAR), not a merchant photo;
+`WallArtItem.method` continues to record that provenance. Cost accepted: the perspective warp can introduce
+minor resampling softness versus the source frame, judged worth it for a photo that actually reads as "the
+art," and the crop is capped at a 1024 px long edge to bound its size regardless.

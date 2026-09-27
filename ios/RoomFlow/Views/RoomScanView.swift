@@ -74,7 +74,8 @@ struct RoomScanView: View {
         case .finished:
             Button("View Room") {
                 if let room = scanner.capturedRoom {
-                    onComplete(ScanCaptureResult(room: room, colors: scanner.colorEstimates, photos: scanner.photos))
+                    onComplete(ScanCaptureResult(room: room, colors: scanner.colorEstimates, photos: scanner.photos,
+                                                 wallArt: scanner.wallArt, wallArtDirectory: scanner.wallArtDirectory))
                 }
             }
             .buttonStyle(RFButtonStyle())
