@@ -192,10 +192,10 @@ describe('parseRoomflowPackage', () => {
         asset: { kind: 'recipe', recipeId: 'default:wall-art' },
       })
       expect(art.dimensions).toEqual({ width: 0.38, height: 0.95, depth: 0.03, source: 'captured' })
-      // nativeToApp for the fixture is (-3.2, 1.4, -2.45). Back on the wall (native z 4.2), middle 1.5 cm in front.
+      // nativeToApp for the fixture is (-3.2, 1.4, -2.45). A 2 mm visual gap keeps the frame clear of the wall.
       expect(art.pose.position.x).toBeCloseTo(0, 6)
       expect(art.pose.position.y).toBeCloseTo(1.0 + 1.4 - 0.95 / 2, 6)
-      expect(art.pose.position.z).toBeCloseTo(4.2 - 0.015 - 2.45, 6)
+      expect(art.pose.position.z).toBeCloseTo(4.2 - 0.017 - 2.45, 6)
       expect(Math.abs(art.pose.yaw)).toBeCloseTo(Math.PI, 6) // faces -z (normal was normalized)
       expect(hostWall(room, art)).toBe('WALL-C-NORTH')
       expect(isWallHung(art)).toBe(true) // so it hides with its wall in the cutaway
@@ -203,6 +203,16 @@ describe('parseRoomflowPackage', () => {
       expect(evidence.artPhotos[0]!.artId).toBe(ART)
       expect(evidence.artPhotos[0]!.blob.type).toBe('image/jpeg')
       expect(warnings.join(' ')).not.toMatch(/wall art/)
+    })
+
+    it('anchors art to its imported wall when the measured plane drifts', async () => {
+      const file = wallArtFile()
+      // A camera/LiDAR plane can drift behind the RoomPlan wall; placement still uses the named rendered wall.
+      file.items[0]!.center[2] = 3.8
+      const { room } = await load(await makePackage({ wallArt: file }))
+      const art = room.objects.find((object) => object.id === ART)!
+      expect(art.pose.position.z).toBeCloseTo(4.2 - 0.017 - 2.45, 6)
+      expect(hostWall(room, art)).toBe('WALL-C-NORTH')
     })
 
     it('keeps a piece without a photo (photoPath null, or omitted as Swift Codable writes it)', async () => {

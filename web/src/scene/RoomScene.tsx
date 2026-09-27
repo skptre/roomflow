@@ -100,8 +100,10 @@ export function RoomScene({
             object={object}
             editable={!decorative && !previewActive}
             selected={!decorative && object.id === selectedId}
-            // Wall-mounted things (art, closets, leaning mirrors) go with a wall cut away for the dollhouse view.
-            hidden={isWallMounted(object) && cut.has(hostWall(room, object) ?? '')}
+            // Keep art visible when its wall drops away: otherwise the cutaway makes a scanned painting
+            // disappear exactly when the room view is meant to reveal it. Built-ins and mirrors still go
+            // with their wall because their geometry depends on it.
+            hidden={object.category !== 'wall-art' && isWallMounted(object) && cut.has(hostWall(room, object) ?? '')}
             hovered={!decorative && object.id === hoveredId}
             sources={sources}
             reducedMotion={reducedMotion}

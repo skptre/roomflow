@@ -7,7 +7,7 @@
  */
 import type { Usage } from './rates'
 
-export type InputClass = 'public-product' | 'user-photo'
+export type InputClass = 'public-product' | 'user-photo' | 'room-summary'
 export type RefuseReason = 'call-cap' | 'daily-cap' | 'unknown-price'
 
 type CallInfo = { purpose: string; model: string; inputClass: InputClass }

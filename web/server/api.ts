@@ -2,6 +2,7 @@
  * Roomflow's server routes, mounted inside the Vite dev and preview servers
  * (no second process). Store requests happen here, never in the browser.
  *   GET /api/offer?store=&handle=&variant=  → current price/availability of one variant
+ *   POST /api/design-room                   → consented, local-only room-design intent (roomDesigner.ts)
  * Every response carries a Content-Security-Policy (plan D11): the page may only
  * talk to this server and show images from Shopify's CDN, so nothing in the
  * browser can send room data anywhere else.
@@ -12,6 +13,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { guardedFetch } from '../src/ai/egress'
 import { refreshOffer, type OfferRefresh } from '../src/shop/offerRefresh'
+import { openAi } from './ai.ts'
+import { createRoomDesignerHandler } from './roomDesigner.ts'
 
 const PER_MINUTE = 30
 
@@ -33,6 +36,7 @@ function send(res: ServerResponse, status: number, body: unknown): void {
 export function roomflowApi(): Plugin {
   const inFlight = new Map<string, Promise<OfferRefresh>>()
   const outbound = guardedFetch(fetch)
+  const designRoom = createRoomDesignerHandler({ ai: () => openAi() })
   let windowStart = 0
   let windowCount = 0
 
@@ -59,6 +63,7 @@ export function roomflowApi(): Plugin {
   async function handle(req: IncomingMessage, res: ServerResponse, next: () => void): Promise<void> {
     res.setHeader('Content-Security-Policy', CONTENT_SECURITY_POLICY)
     const url = new URL(req.url ?? '/', 'http://localhost')
+    if (url.pathname === '/api/design-room') return designRoom(req, res)
     if (url.pathname !== '/api/offer') return next()
     return offer(req, res, url)
   }

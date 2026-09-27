@@ -9,6 +9,7 @@
  */
 import { z } from 'zod'
 import { recipeAsset } from '../blocks/registry'
+import { inwardNormal } from '../domain/layout'
 import { Room, type RoomObject } from '../domain/schema'
 import type { Vec3 } from '../domain/units'
 import { parseRoomPlanJson, type ImportOptions } from './roomplan'
@@ -28,6 +29,8 @@ const ART_PHOTO = /^art\/([0-9A-Fa-f-]{36})\.jpg$/
 const WALL_ART_WARNING = "The package's wall art couldn't be read, so it was left out."
 /** Wall art thinner than this is drawn this deep so the frame reads (format.md: depth = max(0.03, standoff)). */
 const MIN_ART_DEPTH = 0.03
+/** Visible clearance from the scanned wall face, avoiding depth-buffer occlusion of a flush art frame. */
+const WALL_ART_GAP = 0.002
 
 const Finite = z.number()
 const Uuid = z.string().uuid()
@@ -144,17 +147,33 @@ async function sha256Hex(data: Uint8Array): Promise<string> {
 }
 
 /**
- * Wall art as room objects, per format.md: native center/normal (RoomPlan frame) moved by `nativeToApp`; the back
- * touches the wall, `y` is the bottom, and yaw turns local +Z (front) along the normal. Measured estimates, approximate.
+ * Wall art as room objects. When its named RoomPlan wall survived import, the art is projected onto that rendered
+ * wall's room-facing plane so camera/LiDAR drift cannot bury it or make it float. Otherwise it falls back to the
+ * package center/normal. `y` is the bottom and yaw turns local +Z (front) toward the room. Measured estimates,
+ * approximate.
  */
-function wallArtObject(item: WallArtItem, nativeToApp: Vec3): RoomObject {
+function wallArtObject(item: WallArtItem, room: Room, nativeToApp: Vec3): RoomObject {
   const [nx, ny, nz] = item.normal as [number, number, number]
   const length = Math.hypot(nx, ny, nz)
   const n = { x: nx / length, y: ny / length, z: nz / length }
   const [cx, cy, cz] = item.center as [number, number, number]
   const depth = Math.max(MIN_ART_DEPTH, item.standoff)
-  // The wall surface behind the piece, then out by half the depth to the object's middle.
-  const mid = { x: cx - n.x * item.standoff + n.x * (depth / 2), z: cz - n.z * item.standoff + n.z * (depth / 2) }
+  const wall = room.walls.find((candidate) => candidate.id === item.wallSourceId)
+  const center = { x: cx + nativeToApp.x, z: cz + nativeToApp.z }
+  const normal = wall ? inwardNormal(room, wall) : { x: n.x, z: n.z }
+  let surface = center
+  if (wall) {
+    const dx = wall.end.x - wall.start.x
+    const dz = wall.end.z - wall.start.z
+    const lengthSquared = dx * dx + dz * dz || 1
+    const along = Math.max(0, Math.min(1, ((center.x - wall.start.x) * dx + (center.z - wall.start.z) * dz) / lengthSquared))
+    surface = { x: wall.start.x + dx * along, z: wall.start.z + dz * along }
+  } else {
+    // The measured plane is the only available wall reference for an old or partial package.
+    surface = { x: center.x - n.x * item.standoff, z: center.z - n.z * item.standoff }
+  }
+  // The rendered wall surface, then out by half the frame depth plus a small render-safe gap.
+  const mid = { x: surface.x + normal.x * (depth / 2 + WALL_ART_GAP), z: surface.z + normal.z * (depth / 2 + WALL_ART_GAP) }
   return {
     id: item.artId,
     name: 'Wall art',
@@ -162,8 +181,8 @@ function wallArtObject(item: WallArtItem, nativeToApp: Vec3): RoomObject {
     sourceKind: 'captured',
     dimensions: { width: item.width, height: item.height, depth, source: 'captured' },
     pose: {
-      position: { x: mid.x + nativeToApp.x, y: cy + nativeToApp.y - item.height / 2, z: mid.z + nativeToApp.z },
-      yaw: Math.atan2(n.x, n.z),
+      position: { x: mid.x, y: cy + nativeToApp.y - item.height / 2, z: mid.z },
+      yaw: Math.atan2(normal.x, normal.z),
     },
     asset: recipeAsset('wall-art'),
     fidelity: 'approximate',
@@ -303,7 +322,7 @@ export async function parseRoomflowPackage(bytes: Uint8Array, options: ImportOpt
     finishes: floor ? { ...imported.room.finishes, floor, floorTexture: 'plain' } : imported.room.finishes,
     objects: [
       ...imported.room.objects.map((object) => (labels.has(object.id) ? { ...object, name: labels.get(object.id)! } : object)),
-      ...(nativeToApp ? art.map((item) => wallArtObject(item, nativeToApp)) : []),
+      ...(nativeToApp ? art.map((item) => wallArtObject(item, imported.room, nativeToApp)) : []),
     ],
   })
   if (!labelled.success) return fail("This package's names couldn't be applied.")

@@ -1,5 +1,9 @@
 # Decisions
 
+## Imported wall art follows the rendered RoomPlan wall, not the camera/LiDAR plane
+
+Wall-art detections carry a measured camera/LiDAR center and normal, but those can be centimeters away from the RoomPlan wall plane rendered by the Designer. When `wallSourceId` resolves after import, project the center along that wall and use its room-facing normal, with the existing 2 mm visual clearance. Retain the measured center/normal fallback only when a package names a wall missing from the room. Rejected: a larger fixed offset from the measured plane, which made some pieces float while leaving others buried because it did not correct the different source planes.
+
 Non-obvious tradeoffs, each with the alternative that was rejected. Routine "only way to do it" changes don't belong here.
 
 ## Lamp shade glow remains tied to placed lamps
@@ -7,6 +11,29 @@ Only owned or deliberately placed lamps get local lights; a scan's captured lamp
 
 ## The landing preview uses the first room; the sample editor uses the current one
 The fixed landing visual shows the tiny original bedroom with only a bed and desk, while “Explore sample room” opens the current, furnished sample. Rejected: using the current sample for both, because its additional furniture obscures the simple bed transformation the landing page is meant to explain.
+## Room-designer Apply requires the dialog's own live preview
+
+`applyRoomDesignerPreview` commits only while the designer's exact `Preview` object is still the store's active preview, and first rejects a proposal whose `baseRevision` is no longer current (cancelling its own preview). Without a budget, the cost report still says "Budget unknown" whenever any proposed line has no price, instead of the store's neutral `no-budget` status. Rejected: applying fresh commands when the preview was dismissed (as catalog cards do), because a whole-room redesign should never be committed unseen; and reporting "No budget set" beside an incomplete subtotal, which reads as a known total.
+
+## Room summaries go only to an attested paid Gemini project, resolved lazily
+
+`createAiContext` refuses every private input class (room summaries as well as user photos) unless the call is consented and `GEMINI_PAID_PROJECT=true`, matching the photo-recognition route's billing attestation, because free-tier projects may retain prompts for product improvement. The room-design route resolves `openAi()` on its first valid request instead of when the Vite plugin is built, so `vite build` and tests never read settings or open the ledger file. Rejected: gating only in the room-design route (a second, divergent privacy check) and eager `openAi()` at plugin construction (creates `.data/` and reads the ledger during every build).
+
+## Partial room-design proposals explain every skipped change
+
+The resolver accepts each safe command against a working room and returns a visible reason when a requested change cannot fit, has no confirmed in-stock catalog entry, or violates a user constraint. With a budget, new choices require a known price in that currency; existing unknown-priced purchases still make the resulting budget status unknown. Existing placements retain their known offer price even after that offer loses stock status. Rejected: discarding the entire design on one impossible request or treating a missing price as zero.
+
+## Room-designer descriptions are composed in the browser
+
+The model returns only structured intent; the browser composes summary and notes from validated fields and a fixed category vocabulary. Rejected: accepting short model prose after filtering apparent prices, dimensions, links, coordinates, or commands. Natural language can express the same unsupported claims in unlimited forms, so a regex cannot make those fields a reliable data boundary.
+
+## Model-requested categories match offerable catalog categories
+
+The intent schema accepts only categories represented in the committed real catalog for additions and replacements. Captured furniture and structural category strings remain in the redacted room summary, where existing object IDs can be targeted, but cannot request a new invented product. Task 2 maps generic language such as “chairs” to available chair categories and skips unsupported inventory. Rejected: allowing every RoomPlan category in add/replace requests, which could turn fixtures such as a sink or closet into fabricated shopping items.
+
+## Gemini room design returns intent, not edits
+
+The room-designer request projects only structural geometry, current finishes, and minimal object facts; the response names categories and existing object IDs without positions, dimensions, prices, URLs, or executable commands. The browser will resolve actual edits against its current room and catalog. Rejected: asking Gemini to return a full room or product plan, which could leak capture and purchase evidence and let fabricated model facts cross the trusted boundary.
 
 ## Wall art is measured in room orientation, not the camera's
 ARKit's captured image and camera pose stay in the sensor's fixed landscape frame while the app is portrait-only,
@@ -209,6 +236,14 @@ real benefit.
 
 Use existing RoomPlan measurements and explicit live object selection for the first native piece mode. Export only that object's dimensions and opted-in upright photos. Rejected: exporting a one-object room and passing it through loadRoom, which would replace the user's design; exporting raw surroundings; claiming full 3D reconstruction from reference views. A missing final RoomPlan ID requires rescan instead of silently choosing the nearest item. The separate piece format has no pose: the Designer places it in free space and records an approximate category shape. File import is local; Gemini remains an explicit photo action rather than an automatic upload. Durable native piece files make canceled sharing retryable without a new scan.
 
+### 2026-09-27 — Room designer normalizes harmless model variations instead of rejecting them
+
+Gemini's structured output does not enforce `oneOf`, `const`, `pattern` or string-length keywords, so the schema sent to it (`RoomDesignIntentWire`) is flat and keyword-free, and `parseRoomDesignIntent` repairs only variations with one unambiguous meaning: a color sent with a non-`set` palette mode is dropped, hex colors are lowercased and `#rgb` expanded, and an ID in both `removeObjectIds` and `replace` keeps the replacement (the more specific request). Everything else still fails closed — `set` without a valid color, unknown or repeated IDs within a list, unsupported categories, extra fields, oversized output. Rejected: strict rejection of every deviation, which made ordinary requests such as “Turn everything black” fail with “invalid plan” even though the intent was clear; and fuzzy repair (color names, guessing IDs), which would let the model's guesses become edits. Cost: the parser accepts a slightly looser input than the final `RoomDesignIntent` type, so the normalized value, not the raw model output, is what reaches the proposal.
+
+### 2026-09-27 — A single requested room color paints walls, not the floor
+
+Palette `set` paints walls and accents the requested color and gives the floor a readable variant (blend toward mid gray for very dark/light colors, otherwise toward black or white), so furniture stays visible. Rejected: painting wall, floor and accent the same color — with “Turn everything black” the furniture disappeared into a black floor. Furniture colors are not changed by a palette request; the proposal says so and replacing pieces remains the way to change them.
+
 ### 2026-09-27 — Chunky sample-room models are an opt-in block, not a new default
 
 The demo room's plump look (fat rounded legs, soft edges, big knobs, thick padded headboard) is a `proportion: 'chunky'` block that only the `demo:*` recipes set; every family defaults to `classic`, so the 2,246 catalog models draw exactly as before. Rejected: raising the shared edge and leg sizes for everything, which would silently restyle the catalog lineup another session had just tuned and can't be judged without re-checking it; and hand-built one-off demo meshes, which wouldn't match anything swapped in from the shop. The block, like the bed's `throw` and art's `motif`, is left out of the Gemini prompt: it's styling, not a product feature, and adding it would change the prompt text and invalidate the paid answer cache. Making chunky the default later is one line per family plus a lineup review.
@@ -220,3 +255,7 @@ The sample home's bedroom and bathroom are one `Room` (one floor outline, one wa
 ### 2026-09-27 — A hung piece moves on its wall, not across the floor
 
 Dragging a painting or mirror slides it along the wall it hangs on (and up or down), clamped to that wall, and refuses to cover a window or door. Rejected: dragging it on the floor plan and re-snapping to the nearest wall on release, which lets a painting jump between walls or end up hanging in mid-room during the drag; and the previous "remove it and add it again", which users found baffling. Moving it to another wall stays a remove-and-add for now. One `move` command carries the new height, so undo and saved state treat a slide like any other move. The sample room went back to a single small bedroom (feedback: the two-room version was cluttered and hard to move things in); `Room.zones` remains supported for multi-room scans later.
+
+### 2026-09-27 — Changes to kept pieces apply as the user's revision-bound edit, not an automated one
+
+When the user taps “Allow changes to kept pieces for this design”, the resulting proposal may remove or replace pieces marked Keep. `applyCommands` refuses those for `actor: 'auto'`, so a flagged proposal previews and applies with `actor: 'user'` plus its `baseRevision`: the store still refuses it after any newer edit, and it commits as one undo step. The proposal builder checks every command with the automated actor on a room where only the removal/replacement targets are shown as not kept, so placement locks (moves, replacement nudges) are still enforced before the user-actor apply. The user's Keep settings are untouched until Apply; applying the design is the consent. Rejected: silently clearing Keep with `setKeep` commands inside the proposal (automated code may never lift Keep, and it would change settings the user did not touch); a third actor or a store flag that skips only the Keep check (wider contract change for one flow); and asking Gemini to ignore Keep via a different prompt (the instruction stays fixed; only the summary sent changes).

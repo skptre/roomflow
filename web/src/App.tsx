@@ -24,6 +24,7 @@ import { Inspector } from './ui/Inspector'
 import { cancelActivePreview } from './ui/lookActions'
 import { NoticeBar } from './ui/NoticeBar'
 import { noticeStore } from './ui/noticeStore'
+import { RoomDesignerDialog } from './ui/RoomDesignerDialog'
 import { RoomPanel } from './ui/RoomPanel'
 import { StartScreen } from './ui/StartScreen'
 import { StudioIcon } from './ui/StudioIcon'
@@ -78,6 +79,7 @@ function Workspace() {
   const [swapId, setSwapId] = useState<string | null>(null)
   const [pieceImport, setPieceImport] = useState(false)
   const [discovery, setDiscovery] = useState(false)
+  const [designer, setDesigner] = useState(false)
   const [help, setHelp] = useState(false)
   const [viewRequest, setViewRequest] = useState<ViewRequest>({ action: 'home', sequence: 0 })
   const [error, setError] = useState<string | null>(null)
@@ -85,6 +87,7 @@ function Workspace() {
   const offers = useStore(catalogStore, (state) => state.offers)
   const variantLabels = useStore(catalogStore, (state) => state.variantLabels)
   const catalogEntries = useStore(catalogStore, (state) => state.entries)
+  const catalogStatus = useStore(catalogStore, (state) => state.status)
   const sources: SummarySources = useMemo(() => ({ offers, variantLabels }), [offers, variantLabels])
   // Looks only propose pieces the store reports in stock at a known price, so a look's total means something.
   const lookCatalog = useMemo(
@@ -288,6 +291,7 @@ function Workspace() {
                 onBrowse={() => showPanel('catalog')}
                 onImportPiece={() => { cancelActivePreview(); setLooksOpen(false); setPieceImport(true) }}
                 onAddPhoto={() => { cancelActivePreview(); setLooksOpen(false); setDiscovery(true) }}
+                onDesign={() => { cancelActivePreview(); setLooksOpen(false); setDesigner(true) }}
               />
             )}
           </div>
@@ -296,6 +300,7 @@ function Workspace() {
       </div>
       {pieceImport && <PieceImportDialog onClose={() => setPieceImport(false)} />}
       {discovery && <AppearanceDialog onClose={() => setDiscovery(false)} />}
+      {designer && <RoomDesignerDialog catalog={catalogEntries} catalogStatus={catalogStatus} sources={sources} onClose={() => setDesigner(false)} />}
       {help && <HelpDialog onClose={() => setHelp(false)} />}
       {autoMatch && <AutoMatchDialog items={autoMatch.items} model={autoMatch.model} onClose={() => setAutoMatch(null)} />}
     </main>

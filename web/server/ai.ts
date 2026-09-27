@@ -8,7 +8,8 @@
  *   - every request leaves through the egress allowlist (stores, Shopify CDN, Gemini),
  *   - the ledger file is shared: each process re-reads it before reserving, so the
  *     app and scripts count against one daily cap,
- *   - a private photo (`user-photo`) is never sent without the user's consent for that call.
+ *   - private photos and room summaries are never sent without the user's consent for that call,
+ *     and only to a project attested as billing-enabled (GEMINI_PAID_PROJECT=true).
  */
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -32,7 +33,7 @@ export type AiContext = {
   call(request: PaidCall): Promise<PaidResult>
 }
 
-/** `consented`: the user approved sending this private input for this call (required for `user-photo`). */
+/** `consented`: the user approved sending this private input for this call (required for every private input class, i.e. anything but `public-product`; private classes also need `paidProject`). */
 export type PaidCall = Omit<GenerateRequest, 'fetch' | 'apiKey'> & { purpose: string; inputClass: InputClass; textChars: number; images: number; consented?: boolean }
 export type PaidResult = (GenerateResult & { callId?: string; micros: number }) | { ok: false; refused: string; micros: 0 }
 
@@ -74,16 +75,28 @@ function openLedger(caps: Caps): { ledger: Ledger; sync: () => void } {
 
 // ---------- paid calls ----------
 
-/** Settings and ledger; null (with the reason) when AI isn't available — callers fall back to free tiers. */
-export function openAi(options: { mode?: string; fetch?: FetchLike } = {}): AiContext | { unavailable: string } {
-  const env = loadEnv(options.mode ?? 'development', webRoot, '')
-  const apiKey = env.GEMINI_API_KEY?.trim()
-  if (!apiKey) return { unavailable: 'GEMINI_API_KEY is not set in web/.env.local' }
-  const caps = readCaps(env)
-  if (!caps) return { unavailable: 'AI_DAILY_CAP_USD / AI_CALL_CAP_USD must be plain USD amounts' }
+/** Everything a ledger-backed AI context needs; `openAi` reads these from web/.env.local, tests inject them. */
+export type AiSettings = {
+  apiKey: string
+  ledger: Ledger
+  /** Raw transport; always wrapped in the egress allowlist here. */
+  fetch: FetchLike
+  /** Applies ledger lines other processes appended; called before every reservation. */
+  sync?: () => void
+  configuredModel?: string
+  /** GEMINI_PAID_PROJECT=true: the key belongs to a billing-enabled project, required before any private input is sent. */
+  paidProject: boolean
+}
 
-  const { ledger, sync } = openLedger(caps)
-  const fetchImpl = guardedFetch(options.fetch ?? fetch)
+/**
+ * The one paid-call path: consent and paid-project checks for private inputs,
+ * price lookup, worst-case reservation on the shared ledger, the call, then
+ * settle. Refusals return before any generation request is sent.
+ */
+export function createAiContext(settings: AiSettings): AiContext {
+  const { apiKey, ledger } = settings
+  const sync = settings.sync ?? (() => {})
+  const fetchImpl = guardedFetch(settings.fetch)
   let models: Promise<string[]> | null = null
 
   return {
@@ -92,13 +105,14 @@ export function openAi(options: { mode?: string; fetch?: FetchLike } = {}): AiCo
     fetch: fetchImpl,
     async chooseModel(override) {
       models ??= listModels({ fetch: fetchImpl, apiKey })
-      const picked = pickModel(await models, override ?? env.GEMINI_MODEL?.trim(), new Date())
+      const picked = pickModel(await models, override ?? settings.configuredModel, new Date())
       if (!picked) throw new Error('no reachable Gemini model has a known price (see src/ai/rates.ts)')
       if (override && picked.model !== override) throw new Error(`model ${override} is not reachable with this key`)
       return picked
     },
     async call(request) {
-      if (request.inputClass === 'user-photo' && request.consented !== true) return { ok: false, refused: 'no-consent', micros: 0 }
+      if (request.inputClass !== 'public-product' && request.consented !== true) return { ok: false, refused: 'no-consent', micros: 0 }
+      if (request.inputClass !== 'public-product' && !settings.paidProject) return { ok: false, refused: 'unpaid-project', micros: 0 }
       const rate = rateFor(request.model, new Date())
       const worst = rate ? worstCaseMicros(rate, { textChars: request.textChars, images: request.images, maxOutputTokens: request.maxOutputTokens }) : null
       sync()
@@ -115,4 +129,16 @@ export function openAi(options: { mode?: string; fetch?: FetchLike } = {}): AiCo
       return { ...result, callId: reserved.id, micros: result.charged === 'unknown' ? worst! : 0 }
     },
   }
+}
+
+/** Settings and ledger; null (with the reason) when AI isn't available — callers fall back to free tiers. */
+export function openAi(options: { mode?: string; fetch?: FetchLike } = {}): AiContext | { unavailable: string } {
+  const env = loadEnv(options.mode ?? 'development', webRoot, '')
+  const apiKey = env.GEMINI_API_KEY?.trim()
+  if (!apiKey) return { unavailable: 'GEMINI_API_KEY is not set in web/.env.local' }
+  const caps = readCaps(env)
+  if (!caps) return { unavailable: 'AI_DAILY_CAP_USD / AI_CALL_CAP_USD must be plain USD amounts' }
+
+  const { ledger, sync } = openLedger(caps)
+  return createAiContext({ apiKey, ledger, sync, fetch: options.fetch ?? fetch, configuredModel: env.GEMINI_MODEL?.trim(), paidProject: env.GEMINI_PAID_PROJECT === 'true' })
 }
