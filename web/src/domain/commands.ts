@@ -26,7 +26,8 @@ const Id = z.string().min(1)
 export const Command = z.discriminatedUnion('type', [
   z.object({ type: z.literal('setAppearance'), id: Id, appearance: Appearance, model: z.string().min(1).max(100) }),
   z.object({ type: z.literal('add'), object: RoomObject }),
-  z.object({ type: z.literal('move'), id: Id, position: Vec2 }),
+  /** `y`: a new bottom height, for an item slid up or down its wall (absent = keep its height). */
+  z.object({ type: z.literal('move'), id: Id, position: Vec2, y: z.number().nonnegative().optional() }),
   z.object({ type: z.literal('rotate'), id: Id, yaw: z.number() }),
   z.object({ type: z.literal('remove'), id: Id }),
   z.object({ type: z.literal('replace'), id: Id, with: Replacement }),
@@ -110,12 +111,12 @@ function applyOne(room: Room, command: Command, actor: Actor, warnings: string[]
       const index = objectIndex(room, command.id)
       const object = room.objects[index]!
       if (actor === 'auto' && object.lockPlacement) throw new CommandError(`${object.name} is locked in place.`)
-      if (!Number.isFinite(command.position.x) || !Number.isFinite(command.position.z)) {
+      if (!Number.isFinite(command.position.x) || !Number.isFinite(command.position.z) || (command.y !== undefined && !Number.isFinite(command.y))) {
         throw new CommandError('Invalid position.')
       }
       const moved: RoomObject = {
         ...object,
-        pose: { ...object.pose, position: { x: command.position.x, y: object.pose.position.y, z: command.position.z } },
+        pose: { ...object.pose, position: { x: command.position.x, y: command.y ?? object.pose.position.y, z: command.position.z } },
       }
       if (!insideRoom(moved, room.floorPolygon)) throw new CommandError(`${object.name} can't go outside the room.`)
       const warning = overlapWarning(room, moved)

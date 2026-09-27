@@ -1,13 +1,13 @@
 /**
  * Procedural, meter-scaled detail textures for the room shell (floor boards,
- * wall plaster). Each is a light grayscale pattern that multiplies a
+ * bathroom tile, wall plaster). Each is a light grayscale pattern that multiplies a
  * material's color, generated once and shared. UVs are in meters (one tile =
  * 1 m), so grain never stretches with room size. Furniture is drawn from
  * blocks with flat colors (src/blocks/materials.ts).
  */
 import { CanvasTexture, LinearMipmapLinearFilter, RepeatWrapping, SRGBColorSpace, type Texture } from 'three'
 
-export type TextureKind = 'woodgrain' | 'plaster'
+export type TextureKind = 'woodgrain' | 'plaster' | 'tile'
 
 const SIZE = 256
 const textures = new Map<TextureKind, Texture>()
@@ -66,9 +66,27 @@ function drawPlaster(ctx: CanvasRenderingContext2D) {
   }
 }
 
+function drawTile(ctx: CanvasRenderingContext2D) {
+  const rand = random(13)
+  // Square tiles, four per meter (25 cm), each a hair different, with soft grout lines.
+  const tile = SIZE / 4
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 4; col++) {
+      gray(ctx, 0.965 + rand() * 0.03)
+      ctx.fillRect(col * tile, row * tile, tile, tile)
+    }
+  }
+  gray(ctx, 0.8)
+  for (let i = 0; i < 4; i++) {
+    ctx.fillRect(i * tile, 0, 2, SIZE)
+    ctx.fillRect(0, i * tile, SIZE, 2)
+  }
+}
+
 const painters: Record<TextureKind, (ctx: CanvasRenderingContext2D) => void> = {
   woodgrain: drawWoodgrain,
   plaster: drawPlaster,
+  tile: drawTile,
 }
 
 /** Shared texture for a kind; created on first use. Browser only. */

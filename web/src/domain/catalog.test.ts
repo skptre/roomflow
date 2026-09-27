@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { sampleRoom } from '../test/rooms'
-import { acceptResult, entryToObject, filterHard, preloadPicks, rankSoft, type CatalogEntry } from './catalog'
+import { acceptResult, defaultVariantIndex, entryToObject, filterHard, preloadPicks, rankSoft, type CatalogEntry } from './catalog'
 
 function entry(id: string, overrides: { category?: string; price?: number | null; currency?: string; width?: number; depth?: number; tags?: string[]; recipeId?: string } = {}): CatalogEntry {
   const { category = 'floor-lamp', price = 10000, currency = 'USD', width = 0.4, depth = 0.4, tags = [], recipeId = 'default:floor-lamp' } = overrides
@@ -110,5 +110,25 @@ describe('entryToObject', () => {
       dimensions: { width: 0.4, depth: 0.4, source: 'merchant' },
       asset: { kind: 'recipe', recipeId: 'default:floor-lamp' },
     })
+  })
+})
+
+describe('defaultVariantIndex', () => {
+  const entry = (category: string, width: number, source: 'merchant' | 'estimated' = 'merchant') =>
+    ({
+      product: { category },
+      variant: { dimensions: { width, height: width * 0.75, depth: 0.04, source } },
+      offer: {},
+    }) as unknown as CatalogEntry
+
+  it('starts a print sold in many sizes at the one nearest a typical painting, not the smallest', () => {
+    const sizes = [0.254, 0.3556, 0.4572, 0.6096, 0.9144, 1.397].map((w) => entry('wall-art', w))
+    expect(sizes[defaultVariantIndex(sizes)]!.variant.dimensions.width).toBeCloseTo(0.6096, 4)
+  })
+
+  it('keeps the first variant for floor pieces, single variants, and unlisted sizes', () => {
+    expect(defaultVariantIndex([entry('sofa', 1.8), entry('sofa', 2.2)])).toBe(0)
+    expect(defaultVariantIndex([entry('wall-art', 0.3)])).toBe(0)
+    expect(defaultVariantIndex([entry('wall-art', 0.6, 'estimated'), entry('wall-art', 0.3, 'estimated')])).toBe(0)
   })
 })

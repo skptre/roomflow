@@ -4,7 +4,7 @@ import type { PurchaseSources } from '../domain/designStore'
 import { isWallHung } from '../domain/categories'
 import { faceAxes, formatLength, priceLabel, provenanceLabel } from '../domain/labels'
 import type { RoomObject } from '../domain/schema'
-import { moveObject, removeSelected, rotateSelected, setKeep, setLock } from './editorActions'
+import { moveObject, nudgeOnWall, removeSelected, rotateSelected, setKeep, setLock } from './editorActions'
 import { FurnitureThumbnail } from './FurnitureThumbnail'
 import { RotateLeftIcon, RotateRightIcon, TrashIcon } from './icons'
 import { StudioIcon } from './StudioIcon'
@@ -67,8 +67,11 @@ export function Inspector({
   )
     .filter(([, axis]) => !face || face.includes(axis))
     .map(([label, , value]) => [label, value] as const)
+  // A hung piece's arrows slide it on its wall (← → along it, ↑ ↓ up and down); everything else moves on the floor plan.
+  const onWall = isWallHung(object)
   function nudge(x: number, z: number) {
-    moveObject(object.id, { x: object.pose.position.x + x, z: object.pose.position.z + z })
+    if (onWall) nudgeOnWall(object.id, x, -z)
+    else moveObject(object.id, { x: object.pose.position.x + x, z: object.pose.position.z + z })
   }
   return (
     <section className="inspector-content" aria-label={`${object.name} details`}>
@@ -105,18 +108,18 @@ export function Inspector({
       {matchPhoto && <AppearanceDialog key={object.id} object={object} onClose={() => setMatchPhoto(false)} />}
       <div className="inspector-section">
         <h3>A place for everything</h3>
-        <p>Drag in the room, or move in 10 cm steps below.</p>
+        <p>{onWall ? 'Drag it along the wall, or move in 10 cm steps below.' : 'Drag in the room, or move in 10 cm steps below.'}</p>
         <div className="placement-controls">
-          <div className="nudge-grid" role="group" aria-label="Move on the room floor">
+          <div className="nudge-grid" role="group" aria-label={onWall ? 'Move on the wall' : 'Move on the room floor'}>
             <button
-              aria-label="Move toward back wall 10 cm"
+              aria-label={onWall ? 'Move up 10 cm' : 'Move toward back wall 10 cm'}
               disabled={object.lockPlacement}
               onClick={() => nudge(0, -0.1)}
             >
               ↑
             </button>
             <button
-              aria-label="Move left on floor plan 10 cm"
+              aria-label={onWall ? 'Move left along the wall 10 cm' : 'Move left on floor plan 10 cm'}
               disabled={object.lockPlacement}
               onClick={() => nudge(-0.1, 0)}
             >
@@ -126,14 +129,14 @@ export function Inspector({
               10<small>cm</small>
             </span>
             <button
-              aria-label="Move right on floor plan 10 cm"
+              aria-label={onWall ? 'Move right along the wall 10 cm' : 'Move right on floor plan 10 cm'}
               disabled={object.lockPlacement}
               onClick={() => nudge(0.1, 0)}
             >
               →
             </button>
             <button
-              aria-label="Move toward front of room 10 cm"
+              aria-label={onWall ? 'Move down 10 cm' : 'Move toward front of room 10 cm'}
               disabled={object.lockPlacement}
               onClick={() => nudge(0, 0.1)}
             >

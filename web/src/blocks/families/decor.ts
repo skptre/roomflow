@@ -3,7 +3,7 @@
  * pillows, throws. Art canvases and rug tops can show the product's photo.
  */
 import { Path, Shape, Vector3 } from 'three'
-import { defineFamily } from '../family'
+import { defineFamily, type BuildContext } from '../family'
 import { cylinder, extrudeShape, lathe, pillowForm, place, slab, sphere, tube, type Geo } from '../kit'
 
 /** Deterministic pseudo-random numbers (same plant every load). */
@@ -268,22 +268,29 @@ export const art = defineFamily({
   blocks: {
     frame: { options: ['thin', 'wide', 'float', 'none'], default: 'thin' },
     mat: { options: ['none', 'white'], default: 'none' },
+    // A flat abstract print for art with no photo (the sample room's pieces). Not offered to Gemini.
+    motif: { options: ['none', 'arches', 'sun', 'shapes'], default: 'none' },
   },
   params: {},
   slots: {
     frame: { kind: 'wood', color: '#2e2a26' },
     mat: { kind: 'paper', color: '#f5f2eb' },
     canvas: { kind: 'paper', color: '#d9d2c4' },
+    accent: { kind: 'paper', color: '#b8674a' },
+    accent2: { kind: 'paper', color: '#8e9f7f' },
   },
   imageSlot: 'canvas',
   imageProjection: 'xy',
   build(ctx) {
     const { w, h, d } = ctx
     const frame = ctx.block('frame')
+    const motif = ctx.block('motif')
     const back = -d / 2
     if (frame === 'none') {
-      // Gallery-wrapped canvas: the print wraps the whole block.
-      ctx.add('canvas', slab(-w / 2, w / 2, 0, h, back, d / 2, 0.002))
+      // Gallery-wrapped canvas: the print wraps the whole block (set back a hair when a motif is painted on it).
+      const front = motif === 'none' ? d / 2 : d / 2 - MOTIF_DEPTH * 3
+      ctx.add('canvas', slab(-w / 2, w / 2, 0, h, back, front, 0.002))
+      paintMotif(ctx, motif, -w / 2, w / 2, 0, h, front)
       return
     }
     const fw = Math.min(frame === 'wide' ? 0.055 : frame === 'float' ? 0.018 : 0.022, Math.min(w, h) * 0.15)
@@ -299,9 +306,73 @@ export const art = defineFamily({
     const face = d / 2 - Math.min(0.008, d * 0.3)
     ctx.add('mat', slab(ix0 + 0.0005, ix1 - 0.0005, iy0 + 0.0005, iy1 - 0.0005, back + 0.002, face - 0.004, 0.001))
     const margin = ctx.block('mat') === 'white' ? Math.min(ix1 - ix0, iy1 - iy0) * 0.12 : frame === 'float' ? 0.02 : 0
-    ctx.add('canvas', slab(ix0 + margin, ix1 - margin, iy0 + margin, iy1 - margin, face - 0.004, face - (frame === 'float' ? 0 : 0.002), 0.0008))
+    const canvasFront = face - (frame === 'float' ? MOTIF_DEPTH * 3 : 0.002)
+    ctx.add('canvas', slab(ix0 + margin, ix1 - margin, iy0 + margin, iy1 - margin, face - 0.004 - (frame === 'float' ? MOTIF_DEPTH * 3 : 0), canvasFront, 0.0008))
+    paintMotif(ctx, motif, ix0 + margin, ix1 - margin, iy0 + margin, iy1 - margin, canvasFront)
   },
 })
+
+/** Thickness of one painted layer of a motif (layers stack forward so none z-fights). */
+const MOTIF_DEPTH = 0.0006
+
+/** A flat shape (XY) as a thin painted layer standing `layer` steps in front of z. */
+function paint(shape: Shape, z: number, layer: number): Geo {
+  return place(extrudeShape(shape, MOTIF_DEPTH, 0, 40), { z: z + (layer - 1) * MOTIF_DEPTH })
+}
+
+/** Half-disc of radius r standing on (cx, y0). */
+function halfDisc(cx: number, y0: number, r: number): Shape {
+  const shape = new Shape()
+  shape.absellipse(cx, y0, r, r, 0, Math.PI, false, 0)
+  return shape.closePath()
+}
+
+/**
+ * A simple abstract print in flat colors, inside the canvas rectangle [x0,x1] × [y0,y1] and in front of
+ * `z`: rainbow arches, a sun over hills, or a stacked composition of an arch, a circle and a bar.
+ * Stylized on purpose (see the stylized-models rule): shape and color, never texture or detail.
+ */
+function paintMotif(ctx: BuildContext, motif: string, x0: number, x1: number, y0: number, y1: number, z: number) {
+  if (motif === 'none') return
+  const W = x1 - x0
+  const H = y1 - y0
+  const cx = (x0 + x1) / 2
+  if (W < 0.08 || H < 0.08) return
+  switch (motif) {
+    case 'arches': {
+      const R = Math.min(W * 0.4, H * 0.62)
+      const base = y0 + H * 0.16
+      ctx.add('accent', paint(halfDisc(cx, base, R), z, 1))
+      ctx.add('accent2', paint(halfDisc(cx, base, R * 0.72), z, 2))
+      ctx.add('accent', paint(halfDisc(cx, base, R * 0.46), z, 3))
+      ctx.add('canvas', paint(halfDisc(cx, base, R * 0.22), z, 4))
+      break
+    }
+    case 'sun': {
+      const r = Math.min(W, H) * 0.17
+      ctx.add('accent', paint(new Shape().absellipse(cx + W * 0.14, y0 + H * 0.64, r, r, 0, Math.PI * 2, false, 0), z, 1))
+      // Two soft hills along the bottom, the nearer one in front.
+      const hill = (from: number, to: number, peak: number) =>
+        new Shape().moveTo(from, y0).lineTo(from, y0 + H * 0.12).quadraticCurveTo((from + to) / 2, y0 + H * peak, to, y0 + H * 0.12).lineTo(to, y0).closePath()
+      ctx.add('accent2', paint(hill(x0, x1, 0.62), z, 2))
+      ctx.add('frame', paint(hill(x0, x0 + W * 0.7, 0.4), z, 3))
+      break
+    }
+    case 'shapes': {
+      const aw = W * 0.34
+      const ax = x0 + W * 0.14
+      const top = y0 + H * 0.66
+      const arch = new Shape().moveTo(ax, y0 + H * 0.12).lineTo(ax + aw, y0 + H * 0.12).lineTo(ax + aw, top)
+      arch.absellipse(ax + aw / 2, top, aw / 2, aw / 2, 0, Math.PI, false, 0)
+      ctx.add('accent2', paint(arch.closePath(), z, 1))
+      const r = Math.min(W, H) * 0.15
+      ctx.add('accent', paint(new Shape().absellipse(x1 - W * 0.26, y0 + H * 0.66, r, r, 0, Math.PI * 2, false, 0), z, 2))
+      const bar = new Shape().moveTo(x1 - W * 0.44, y0 + H * 0.12).lineTo(x1 - W * 0.1, y0 + H * 0.12).lineTo(x1 - W * 0.1, y0 + H * 0.2).lineTo(x1 - W * 0.44, y0 + H * 0.2).closePath()
+      ctx.add('frame', paint(bar, z, 3))
+      break
+    }
+  }
+}
 
 /** Mirror outline in the XY plane (x across, y up from 0 to h). */
 function mirrorShape(kind: string, w: number, h: number, inset = 0): Shape | Path {

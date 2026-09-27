@@ -2,12 +2,12 @@
 import { Shape, Vector3 } from 'three'
 import { defineFamily } from '../family'
 import { cylinder, extrudeShape, lathe, place, slab, tube, type Geo } from '../kit'
-import { HARD, handle, leg, legGrid, legHalfWidth, type LegStyle } from './shared'
+import { PROPORTION, handle, hardEdge, leg, legGrid, legHalfWidth, type LegStyle } from './shared'
 
-/** Plan outline of a top (x across, second axis = depth), centered. */
-function planShape(kind: string, w: number, d: number): Shape {
+/** Plan outline of a top (x across, second axis = depth), centered. Chunky rectangles get softly rounded corners. */
+function planShape(kind: string, w: number, d: number, chunky = false): Shape {
   if (kind === 'round' || kind === 'oval') return new Shape().absellipse(0, 0, w / 2, d / 2, 0, Math.PI * 2, false, 0)
-  const r = kind === 'rounded' ? Math.min(0.1, w / 4, d / 4) : 0.006
+  const r = kind === 'rounded' ? Math.min(0.1, w / 4, d / 4) : chunky ? Math.min(0.035, w / 4, d / 4) : 0.006
   return new Shape()
     .moveTo(-w / 2 + r, -d / 2)
     .lineTo(w / 2 - r, -d / 2)
@@ -22,9 +22,9 @@ function planShape(kind: string, w: number, d: number): Shape {
 }
 
 /** A flat plan shape extruded `thickness` up from y0. */
-function planSlab(kind: string, w: number, d: number, y0: number, thickness: number, bevel: number): Geo {
+function planSlab(kind: string, w: number, d: number, y0: number, thickness: number, bevel: number, chunky = false): Geo {
   // Shape XY → floor XZ (rotateX −90° maps shape y to −z; the shapes are symmetric).
-  return place(extrudeShape(planShape(kind, w, d), thickness, bevel).rotateX(-Math.PI / 2), { y: y0 })
+  return place(extrudeShape(planShape(kind, w, d, chunky), thickness, bevel).rotateX(-Math.PI / 2), { y: y0 })
 }
 
 export const table = defineFamily({
@@ -36,6 +36,7 @@ export const table = defineFamily({
     legStyle: { options: ['tapered', 'straight', 'turned', 'block', 'metal'], default: 'tapered' },
     shelf: { options: ['none', 'lower'], default: 'none' },
     drawer: { options: ['none', '1', '2'], default: 'none' },
+    proportion: PROPORTION,
   },
   params: {
     topThickness: { min: 0.012, max: 0.08, default: 0.032 },
@@ -53,10 +54,12 @@ export const table = defineFamily({
     const w = topKind === 'round' ? Math.min(ctx.w, ctx.d) : ctx.w
     const d = topKind === 'round' ? Math.min(ctx.w, ctx.d) : ctx.d
     const base = ctx.block('base')
+    const chunky = ctx.block('proportion') === 'chunky'
+    const HARD = hardEdge(chunky)
     const t = Math.min(ctx.param('topThickness'), h * 0.25)
     const under = h - t
     const round = topKind === 'round' || topKind === 'oval'
-    ctx.add('top', planSlab(topKind, w, d, under, t, Math.min(0.006, t / 3)))
+    ctx.add('top', planSlab(topKind, w, d, under, t, chunky ? Math.min(0.014, t / 2.6) : Math.min(0.006, t / 3), chunky))
 
     const styleBlock = ctx.block('legStyle') as LegStyle
     const style: LegStyle = base === 'hairpin' ? 'hairpin' : styleBlock
@@ -65,8 +68,8 @@ export const table = defineFamily({
 
     // Leg spots: corners of the inset rectangle, or on the ellipse for round tops.
     const legSpots = (): Array<[number, number]> => {
-      if (!round) return legGrid(-w / 2, w / 2, -d / 2, d / 2, style, inset)
-      const half = legHalfWidth(style)
+      if (!round) return legGrid(-w / 2, w / 2, -d / 2, d / 2, style, inset, chunky)
+      const half = legHalfWidth(style, chunky)
       const a = Math.max(0.01, w / 2 - inset - half * 1.5)
       const b = Math.max(0.01, d / 2 - inset - half * 1.5)
       return [0, 1, 2, 3].map((i) => {
@@ -79,11 +82,11 @@ export const table = defineFamily({
       case 'legs':
       case 'hairpin': {
         const spots = legSpots()
-        for (const [x, z] of spots) ctx.add('base', leg(style, under + 0.001, x, z))
+        for (const [x, z] of spots) ctx.add('base', leg(style, under + 0.001, x, z, chunky))
         if (ctx.block('shelf') === 'lower' && !round) {
           const xs = spots.map(([x]) => x)
           const zs = spots.map(([, z]) => z)
-          const half = legHalfWidth(style)
+          const half = legHalfWidth(style, chunky)
           const sh = Math.min(ctx.param('shelfHeight'), under * 0.5)
           ctx.add('top', slab(Math.min(...xs) - half, Math.max(...xs) + half, sh, sh + Math.min(0.022, t), Math.min(...zs) - half, Math.max(...zs) + half, HARD))
         }
@@ -136,7 +139,7 @@ export const table = defineFamily({
     if (drawers !== 'none' && !round && (base === 'legs' || base === 'hairpin')) {
       const count = Number(drawers)
       const dh = Math.min(0.11, under * 0.2)
-      const half = legHalfWidth(style)
+      const half = legHalfWidth(style, chunky)
       const x0 = -w / 2 + inset + half * 2 + 0.01
       const x1 = w / 2 - inset - half * 2 - 0.01
       if (x1 - x0 > 0.2) {
@@ -145,8 +148,8 @@ export const table = defineFamily({
         const width = (x1 - x0 - 0.004 * (count - 1)) / count
         for (let i = 0; i < count; i++) {
           const fx0 = x0 + i * (width + 0.004)
-          ctx.add('top', slab(fx0, fx0 + width, under - dh + 0.004, under - 0.004, face - 0.018, face, 0.003))
-          const pull = handle('knob', fx0 + width / 2, under - dh / 2, face)
+          ctx.add('top', slab(fx0, fx0 + width, under - dh + 0.004, under - 0.004, face - 0.018, face, chunky ? 0.01 : 0.003))
+          const pull = handle('knob', fx0 + width / 2, under - dh / 2, face, false, 0.12, chunky)
           if (pull) ctx.add('base', pull)
         }
       }

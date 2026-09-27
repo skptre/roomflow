@@ -26,9 +26,10 @@ const MAX_VALUES_LISTED = 14
 
 /** Parts the model never colors: styling that doesn't come with the product, or fixed materials. */
 const UNREAD_SLOTS: Readonly<Record<string, readonly string[]>> = {
-  bed: ['bedding', 'pillows'],
+  bed: ['bedding', 'pillows', 'throw'],
   planter: ['soil'],
   mirror: ['glass'],
+  art: ['accent', 'accent2'],
 }
 
 /** Materials a part may be made of, by its family material. */
@@ -52,8 +53,20 @@ const SLOT_MATERIALS: Readonly<Record<string, readonly MaterialKind[]>> = {
   'dining-chair.seat': ['wood', 'fabric', 'leather', 'metal'],
 }
 
-/** Blocks that style the scene rather than describe the product (a bed's pillows, whether a curtain is drawn). */
-const UNREAD_BLOCKS: Readonly<Record<string, readonly string[]>> = { bed: ['pillows'], curtain: ['draw'] }
+/**
+ * Blocks that style the scene rather than describe the product (a bed's pillows, whether a curtain is drawn,
+ * the sample room's chunky proportion, an art motif). Left out of the prompt, so its text and the answer cache stay put.
+ */
+const UNREAD_BLOCKS: Readonly<Record<string, readonly string[]>> = {
+  bed: ['pillows', 'proportion', 'throw'],
+  curtain: ['draw'],
+  storage: ['proportion'],
+  table: ['proportion'],
+  'dining-chair': ['proportion'],
+  sofa: ['proportion'],
+  chair: ['proportion'],
+  art: ['motif'],
+}
 
 function materialChoices(family: Family, slot: string): readonly MaterialKind[] {
   return SLOT_MATERIALS[`${family.id}.${slot}`] ?? MATERIAL_CHOICES[family.slots[slot]!.kind]

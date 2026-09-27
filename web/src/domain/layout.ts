@@ -190,6 +190,60 @@ export function wallSpot(room: Room, candidate: RoomObject, mountHeight: number)
   return null
 }
 
+/** Where a hung item sits on its wall: the wall, its center along the wall (m from `wall.start`), and its bottom height. */
+export type WallPlacement = { wall: Wall; along: number; bottom: number }
+
+/** The host wall of a hung item and where on it the item sits, or null if it rests against no wall. */
+export function wallPlacement(room: Room, object: RoomObject): WallPlacement | null {
+  const id = hostWall(room, object)
+  const wall = id ? room.walls.find((w) => w.id === id) : undefined
+  if (!wall) return null
+  const dx = wall.end.x - wall.start.x
+  const dz = wall.end.z - wall.start.z
+  const length = Math.hypot(dx, dz) || 1
+  const along = ((object.pose.position.x - wall.start.x) * dx + (object.pose.position.z - wall.start.z) * dz) / length
+  return { wall, along, bottom: object.pose.position.y }
+}
+
+/**
+ * The item slid along its wall to a new center `along` and `bottom` height:
+ * still against the same wall and facing the room, its size unchanged, kept
+ * clear of the wall's ends, the floor and the ceiling line. Null if it hangs on no wall.
+ */
+export function slideOnWall(room: Room, object: RoomObject, along: number, bottom: number): RoomObject | null {
+  const placement = wallPlacement(room, object)
+  if (!placement) return null
+  const { wall } = placement
+  const { width, height, depth } = object.dimensions
+  const length = Math.hypot(wall.end.x - wall.start.x, wall.end.z - wall.start.z) || 1
+  const dir = { x: (wall.end.x - wall.start.x) / length, z: (wall.end.z - wall.start.z) / length }
+  const inward = inwardNormal(room, wall)
+  const lo = width / 2 + WALL_MARGIN
+  const hi = length - width / 2 - WALL_MARGIN
+  const u = lo <= hi ? Math.min(hi, Math.max(lo, along)) : length / 2
+  const y = Math.min(Math.max(0, wall.height - height - WALL_MARGIN), Math.max(0, bottom))
+  const position = {
+    x: wall.start.x + dir.x * u + inward.x * (depth / 2 + WALL_GAP),
+    z: wall.start.z + dir.z * u + inward.z * (depth / 2 + WALL_GAP),
+  }
+  return placedAt(object, position, Math.atan2(inward.x, inward.z), y)
+}
+
+/** Would a hung item cover a door or window on its wall? */
+export function coversOpening(room: Room, object: RoomObject): boolean {
+  const placement = wallPlacement(room, object)
+  if (!placement) return false
+  const { wall, along, bottom } = placement
+  const { width, height } = object.dimensions
+  return room.openings.some(
+    (opening) =>
+      opening.wallId === wall.id &&
+      Math.abs(along - opening.offsetAlongWall) < (opening.width + width) / 2 &&
+      bottom < opening.bottom + opening.height &&
+      opening.bottom < bottom + height,
+  )
+}
+
 /** How far above a window's top a curtain rod goes, and how far the curtain hangs off the wall (clear of the frame). */
 const ROD_ABOVE_WINDOW = 0.15
 const CURTAIN_GAP = 0.03

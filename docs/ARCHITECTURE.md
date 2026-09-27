@@ -124,10 +124,12 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `web/src/import/zip.ts` | Dependency-free ZIP reader (`readZip`, `crc32`, `ZipError`, `DEFAULT_ZIP_LIMITS`) |
 | `web/src/ui/evidenceStore.ts` | In-memory package evidence beside the loaded room (`evidenceStore.set`, `regionsFor`, `artPhotoFor`) |
 | `web/src/test/zipWriter.ts` | Test-only ZIP builder (`makeZip`) with tampering options |
-| `web/src/domain/` | Pure logic: schema, units, geometry, layout, money, purchases, catalog, commands, design store, themes, labels, mounting |
-| `web/src/scene/` | React Three Fiber scene: architecture, furniture, camera, lighting, cutaway (wall-mounted items hide with their wall: `isWallMounted` + `hostWall`), gestures |
+| `web/src/domain/` | Pure logic: schema (incl. optional `Room.zones` / `Zone`: per-room floor and wall finishes), units, geometry, layout, money, purchases, catalog, commands, design store, themes, labels, mounting |
+| `web/src/scene/` | React Three Fiber scene: architecture (zone floors, per-face wall paint via `splitFaces`), furniture, camera, lighting, cutaway (exterior walls and camera-facing partitions; wall-mounted items hide with their wall: `isWallMounted` + `hostWall`), gestures |
 | `web/src/scene/ArtPhoto.tsx` | `ArtPhoto`: a wall-art object's package photo as a textured plane on its front face; disposes texture/object URL |
-| `web/src/domain/categories.ts`, `layout.ts` | Categories (`CATEGORIES` incl. built-in `closet`, `isWallHung`, `isWallMounted`); placement (`inwardNormal`, `hostWall`, `wallSpot`, …) |
+| `web/src/domain/categories.ts`, `layout.ts` | Categories (`CATEGORIES` incl. built-in `closet`, `isWallHung`, `isWallMounted`); placement (`inwardNormal`, `hostWall`, `wallSpot`, …); hung pieces on their wall (`WallPlacement`, `wallPlacement`, `slideOnWall`, `coversOpening`) |
+| `web/src/domain/catalog.ts` | Catalog query/ranking and placement; `defaultVariantIndex` (wall pieces start at the listed size nearest a typical one) |
+| `web/src/scene/floorPointer.ts` | Pointer → floor (`floorPoint`) or a wall's plane (`wallPoint`: along + height), `yawOf` |
 | `web/src/recognition/` | Gemini photo matching (snapshot of Codex's work): `contract.ts` (`Appearance`, `RecognitionResponse`), `appearance.ts` (`appearanceCommand`), `appearanceAsset.ts`; server side in `web/server/recognition*.ts` |
 | `web/src/roomDesigner/contract.ts`, `contract.test.ts` | Strict redacted Gemini room-design boundary: `RoomSummary`, `RoomDesignRequest`, prose-free `RoomDesignIntent` (normalized, strict) and flat model-facing `RoomDesignIntentWire` (sent to Gemini; no oneOf/const/pattern/length keywords), `RoomDesignResponse` type, `RoomDesignDescription`, catalog-only `ROOM_DESIGN_CATEGORIES`, `roomSummary`, `parseRoomDesignIntent` (normalizes palette color / remove+replace duplicates, then validates), `parseRoomDesignResponse`, `describeRoomDesignIntent`; bounded contract regressions |
 | `web/src/roomDesigner/proposal.ts`, `proposal.test.ts` | Local design resolver: `RoomDesignProposalInput`, `RoomDesignProposal`, `buildRoomDesignProposal`; palette `set` paints walls/accents with a readable floor variant, seeded layout, catalog-backed add/replace, validated commands, visible skips, derived purchase and budget summary |
@@ -135,9 +137,11 @@ Room package · Editable Room JSON. Saved Rooms reopens any saved room.
 | `web/src/recognition/cropPhoto.ts` | Browser crops for auto-match: `cropPhotoRegion` (padded, upright, ≤1024 px JPEG), `prepareAutoMatch` (status check + plan + crops; sends nothing) |
 | `web/src/ui/AutoMatchDialog.tsx` | Post-import offer: exact crops, one consent, progress, applies all matches as one undo step |
 | `web/src/ui/` | Interface components |
-| `web/src/fixtures/` | Sample catalog and synthetic RoomPlan fixture |
-| `web/src/blocks/` | Validated recipe renderer for catalog products, captured furniture, wall art, mirrors, and closet fronts |
-| `web/scripts/` | Fixture and test-GLB generators |
+| `web/src/fixtures/` | Sample catalog and synthetic RoomPlan fixtures (`synthetic-bedroom` for tests, `demo-home` for the app's sample) |
+| `web/src/fixtures/demoRoom.ts` | The app's sample bedroom: `demoRoom()` (import `demo-home.roomplan.json` + `furnish`), `furnish()` (names four scanned pieces, chunky `demo:*` recipes, one of each decor, curtains via `windowSpot`; default finishes), `DEMO_RECIPES` |
+| `web/src/scene/zonePaint.ts` | Room zones → paint: `zoneAt(room, point)`, `wallFaceColors(room, wall)` → `FaceColors` (left/right face; outside faces match inside) |
+| `web/src/blocks/` | Validated recipe renderer for catalog products, captured furniture, wall art, mirrors, and closet fronts. `families/shared.ts`: `PROPORTION` block (`classic`/`chunky`), `hardEdge`, chunky `leg`/`legGrid`/`handle` |
+| `web/scripts/` | Fixture and test-GLB generators (`generate-demo-home.mjs` → the sample home scan) |
 
 Commands: see `web/README.md` (`npm ci`, `npm run dev`, `typecheck`, `lint`, `test`, `build`).
 

@@ -8,7 +8,10 @@ import { Shape } from 'three'
 import type { BuildContext } from '../family'
 import { defineFamily } from '../family'
 import { align, arcBand, cushion, extrudeShape, lathe, place, slab, type Geo } from '../kit'
-import { GAP, SOFT, leg, legGrid, type LegStyle } from './shared'
+import { GAP, PROPORTION, SOFT, leg, legGrid, type LegStyle } from './shared'
+
+/** The chunky proportion (see PROPORTION in shared.ts): fat, softly rounded legs. */
+const chunky = (ctx: BuildContext) => ctx.block('proportion') === 'chunky'
 
 type SeatSpec = {
   seatH: number
@@ -173,9 +176,9 @@ function seatRun(ctx: BuildContext, run: Run, s: SeatSpec) {
     return
   }
   const style = LEG_STYLE[s.base] ?? 'tapered'
-  for (const [x, z] of legGrid(0, run.L, 0, run.D, style, 0.03)) {
+  for (const [x, z] of legGrid(0, run.L, 0, run.D, style, 0.03, chunky(ctx))) {
     if ((!legsStart && x < run.L / 2 && run.L > 0.3) || (!legsEnd && x > run.L / 2 && run.L > 0.3)) continue
-    add('legs', leg(style, s.legH, x, z))
+    add('legs', leg(style, s.legH, x, z, chunky(ctx)))
   }
 }
 
@@ -226,6 +229,7 @@ export const sofa = defineFamily({
     arm: { options: ['track', 'rolled', 'slope', 'flared', 'none'], default: 'track' },
     back: { options: ['tight', 'pillow', 'channel'], default: 'pillow' },
     base: { options: ['tapered-legs', 'block-legs', 'metal-legs', 'plinth'], default: 'tapered-legs' },
+    proportion: PROPORTION,
   },
   params: {
     ...seatParams,
@@ -299,6 +303,7 @@ export const chair = defineFamily({
     back: { options: ['tight', 'pillow', 'channel'], default: 'tight' },
     top: { options: ['rect', 'round'], default: 'rect' },
     base: { options: ['tapered-legs', 'block-legs', 'metal-legs', 'plinth', 'swivel'], default: 'tapered-legs' },
+    proportion: PROPORTION,
   },
   params: {
     ...seatParams,
@@ -359,8 +364,8 @@ function ottomanOrBench(ctx: BuildContext, form: 'ottoman' | 'bench') {
         const r = Math.min(w, d) / 2 - 0.06
         return [Math.cos(a) * r, Math.sin(a) * r]
       })
-    : legGrid(-w / 2, w / 2, -d / 2, d / 2, style, 0.02)
-  for (const [x, z] of spots) ctx.add('legs', leg(style, legTop, x, z))
+    : legGrid(-w / 2, w / 2, -d / 2, d / 2, style, 0.02, chunky(ctx))
+  for (const [x, z] of spots) ctx.add('legs', leg(style, legTop, x, z, chunky(ctx)))
 }
 
 /** A round cushion: flat bottom, rounded rim, gently domed top. */
@@ -403,8 +408,10 @@ function barrel(ctx: BuildContext, s: SeatSpec) {
     return
   }
   const style = LEG_STYLE[s.base] ?? 'tapered'
+  // Tucked well under the round seat: the shell's soft bottom edge curves in, so legs near the rim look detached.
+  const legR = R * 0.62
   for (let i = 0; i < 4; i++) {
     const a = Math.PI / 4 + (i * Math.PI) / 2
-    ctx.add('legs', leg(style, s.legH, Math.cos(a) * (R - 0.07), cz + Math.sin(a) * (R - 0.07)))
+    ctx.add('legs', leg(style, s.legH, Math.cos(a) * legR, cz + Math.sin(a) * legR, chunky(ctx)))
   }
 }
