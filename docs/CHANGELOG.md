@@ -1,5 +1,9 @@
 # Changelog
 
+### 2026-09-27 — web: require confirmed stock and known budget prices in room proposals
+
+Updated `web/src/roomDesigner/proposal.ts` and `proposal.test.ts`. `buildRoomDesignProposal` now selects only offers with `available: true`; when a budget is supplied, additions and replacements require a known price in the budget currency. Full rearrangement validates the exact final position and yaw, including doorway clearance, before keeping its move/rotate command sequence. Added regressions for unreported stock, null prices under budget, and an alternate-yaw doorway placement.
+
 ### 2026-09-27 — web: resolve room-design intent locally
 
 Added `web/src/roomDesigner/proposal.ts` and `proposal.test.ts`. `RoomDesignProposalInput`, `RoomDesignProposal`, and `buildRoomDesignProposal` turn validated intent into seeded, deterministic room commands using matching catalog entries and local placement checks. Each accepted command applies with the automated actor and no overlap warning; skipped changes carry a reason. The proposal includes a purchase summary with explicit currency and unknown-price budget status. Tests cover palette, layout, catalog identity, budget, keep/lock constraints, capacity, and auto application.
