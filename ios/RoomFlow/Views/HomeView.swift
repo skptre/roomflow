@@ -30,20 +30,37 @@ struct HomeView: View {
             ZStack {
                 Color.rfBackground.ignoresSafeArea()
 
-                VStack(spacing: 12) {
-                    Spacer()
+                GeometryReader { geometry in
+                ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Roomflow")
+                        .font(.system(size: 27, weight: .semibold))
+                        .tracking(-1.2)
+                        .foregroundStyle(Color.rfInk)
+                        .padding(.top, 22)
 
-                    Text("ROOMFLOW")
-                        .font(.system(size: 40, weight: .semibold))
-                        .tracking(8)
-                        .foregroundStyle(.white)
-                    Text("Your room, with anything you find.")
-                        .font(.subheadline)
+                    Spacer(minLength: 42)
+
+                    Text("YOUR SPACE, READY TO EXPLORE")
+                        .font(.system(size: 11, weight: .bold))
+                        .tracking(1.5)
+                        .foregroundStyle(Color.rfAccent)
+                    Text("Your room,\nwith anything\nyou find.")
+                        .font(.system(size: 49, weight: .regular))
+                        .tracking(-2.8)
+                        .lineSpacing(-3)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.75)
+                        .foregroundStyle(Color.rfInk)
+                        .padding(.top, 15)
+                    Text("Scan here, then share your room file to open it in the browser.")
+                        .font(.body)
                         .foregroundStyle(Color.rfSecondaryText)
+                        .padding(.top, 16)
 
-                    Spacer()
+                    Spacer(minLength: 38)
 
-                    Button("Scan a Room", systemImage: "viewfinder") {
+                    Button("Scan my room", systemImage: "viewfinder") {
                         if RoomScanService.isSupported {
                             isScanning = true
                         } else {
@@ -51,6 +68,7 @@ struct HomeView: View {
                         }
                     }
                     .buttonStyle(RFButtonStyle())
+                    .padding(.bottom, 10)
 
                     Button("Scan a Piece", systemImage: "scope") {
                         if RoomScanService.isSupported { isScanningPiece = true }
@@ -70,7 +88,7 @@ struct HomeView: View {
                                 .foregroundStyle(Color.rfSecondaryText)
                         }
                     }
-                    .tint(.accentColor)
+                    .tint(Color.rfAccent)
                     .padding(.vertical, 4)
 
                     NavigationLink {
@@ -78,13 +96,19 @@ struct HomeView: View {
                     } label: {
                         Label("Saved Rooms", systemImage: "square.stack.3d.up")
                     }
-                    .buttonStyle(RFButtonStyle(prominent: false))
+                    .foregroundStyle(Color.rfAccent)
+                    .padding(.vertical, 16)
 
                     #if DEBUG
                     debugMenu
                     #endif
                 }
-                .padding(24)
+                .padding(.horizontal, 26)
+                .padding(.bottom, 28)
+                .frame(minHeight: geometry.size.height, alignment: .top)
+                }
+                .scrollIndicators(.hidden)
+                }
             }
             .navigationDestination(isPresented: $showEditor) {
                 if let latestRoom {
@@ -102,12 +126,16 @@ struct HomeView: View {
                 isScanning = false
             }
         }
+        .preferredColorScheme(.light)
+        .tint(Color.rfAccent)
         .fullScreenCover(isPresented: $isScanningPiece) {
             PieceScanView(capturePhotos: includeReferencePhotos)
         }
         .alert("Couldn't save this room", isPresented: $showSaveError) {
             Button("Retry") { Task { await saveAndOpenLatest() } }
-            Button("Continue Without Saving", role: .cancel) { showEditor = true }
+            Button("Continue Without Saving", role: .cancel) {
+                showEditor = true
+            }
         } message: {
             Text("\(saveError ?? "") The scan is still open and can be shared, but it won't appear in Saved Rooms.")
         }

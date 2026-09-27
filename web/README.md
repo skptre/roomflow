@@ -11,6 +11,8 @@ npm test
 npm run build
 ```
 
+To open a room scanned on iPhone, share its RoomPlan JSON or RoomFlow room package to your computer, then choose **Open my scan** in the browser.
+
 Design tokens: `src/index.css` (`@theme`) and `src/scene/palette.ts`. Pure domain logic: `src/domain/` (no React, no three).
 
 ## Optional Gemini furniture appearance

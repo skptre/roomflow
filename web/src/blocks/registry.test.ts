@@ -5,7 +5,7 @@ import { validateRecipe, type Recipe } from './recipe'
 
 describe('default recipes', () => {
   it('exist and validate for every catalog category and every captured (RoomPlan) category we draw', () => {
-    for (const category of [...Object.keys(CATEGORIES), 'table', 'chair', 'storage']) {
+    for (const category of [...Object.keys(CATEGORIES), 'table', 'chair', 'storage', 'refrigerator', 'television', 'stove', 'oven', 'dishwasher', 'washer-dryer', 'sink', 'toilet', 'bathtub', 'fireplace', 'stairs']) {
       const id = defaultRecipeId(category)
       expect(id, category).not.toBeNull()
       const recipe = getRecipe(id!)
@@ -15,14 +15,14 @@ describe('default recipes', () => {
   })
 
   it('has no default for categories we cannot draw', () => {
-    expect(defaultRecipeId('fireplace')).toBeNull()
+    expect(defaultRecipeId('unknown')).toBeNull()
     expect(defaultRecipeId('constructor')).toBeNull()
   })
 
   it('builds a recipe asset for a category, with colors, or a placeholder', () => {
     expect(recipeAsset('sofa')).toEqual({ kind: 'recipe', recipeId: 'default:sofa' })
     expect(recipeAsset('sofa', { upholstery: '#445566' })).toEqual({ kind: 'recipe', recipeId: 'default:sofa', colors: { upholstery: '#445566' } })
-    expect(recipeAsset('television')).toEqual({ kind: 'placeholder' })
+    expect(recipeAsset('unknown')).toEqual({ kind: 'placeholder' })
   })
 })
 
@@ -32,7 +32,7 @@ describe('resolveRecipe', () => {
     registerRecipes([custom])
     expect(resolveRecipe('test:registry:sofa', 'sofa')).toEqual(custom)
     expect(resolveRecipe('missing', 'sofa')?.id).toBe('default:sofa')
-    expect(resolveRecipe('missing', 'fireplace')).toBeUndefined()
+    expect(resolveRecipe('missing', 'unknown')).toBeUndefined()
   })
 
   it('refuses to register an invalid recipe', () => {

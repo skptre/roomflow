@@ -1,19 +1,26 @@
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { createServer, type ViteDevServer } from 'vite'
 import { recognitionPlugin } from './recognitionPlugin'
 import { recognize } from './recognition'
 vi.mock('./recognition', async (original) => ({ ...await original<typeof import('./recognition')>(), recognize: vi.fn(async () => ({ appearance: { template: 'unsupported' } })) }))
 
-let server: ViteDevServer
+type Middleware = (req: IncomingMessage, res: ServerResponse, next: () => void) => void
+let server: Server
 let base: string
 beforeAll(async () => {
-  server = await createServer({ configFile: false, plugins: [recognitionPlugin({ key: 'private-test-key', paid: true, model: 'gemini-3.1-flash-lite' })], server: { host: '127.0.0.1', port: 0 } })
-  await server.listen()
-  const address = server.httpServer!.address()
+  // The plugin's middleware on a plain local HTTP server: the same request handling as in Vite,
+  // without booting a whole dev server (its startup work made this test time out under load).
+  const middlewares: Middleware[] = []
+  const plugin = recognitionPlugin({ key: 'private-test-key', paid: true, model: 'gemini-3.1-flash-lite' })
+  const configure = plugin.configureServer as (server: { middlewares: { use: (fn: Middleware) => void } }) => void
+  configure({ middlewares: { use: (fn) => middlewares.push(fn) } })
+  server = createServer((req, res) => middlewares[0]!(req, res, () => { res.statusCode = 404; res.end() }))
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
   if (!address || typeof address === 'string') throw new Error('Missing local test address')
   base = `http://127.0.0.1:${address.port}`
 })
-afterAll(async () => { await server?.close() })
+afterAll(async () => { await new Promise((resolve) => server?.close(resolve)) })
 describe('local recognition endpoint', () => {
   it('reports readiness without disclosing the key', async () => {
     const response = await fetch(`${base}/api/recognize/status`)
