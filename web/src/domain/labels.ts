@@ -12,8 +12,26 @@ export function formatLength(meters: number): string {
   return `${centimeters(meters)} cm`
 }
 
-/** Footprint first, then height: "160 × 210 × 95 cm" (width × depth × height). */
-export function formatDimensions(dimensions: Pick<Dimensions, 'width' | 'height' | 'depth'>): string {
+const FACES: Readonly<Record<string, readonly ['width', 'height' | 'depth']>> = {
+  'wall-art': ['width', 'height'],
+  mirror: ['width', 'height'],
+  curtain: ['width', 'height'],
+  closet: ['width', 'height'],
+  rug: ['width', 'depth'],
+}
+
+/** The two axes that are a flat thing's size (a print's width × height, a rug's width × length); null for furniture. */
+export function faceAxes(category: string | undefined): readonly ['width', 'height' | 'depth'] | null {
+  return category && Object.hasOwn(FACES, category) ? FACES[category]! : null
+}
+
+/**
+ * Footprint first, then height: "160 × 210 × 95 cm" (width × depth × height).
+ * Flat things show only their face ("61 × 91.4 cm"): their thickness is never listed.
+ */
+export function formatDimensions(dimensions: Pick<Dimensions, 'width' | 'height' | 'depth'>, category?: string): string {
+  const face = faceAxes(category)
+  if (face) return `${centimeters(dimensions[face[0]])} × ${centimeters(dimensions[face[1]])} cm`
   return `${centimeters(dimensions.width)} × ${centimeters(dimensions.depth)} × ${centimeters(dimensions.height)} cm`
 }
 
@@ -31,9 +49,9 @@ export function provenanceLabel(source: MeasurementSource): string {
 }
 
 /** A size with its source: "160 × 210 × 95 cm · listed", or "≈ … · estimated" when it is not a measurement. */
-export function formatSizeWithSource(dimensions: Dimensions): string {
+export function formatSizeWithSource(dimensions: Dimensions, category?: string): string {
   const measured = dimensions.source === 'merchant' || dimensions.source === 'captured' || dimensions.source === 'user'
-  return `${measured ? '' : '≈ '}${formatDimensions(dimensions)} · ${provenanceLabel(dimensions.source)}`
+  return `${measured ? '' : '≈ '}${formatDimensions(dimensions, category)} · ${provenanceLabel(dimensions.source)}`
 }
 
 export type PriceLabel ={ kind: 'owned' | 'price' | 'unknown'; text: string }

@@ -51,7 +51,7 @@ export function HoverTag({ object, sources }: { object: RoomObject; sources: Pur
         <span className="flex items-center gap-1.5 text-[11px] whitespace-nowrap text-muted">
           <span className={price.kind === 'price' ? 'font-medium text-ink' : undefined}>{price.text}</span>
           <span aria-hidden="true">·</span>
-          <span>{formatDimensions(object.dimensions)}</span>
+          <span>{formatDimensions(object.dimensions, object.category)}</span>
         </span>
       </div>
     </Html>
