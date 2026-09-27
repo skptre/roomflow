@@ -44,6 +44,8 @@ const whole = (micros: number) => {
 
 export class Ledger {
   private readonly calls = new Map<string, CallRecord>()
+  /** Events already applied (type + id), so the shared file can be re-read without double counting. */
+  private readonly seen = new Set<string>()
   private readonly options: Required<LedgerOptions>
 
   constructor(options: LedgerOptions) {
@@ -83,6 +85,15 @@ export class Ledger {
     this.record({ type: 'fail', id, at: this.options.now().toISOString(), charged })
   }
 
+  /**
+   * Apply events another process appended to the shared ledger file (a script
+   * while the app runs), so both count against one cap. Already-applied events,
+   * including this ledger's own, are skipped.
+   */
+  ingest(events: readonly LedgerEvent[]): void {
+    for (const event of events) this.apply(event)
+  }
+
   spentTodayMicros(): number {
     return this.today().reduce((sum, call) => sum + call.micros, 0)
   }
@@ -109,6 +120,9 @@ export class Ledger {
   }
 
   private apply(event: LedgerEvent): void {
+    const key = `${event.type}:${event.id}`
+    if (this.seen.has(key)) return
+    this.seen.add(key)
     switch (event.type) {
       case 'reserve':
         this.calls.set(event.id, { id: event.id, at: event.at, purpose: event.purpose, model: event.model, inputClass: event.inputClass, status: 'reserved', micros: event.micros })
