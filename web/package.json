@@ -9,7 +9,8 @@
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
     "lint": "oxlint --deny-warnings",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "judge": "npm run build && node scripts/judge-demo.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
@@ -32,6 +33,7 @@
     "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.1.1",
     "oxlint": "^1.81.0",
+    "qrcode": "^1.5.4",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
